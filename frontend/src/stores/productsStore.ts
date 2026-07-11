@@ -4,6 +4,7 @@ import type { Product, ProductDetailResponse } from '../types/product';
 
 interface CartItem {
   productId: number;
+  variantId?: number;
   quantity: number;
   name: string;
   price: number;
@@ -96,6 +97,9 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     const existing = cartItems.find(i => i.productId === productId);
 
     if (existing) {
+      if (localStorage.getItem('token') && existing.variantId) {
+        await api.post('/cart/items', { variant_id: existing.variantId, quantity });
+      }
       const updated = cartItems.map(i =>
         i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i
       );
@@ -105,8 +109,14 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       try {
         const res = await api.get<ProductDetailResponse>(`/products/${productId}`);
         const p = res.data.data;
+        const variantId = p.display_variant.id;
+        if (localStorage.getItem('token')) {
+          await api.post('/cart/items', { variant_id: variantId, quantity });
+        }
         const newItem: CartItem = {
-          productId, quantity,
+          productId,
+          variantId,
+          quantity,
           name: p.product_name,
           price: p.display_variant.effective_price,
           sale_price: p.display_variant.sale_price ?? undefined,

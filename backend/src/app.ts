@@ -29,6 +29,7 @@ import exercisesRoutes from './modules/exercises';
 import bookingRoutes from './modules/bookings/bookings.routes';
 import productRoutes from './modules/products/products.routes';
 import mediaRoutes from './modules/media/media.routes';
+import { cartRouter, addressRouter, checkoutRouter, orderRouter, adminRouter } from './modules/commerce/commerce.routes';
 
 const app = express();
 
@@ -92,6 +93,11 @@ app.use('/api/exercises', exercisesRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/cart', cartRouter);
+app.use('/api/addresses', addressRouter);
+app.use('/api/checkout', checkoutRouter);
+app.use('/api/orders', orderRouter);
+app.use('/api/admin', adminRouter);
 
 // CSRF protection for state-changing routes
 app.use(csrfProtection);

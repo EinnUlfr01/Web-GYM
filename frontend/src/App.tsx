@@ -37,6 +37,12 @@ import ExerciseDetail from './pages/exercises/ExerciseDetail';
 import WorkoutPrograms from './pages/exercises/WorkoutPrograms';
 import ProductsListPage from './pages/products/ProductsListPage';
 import ProductDetailPage from './pages/products/ProductDetailPage';
+import CartPage from './pages/cart/CartPage';
+import CheckoutPage from './pages/checkout/CheckoutPage';
+import OrdersPage from './pages/orders/OrdersPage';
+import OrderDetailPage from './pages/orders/OrderDetailPage';
+import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminInventoryPage from './pages/admin/AdminInventoryPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -90,11 +96,17 @@ export default function App() {
           <Route path="/booking" element={<CoachBooking />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/video" element={<VideoLibrary />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/analytics" element={<AdminRoute><AnalyticsPage /></AdminRoute>} />
           <Route path="/admin/audit" element={<AdminRoute><AuditPage /></AdminRoute>} />
           <Route path="/admin/revenue" element={<AdminRoute><RevenuePage /></AdminRoute>} />
           <Route path="/admin/backup" element={<AdminRoute><BackupPage /></AdminRoute>} />
+          <Route path="/admin/orders" element={<AdminRoute><AdminOrdersPage /></AdminRoute>} />
+          <Route path="/admin/inventory" element={<AdminRoute><AdminInventoryPage /></AdminRoute>} />
           <Route path="/coach" element={<CoachDashboard />} />
         </Route>
 

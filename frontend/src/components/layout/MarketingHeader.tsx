@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Dumbbell, Search, ChevronRight } from 'lucide-react';
+import { Menu, X, Dumbbell, Search, ChevronRight, ShoppingCart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -68,6 +68,9 @@ export default function MarketingHeader() {
           <div className="hidden lg:flex items-center gap-3">
             <Link to="/contact" className="premium-nav-link">
               <Search size={18} />
+            </Link>
+            <Link to="/cart" className="premium-nav-link" aria-label="Cart">
+              <ShoppingCart size={18} />
             </Link>
             {isAuthenticated ? (
               <Link to="/dashboard" className="hero-btn-primary text-sm px-6 py-2.5 flex items-center gap-2">

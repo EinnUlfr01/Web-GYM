@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Gift, Ticket, ShoppingBag, Star, BarChart3, Settings, LogOut, Wallet, Shield, FileText, Database, Building2, ChevronDown, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Gift, Ticket, ShoppingBag, Star, BarChart3, LogOut, Wallet, Shield, FileText, Database, Building2, ChevronDown, X, PackageCheck, Boxes } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useState } from 'react';
 
@@ -12,12 +12,16 @@ const navLinks = [
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
   { to: '/invoices', icon: FileText, label: 'Invoices' },
   { to: '/crm', icon: Building2, label: 'CRM' },
+  { to: '/cart', icon: ShoppingBag, label: 'Cart' },
+  { to: '/orders', icon: PackageCheck, label: 'Orders' },
 ]
 
 const adminLinks = [
   { to: '/admin', icon: Shield, label: 'Admin' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/admin/revenue', icon: Wallet, label: 'Revenue' },
+  { to: '/admin/orders', icon: PackageCheck, label: 'Commerce Orders' },
+  { to: '/admin/inventory', icon: Boxes, label: 'Inventory' },
   { to: '/admin/audit', icon: Database, label: 'Audit Log' },
   { to: '/admin/backup', icon: Shield, label: 'Backup' },
 ]
