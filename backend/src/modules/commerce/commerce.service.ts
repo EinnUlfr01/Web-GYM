@@ -1,6 +1,50 @@
 import { getPool, sql } from '../../config/database';
+import { AppError } from '../../middleware/errorHandler';
 
 export type CartLineInput = { variant_id: number; quantity: number };
+export type AddressInput = {
+  recipient_name: string;
+  phone: string;
+  address_line: string;
+  ward: string;
+  district: string;
+  province_city: string;
+  postal_code?: string | null;
+  is_default?: boolean;
+};
+
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+type CartLineRow = {
+  cart_item_id: number;
+  quantity: number;
+  variant_id: number;
+  product_id: number;
+  variant_name: string | null;
+  sku: string;
+  price: number;
+  sale_price: number | null;
+  effective_price: number;
+  is_active: boolean;
+  available: number;
+  product_name: string;
+  slug: string;
+  image_url: string | null;
+};
+type CartItem = ReturnType<typeof mapCartLine>;
+type OrderItemInventoryRow = { variant_id: number | null; quantity: number };
+type InventoryReservationRow = { reserved: number; on_hand: number };
+
+const orderStatusRank: Record<Exclude<OrderStatus, 'CANCELLED'>, number> = {
+  PENDING: 0,
+  CONFIRMED: 1,
+  PROCESSING: 2,
+  SHIPPED: 3,
+  DELIVERED: 4,
+};
+
+function commerceError(statusCode: number, message: string) {
+  return new AppError(statusCode, message);
+}
 
 const orderLineSelect = `
 SELECT
@@ -29,7 +73,7 @@ OUTER APPLY (
   ORDER BY pi.is_primary DESC, pi.sort_order ASC, pi.id ASC
 ) pi`;
 
-function mapCartLine(row: any) {
+function mapCartLine(row: CartLineRow) {
   const unitPrice = Number(row.effective_price);
   const quantity = Number(row.quantity);
   return {
@@ -78,8 +122,8 @@ export async function getCart(userId: number) {
   return {
     id: cartId,
     items,
-    subtotal: items.reduce((sum: number, item: any) => sum + item.line_total, 0),
-    count: items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+    subtotal: items.reduce((sum: number, item: CartItem) => sum + item.line_total, 0),
+    count: items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0)
   };
 }
 
@@ -93,12 +137,12 @@ async function assertVariantAvailable(variantId: number, quantity: number, tx?: 
     WHERE v.id = @variantId
   `);
   const variant = result.recordset[0];
-  if (!variant || !variant.is_active) throw new Error('Product variant is unavailable');
-  if (Number(variant.available) < quantity) throw new Error('Requested quantity exceeds available stock');
+  if (!variant || !variant.is_active) throw commerceError(404, 'Product variant is unavailable');
+  if (Number(variant.available) < quantity) throw commerceError(409, 'Requested quantity exceeds available stock');
 }
 
 export async function addCartItem(userId: number, input: CartLineInput) {
-  if (input.quantity <= 0) throw new Error('Quantity must be positive');
+  if (input.quantity <= 0) throw commerceError(400, 'Quantity must be positive');
   const pool = await getPool();
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -136,7 +180,7 @@ export async function updateCartItem(userId: number, itemId: number, quantity: n
   const item = await pool.request().input('cartId', cartId).input('itemId', itemId).query(`
     SELECT variant_id FROM dbo.CartItems WHERE id = @itemId AND cart_id = @cartId
   `);
-  if (!item.recordset[0]) throw new Error('Cart item not found');
+  if (!item.recordset[0]) throw commerceError(404, 'Cart item not found');
   await assertVariantAvailable(item.recordset[0].variant_id, quantity);
   await pool.request()
     .input('cartId', cartId)
@@ -156,12 +200,12 @@ export async function removeCartItem(userId: number, itemId: number) {
 }
 
 export async function mergeCart(userId: number, lines: CartLineInput[]) {
-  const adjustments: any[] = [];
+  const adjustments: Array<{ variant_id: number; quantity: number; reason: string }> = [];
   for (const line of lines) {
     try {
       await addCartItem(userId, line);
-    } catch (error: any) {
-      adjustments.push({ variant_id: line.variant_id, quantity: line.quantity, reason: error.message });
+    } catch (error) {
+      adjustments.push({ variant_id: line.variant_id, quantity: line.quantity, reason: error instanceof Error ? error.message : 'Unable to merge cart item' });
     }
   }
   return { cart: await getCart(userId), adjustments };
@@ -175,7 +219,7 @@ export async function listAddresses(userId: number) {
   return result.recordset;
 }
 
-export async function createAddress(userId: number, body: any) {
+export async function createAddress(userId: number, body: AddressInput) {
   const pool = await getPool();
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -207,7 +251,7 @@ export async function createAddress(userId: number, body: any) {
   }
 }
 
-export async function updateAddress(userId: number, id: number, body: any) {
+export async function updateAddress(userId: number, id: number, body: AddressInput) {
   const pool = await getPool();
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -234,7 +278,7 @@ export async function updateAddress(userId: number, id: number, body: any) {
         OUTPUT INSERTED.*
         WHERE id = @id AND user_id = @userId
       `);
-    if (!result.recordset[0]) throw new Error('Address not found');
+    if (!result.recordset[0]) throw commerceError(404, 'Address not found');
     await tx.commit();
     return result.recordset[0];
   } catch (error) {
@@ -245,7 +289,8 @@ export async function updateAddress(userId: number, id: number, body: any) {
 
 export async function deleteAddress(userId: number, id: number) {
   const pool = await getPool();
-  await pool.request().input('userId', userId).input('id', id).query('DELETE FROM dbo.UserAddresses WHERE id = @id AND user_id = @userId');
+  const result = await pool.request().input('userId', userId).input('id', id).query('DELETE FROM dbo.UserAddresses WHERE id = @id AND user_id = @userId');
+  if (result.rowsAffected[0] === 0) throw commerceError(404, 'Address not found');
 }
 
 export async function setDefaultAddress(userId: number, id: number) {
@@ -259,7 +304,7 @@ export async function setDefaultAddress(userId: number, id: number) {
       OUTPUT INSERTED.*
       WHERE id = @id AND user_id = @userId
     `);
-    if (!result.recordset[0]) throw new Error('Address not found');
+    if (!result.recordset[0]) throw commerceError(404, 'Address not found');
     await tx.commit();
     return result.recordset[0];
   } catch (error) {
@@ -270,11 +315,11 @@ export async function setDefaultAddress(userId: number, id: number) {
 
 export async function previewCheckout(userId: number, addressId?: number) {
   const cart = await getCart(userId);
-  if (cart.items.length === 0) throw new Error('Cart is empty');
-  const invalid = cart.items.filter((item: any) => !item.is_active || item.quantity > item.available);
-  if (invalid.length > 0) throw new Error('Cart contains unavailable quantities');
+  if (cart.items.length === 0) throw commerceError(400, 'Cart is empty');
+  const invalid = cart.items.filter((item: CartItem) => !item.is_active || item.quantity > item.available);
+  if (invalid.length > 0) throw commerceError(409, 'Cart contains unavailable quantities');
   const addresses = await listAddresses(userId);
-  const address = addressId ? addresses.find((item: any) => item.id === addressId) : addresses.find((item: any) => item.is_default) || addresses[0];
+  const address = addressId ? addresses.find((item) => item.id === addressId) : addresses.find((item) => item.is_default) || addresses[0];
   return {
     cart,
     address: address || null,
@@ -301,7 +346,7 @@ export async function placeOrder(userId: number, addressId: number) {
       SELECT * FROM dbo.UserAddresses WHERE id = @addressId AND user_id = @userId
     `);
     const address = addressResult.recordset[0];
-    if (!address) throw new Error('Shipping address not found');
+    if (!address) throw commerceError(404, 'Shipping address not found');
 
     const linesResult = await new sql.Request(tx).input('cartId', cartId).query(`
       ${orderLineSelect}
@@ -309,12 +354,12 @@ export async function placeOrder(userId: number, addressId: number) {
       ORDER BY ci.created_at ASC
     `);
     const lines = linesResult.recordset.map(mapCartLine);
-    if (lines.length === 0) throw new Error('Cart is empty');
+    if (lines.length === 0) throw commerceError(400, 'Cart is empty');
     for (const line of lines) {
-      if (!line.is_active || line.quantity > line.available) throw new Error(`Insufficient stock for ${line.product_name}`);
+      if (!line.is_active || line.quantity > line.available) throw commerceError(409, `Insufficient stock for ${line.product_name}`);
     }
 
-    const subtotal = lines.reduce((sum: number, line: any) => sum + line.line_total, 0);
+    const subtotal = lines.reduce((sum: number, line: CartItem) => sum + line.line_total, 0);
     const orderResult = await new sql.Request(tx)
       .input('orderNumber', orderNumber())
       .input('userId', userId)
@@ -405,7 +450,7 @@ export async function getOrder(userId: number, orderId: number, admin = false) {
     WHERE o.id = @orderId ${admin ? '' : 'AND o.user_id = @userId'}
   `);
   const order = orderResult.recordset[0];
-  if (!order) throw new Error('Order not found');
+  if (!order) throw commerceError(404, 'Order not found');
   const itemsResult = await pool.request().input('orderId', orderId).query('SELECT * FROM dbo.OrderItems WHERE order_id = @orderId ORDER BY id');
   return { ...order, items: itemsResult.recordset };
 }
@@ -419,9 +464,9 @@ export async function cancelOrder(userId: number, orderId: number) {
       SELECT * FROM dbo.Orders WHERE id = @orderId AND user_id = @userId
     `);
     const current = order.recordset[0];
-    if (!current) throw new Error('Order not found');
-    if (!['PENDING', 'CONFIRMED', 'PROCESSING'].includes(current.status)) throw new Error('Order can no longer be cancelled');
-    const items = await new sql.Request(tx).input('orderId', orderId).query('SELECT variant_id, quantity FROM dbo.OrderItems WHERE order_id = @orderId');
+    if (!current) throw commerceError(404, 'Order not found');
+    if (!['PENDING', 'CONFIRMED', 'PROCESSING'].includes(current.status)) throw commerceError(409, 'Order can no longer be cancelled');
+    const items = await new sql.Request(tx).input('orderId', orderId).query<OrderItemInventoryRow>('SELECT variant_id, quantity FROM dbo.OrderItems WHERE order_id = @orderId');
     for (const item of items.recordset) {
       if (item.variant_id) {
         await new sql.Request(tx).input('variantId', item.variant_id).input('quantity', item.quantity).query(`
@@ -452,23 +497,45 @@ export async function adminListOrders() {
   return result.recordset;
 }
 
+function assertStatusTransition(current: OrderStatus, next: OrderStatus) {
+  if (current === next) return;
+  if (current === 'CANCELLED' || current === 'DELIVERED') throw commerceError(409, `Order ${current.toLowerCase()} status is final`);
+  if (next === 'CANCELLED') {
+    if (!['PENDING', 'CONFIRMED', 'PROCESSING'].includes(current)) throw commerceError(409, 'Order can no longer be cancelled');
+    return;
+  }
+  if (current === 'SHIPPED' && next !== 'DELIVERED') throw commerceError(409, 'Shipped orders can only be delivered');
+  if (orderStatusRank[next] < orderStatusRank[current]) throw commerceError(409, 'Order status cannot move backwards');
+  if (orderStatusRank[next] - orderStatusRank[current] > 1) throw commerceError(409, 'Order status transition must follow the lifecycle');
+}
+
 export async function updateOrderStatus(orderId: number, status: string) {
-  const allowed = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-  if (!allowed.includes(status)) throw new Error('Invalid order status');
+  const allowed: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+  if (!allowed.includes(status as OrderStatus)) throw commerceError(400, 'Invalid order status');
+  const nextStatus = status as OrderStatus;
   const pool = await getPool();
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
     const current = await new sql.Request(tx).input('orderId', orderId).query('SELECT status FROM dbo.Orders WHERE id = @orderId');
-    if (!current.recordset[0]) throw new Error('Order not found');
-    if (status === 'DELIVERED' && current.recordset[0].status !== 'DELIVERED') {
-      const items = await new sql.Request(tx).input('orderId', orderId).query('SELECT variant_id, quantity FROM dbo.OrderItems WHERE order_id = @orderId');
+    if (!current.recordset[0]) throw commerceError(404, 'Order not found');
+    const currentStatus = current.recordset[0].status as OrderStatus;
+    assertStatusTransition(currentStatus, nextStatus);
+    if (nextStatus === 'DELIVERED' && currentStatus !== 'DELIVERED') {
+      const items = await new sql.Request(tx).input('orderId', orderId).query<OrderItemInventoryRow>('SELECT variant_id, quantity FROM dbo.OrderItems WHERE order_id = @orderId');
       for (const item of items.recordset) {
         if (item.variant_id) {
+          const inventory = await new sql.Request(tx)
+            .input('variantId', item.variant_id)
+            .query<InventoryReservationRow>('SELECT reserved, on_hand FROM dbo.Inventory WHERE variant_id = @variantId');
+          const reservation = inventory.recordset[0];
+          if (!reservation || Number(reservation.reserved) < Number(item.quantity) || Number(reservation.on_hand) < Number(item.quantity)) {
+            throw commerceError(409, 'Reserved inventory is insufficient to deliver this order');
+          }
           await new sql.Request(tx).input('variantId', item.variant_id).input('quantity', item.quantity).query(`
             UPDATE dbo.Inventory
             SET on_hand = on_hand - @quantity,
-                reserved = CASE WHEN reserved >= @quantity THEN reserved - @quantity ELSE 0 END,
+                reserved = reserved - @quantity,
                 updated_at = SYSUTCDATETIME()
             WHERE variant_id = @variantId
           `);
@@ -476,7 +543,7 @@ export async function updateOrderStatus(orderId: number, status: string) {
       }
       await new sql.Request(tx).input('orderId', orderId).query("UPDATE dbo.OrderPayments SET status = N'PAID', paid_at = SYSUTCDATETIME(), updated_at = SYSUTCDATETIME() WHERE order_id = @orderId AND method = N'COD'");
     }
-    await new sql.Request(tx).input('orderId', orderId).input('status', status).query('UPDATE dbo.Orders SET status = @status, updated_at = SYSUTCDATETIME() WHERE id = @orderId');
+    await new sql.Request(tx).input('orderId', orderId).input('status', nextStatus).query('UPDATE dbo.Orders SET status = @status, updated_at = SYSUTCDATETIME() WHERE id = @orderId');
     await tx.commit();
     return getOrder(0, orderId, true);
   } catch (error) {

@@ -4,6 +4,7 @@ import { CreditCard, MapPin } from 'lucide-react';
 import { commerceApi } from '../../services/commerce';
 import type { Address, CheckoutPreview } from '../../types/commerce';
 import { formatMoney } from '../../utils/currency';
+import { getApiErrorMessage } from '../../utils/errors';
 
 const blankAddress: Omit<Address, 'id'> = {
   recipient_name: '',
@@ -23,6 +24,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState(blankAddress);
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
   const [error, setError] = useState('');
+  const [placing, setPlacing] = useState(false);
 
   const load = async () => {
     const [existing, nextPreview] = await Promise.all([commerceApi.listAddresses(), commerceApi.previewCheckout()]);
@@ -35,10 +37,15 @@ export default function CheckoutPage() {
 
   const createAddress = async (event: FormEvent) => {
     event.preventDefault();
-    const created = await commerceApi.createAddress(address);
-    setAddresses([created, ...addresses]);
-    setSelectedId(created.id);
-    setAddress(blankAddress);
+    try {
+      setError('');
+      const created = await commerceApi.createAddress(address);
+      setAddresses([created, ...addresses]);
+      setSelectedId(created.id);
+      setAddress(blankAddress);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to save address'));
+    }
   };
 
   const placeOrder = async () => {
@@ -46,8 +53,20 @@ export default function CheckoutPage() {
       setError('Create or select a shipping address first');
       return;
     }
-    const order = await commerceApi.placeOrder(selectedId);
-    navigate(`/orders/${order.id}`);
+    if (!preview?.cart.items.length) {
+      setError('Your cart is empty');
+      return;
+    }
+    try {
+      setPlacing(true);
+      setError('');
+      const order = await commerceApi.placeOrder(selectedId);
+      navigate(`/orders/${order.id}`);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Unable to place order'));
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (
@@ -88,7 +107,7 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><span>Payment</span><span>COD</span></div>
           </div>
           <div className="mt-4 flex justify-between border-t border-[#1e293b] pt-4 text-lg font-bold"><span>Total</span><span>{formatMoney(preview?.grand_total, preview?.currency)}</span></div>
-          <button onClick={placeOrder} className="hero-btn-primary mt-5 w-full py-3">Place order</button>
+          <button onClick={placeOrder} disabled={placing || !selectedId || !preview?.cart.items.length} className="hero-btn-primary mt-5 w-full py-3 disabled:opacity-60">{placing ? 'Placing...' : 'Place order'}</button>
         </aside>
       </div>
     </div>
