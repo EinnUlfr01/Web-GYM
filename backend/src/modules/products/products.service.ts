@@ -267,7 +267,7 @@ export const productsService = {
       is_primary: Boolean(image.is_primary)
     }));
     product.variants = variants;
-    product.display_variant = variants.find((variant: any) => variant.id === product.display_variant.id);
+    product.display_variant = variants.find((variant: any) => variant.id === product.display_variant.id) || variants[0] || product.display_variant;
     return attachImages(product, images);
   },
 
