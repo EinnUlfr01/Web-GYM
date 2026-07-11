@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { commerceApi } from '../../services/commerce';
 import type { Order } from '../../types/commerce';
+import { formatMoney } from '../../utils/currency';
 
 const statuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
 
@@ -30,7 +31,7 @@ export default function AdminOrdersPage() {
                 <td className="p-3 font-semibold">{order.order_number}</td>
                 <td className="p-3 text-[#94A3B8]">{order.name || order.email}</td>
                 <td className="p-3 text-[#94A3B8]">{order.payment_method} {order.payment_status}</td>
-                <td className="p-3">${Number(order.grand_total).toFixed(2)}</td>
+                <td className="p-3">{formatMoney(order.grand_total, order.currency)}</td>
                 <td className="p-3">
                   <select value={order.status} onChange={(e) => update(order, e.target.value)} className="rounded-md border border-[#334155] bg-[#020617] px-2 py-1">
                     {statuses.map((status) => <option key={status}>{status}</option>)}

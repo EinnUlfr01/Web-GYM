@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PackageCheck } from 'lucide-react';
 import { commerceApi } from '../../services/commerce';
 import type { Order } from '../../types/commerce';
+import { formatMoney } from '../../utils/currency';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -31,7 +32,7 @@ export default function OrdersPage() {
             </div>
             <div className="text-sm text-[#94A3B8]">{order.status}</div>
             <div className="text-sm text-[#94A3B8]">{order.payment_method} {order.payment_status}</div>
-            <div className="font-semibold">${Number(order.grand_total).toFixed(2)}</div>
+            <div className="font-semibold">{formatMoney(order.grand_total, order.currency)}</div>
           </Link>
         ))}
       </div>

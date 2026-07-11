@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreditCard, MapPin } from 'lucide-react';
 import { commerceApi } from '../../services/commerce';
 import type { Address, CheckoutPreview } from '../../types/commerce';
+import { formatMoney } from '../../utils/currency';
 
 const blankAddress: Omit<Address, 'id'> = {
   recipient_name: '',
@@ -82,11 +83,11 @@ export default function CheckoutPage() {
         <aside className="h-fit rounded-lg border border-[#1e293b] bg-[#0F172A] p-5">
           <div className="mb-4 flex items-center gap-2 font-semibold"><CreditCard size={18} className="text-[#22C55E]" />Order summary</div>
           <div className="space-y-2 text-sm text-[#94A3B8]">
-            <div className="flex justify-between"><span>Subtotal</span><span>${Number(preview?.subtotal || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Shipping</span><span>${Number(preview?.shipping_fee || 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(preview?.subtotal, preview?.currency)}</span></div>
+            <div className="flex justify-between"><span>Shipping</span><span>{formatMoney(preview?.shipping_fee, preview?.currency)}</span></div>
             <div className="flex justify-between"><span>Payment</span><span>COD</span></div>
           </div>
-          <div className="mt-4 flex justify-between border-t border-[#1e293b] pt-4 text-lg font-bold"><span>Total</span><span>${Number(preview?.grand_total || 0).toFixed(2)}</span></div>
+          <div className="mt-4 flex justify-between border-t border-[#1e293b] pt-4 text-lg font-bold"><span>Total</span><span>{formatMoney(preview?.grand_total, preview?.currency)}</span></div>
           <button onClick={placeOrder} className="hero-btn-primary mt-5 w-full py-3">Place order</button>
         </aside>
       </div>

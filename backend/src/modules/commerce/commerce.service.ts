@@ -282,7 +282,7 @@ export async function previewCheckout(userId: number, addressId?: number) {
     discount_total: 0,
     shipping_fee: 0,
     grand_total: cart.subtotal,
-    currency: 'USD',
+    currency: 'VND',
     payment_methods: ['COD']
   };
 }
@@ -333,7 +333,7 @@ export async function placeOrder(userId: number, addressId: number) {
            recipient_name, phone, address_line, ward, district, province_city, postal_code)
         OUTPUT INSERTED.*
         VALUES
-          (@orderNumber, @userId, N'CONFIRMED', @subtotal, 0, 0, @grandTotal, N'USD',
+          (@orderNumber, @userId, N'CONFIRMED', @subtotal, 0, 0, @grandTotal, N'VND',
            @recipientName, @phone, @addressLine, @ward, @district, @provinceCity, @postalCode)
       `);
     const order = orderResult.recordset[0];

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { commerceApi } from '../../services/commerce';
 import type { Order } from '../../types/commerce';
+import { formatMoney } from '../../utils/currency';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -37,7 +38,7 @@ export default function OrderDetailPage() {
                 <div className="font-semibold">{item.product_name_snapshot}</div>
                 <div className="text-sm text-[#94A3B8]">SKU {item.sku_snapshot} · Qty {item.quantity}</div>
               </div>
-              <div className="font-semibold">${Number(item.line_total).toFixed(2)}</div>
+              <div className="font-semibold">{formatMoney(item.line_total, order.currency)}</div>
             </div>
           ))}
         </section>
@@ -45,7 +46,7 @@ export default function OrderDetailPage() {
           <h2 className="mb-3 font-semibold">Shipping snapshot</h2>
           <p>{order.recipient_name} - {order.phone}</p>
           <p className="text-[#94A3B8]">{order.address_line}, {order.ward}, {order.district}, {order.province_city}</p>
-          <div className="mt-4 flex justify-between border-t border-[#1e293b] pt-4 text-lg font-bold"><span>Total</span><span>${Number(order.grand_total).toFixed(2)}</span></div>
+          <div className="mt-4 flex justify-between border-t border-[#1e293b] pt-4 text-lg font-bold"><span>Total</span><span>{formatMoney(order.grand_total, order.currency)}</span></div>
           <Link to="/orders" className="mt-4 block text-[#22C55E] hover:text-[#86efac]">Back to orders</Link>
         </aside>
       </div>
