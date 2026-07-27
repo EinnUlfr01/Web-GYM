@@ -295,7 +295,7 @@ export const productsService = {
     const pool = await getPool();
     const [categories, brands] = await Promise.all([
       pool.request().query('SELECT slug, name FROM dbo.Categories WHERE is_active = 1 ORDER BY name'),
-      pool.request().query('SELECT slug, name FROM dbo.Brands WHERE is_active = 1 ORDER BY name')
+      pool.request().query('SELECT id,slug,name,is_generic AS isGeneric FROM dbo.Brands WHERE is_active = 1 ORDER BY name')
     ]);
     return { categories: categories.recordset, brands: brands.recordset };
   }

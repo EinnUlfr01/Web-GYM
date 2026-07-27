@@ -127,3 +127,15 @@ All endpoints require ADMIN. Suspending requires a reason. Status and
 verification updates lock the Shop row and write `AuditLogs`. GymFit Official
 cannot be suspended or unverified. No Shop delete or owner-transfer endpoint
 exists.
+# SELLER-003 Brand Request APIs
+
+- Seller: `GET/POST /api/seller/brand-requests` and
+  `GET /api/seller/brand-requests/:requestId`. Ownership is resolved from the
+  authenticated Seller Shop; cross-Shop IDs return 404.
+- Admin: `GET /api/admin/brand-requests`,
+  `GET /api/admin/brand-requests/:requestId`,
+  `POST .../:requestId/approve`, and `POST .../:requestId/reject`.
+- Seller create uses strict payload validation and a configurable 10/24h
+  user+IP limiter. Suspended Shops cannot create requests.
+- Active Brand selectors return `id`, `name`, and `isGeneric`; inactive Brands
+  are excluded.

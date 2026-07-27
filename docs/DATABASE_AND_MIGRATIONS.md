@@ -51,3 +51,10 @@ Key invariants:
 SELLER-002 acceptance databases must start with
 `GYMFIT_DB_SELLER002_ACCEPTANCE_` and require `SELLER002_ACCEPTANCE=1`.
 Canonical `GYMFIT_DB` is explicitly refused by the acceptance runner.
+# Migration 0102 — Brand Request and moderation
+
+Migration 0102 adds unique `Brands.normalized_name`, protected `is_generic`,
+the Generic Brand, transactional `BrandRequests`, and immutable
+`BrandRequestStatusHistory`. It preserves existing Brand IDs and every
+`Products.brand_id` reference. A filtered unique index permits only one global
+PENDING request per normalized name.

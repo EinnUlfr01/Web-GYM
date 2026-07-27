@@ -101,8 +101,8 @@ export const adminProductsService = {
 
   async filters() {
     const pool = await getPool();
-    const [categories, brands] = await Promise.all([pool.request().query('SELECT id,name,slug FROM dbo.Categories WHERE is_active=1 ORDER BY name'), pool.request().query('SELECT id,name,slug FROM dbo.Brands WHERE is_active=1 ORDER BY name')]);
-    return { categories: categories.recordset, brands: brands.recordset };
+    const [categories, brands] = await Promise.all([pool.request().query('SELECT id,name,slug FROM dbo.Categories WHERE is_active=1 ORDER BY name'), pool.request().query('SELECT id,name,slug,is_generic isGeneric FROM dbo.Brands WHERE is_active=1 ORDER BY name')]);
+    return { categories: categories.recordset, brands: brands.recordset.map(row=>({...row,isGeneric:Boolean(row.isGeneric)})) };
   },
 
   async get(id: number) {

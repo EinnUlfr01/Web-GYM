@@ -1528,3 +1528,55 @@ GO
 PRINT '========================================';
 GO
 
+-- SELLER-002/003 canonical marketplace convergence
+CREATE TABLE dbo.Shops(
+ id INT IDENTITY(1,1) PRIMARY KEY,owner_user_id INT NULL,system_key NVARCHAR(100) NULL,name NVARCHAR(200) NOT NULL,slug NVARCHAR(200) NOT NULL,
+ logo_url NVARCHAR(500) NULL,banner_url NVARCHAR(500) NULL,description NVARCHAR(2000) NULL,pickup_address NVARCHAR(500) NULL,
+ status NVARCHAR(20) NOT NULL DEFAULT N'ACTIVE',is_verified BIT NOT NULL DEFAULT 0,is_system BIT NOT NULL DEFAULT 0,
+ average_rating DECIMAL(3,2) NOT NULL DEFAULT 0,review_count INT NOT NULL DEFAULT 0,completed_order_count INT NOT NULL DEFAULT 0,sold_count INT NOT NULL DEFAULT 0,
+ created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),updated_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),row_version ROWVERSION,
+ CONSTRAINT FK_Shops_Owner FOREIGN KEY(owner_user_id) REFERENCES dbo.Users(id),CONSTRAINT UQ_Shops_Slug UNIQUE(slug),
+ CONSTRAINT CK_Shops_Status CHECK(status IN(N'ACTIVE',N'SUSPENDED')),
+ CONSTRAINT CK_Shops_SystemOwnership CHECK((is_system=1 AND owner_user_id IS NULL AND system_key IS NOT NULL) OR (is_system=0 AND owner_user_id IS NOT NULL AND system_key IS NULL))
+);
+CREATE UNIQUE INDEX UX_Shops_Owner ON dbo.Shops(owner_user_id) WHERE owner_user_id IS NOT NULL;
+CREATE UNIQUE INDEX UX_Shops_SystemKey ON dbo.Shops(system_key) WHERE system_key IS NOT NULL;
+INSERT dbo.Shops(system_key,name,slug,status,is_verified,is_system) VALUES(N'GYMFIT_OFFICIAL',N'GymFit Official',N'gymfit-official',N'ACTIVE',1,1);
+ALTER TABLE dbo.Products ADD shop_id INT NULL;
+GO
+UPDATE dbo.Products SET shop_id=(SELECT id FROM dbo.Shops WHERE system_key=N'GYMFIT_OFFICIAL');
+ALTER TABLE dbo.Products ALTER COLUMN shop_id INT NOT NULL;
+ALTER TABLE dbo.Products ADD CONSTRAINT FK_Products_Shops FOREIGN KEY(shop_id) REFERENCES dbo.Shops(id);
+CREATE INDEX IX_Products_Shop_Active ON dbo.Products(shop_id,is_active,id);
+GO
+
+ALTER TABLE dbo.Brands ADD normalized_name NVARCHAR(200) NULL,is_generic BIT NOT NULL DEFAULT 0;
+GO
+UPDATE dbo.Brands SET normalized_name=LOWER(LTRIM(RTRIM(name)));
+WHILE EXISTS(SELECT 1 FROM dbo.Brands WHERE normalized_name LIKE N'%  %') UPDATE dbo.Brands SET normalized_name=REPLACE(normalized_name,N'  ',N' ');
+ALTER TABLE dbo.Brands ALTER COLUMN normalized_name NVARCHAR(200) NOT NULL;
+CREATE UNIQUE INDEX UX_Brands_NormalizedName ON dbo.Brands(normalized_name);
+CREATE UNIQUE INDEX UX_Brands_OneGeneric ON dbo.Brands(is_generic) WHERE is_generic=1;
+IF EXISTS(SELECT 1 FROM dbo.Brands WHERE normalized_name=LOWER(N'Không có thương hiệu'))
+ UPDATE dbo.Brands SET is_generic=1,is_active=1 WHERE normalized_name=LOWER(N'Không có thương hiệu');
+ELSE INSERT dbo.Brands(name,slug,normalized_name,is_generic,is_active) VALUES(N'Không có thương hiệu',N'khong-co-thuong-hieu',LOWER(N'Không có thương hiệu'),1,1);
+GO
+
+CREATE TABLE dbo.BrandRequests(
+ id INT IDENTITY(1,1) PRIMARY KEY,requester_user_id INT NOT NULL,shop_id INT NOT NULL,requested_name NVARCHAR(200) NOT NULL,normalized_name NVARCHAR(200) NOT NULL,
+ website_url NVARCHAR(500) NULL,description NVARCHAR(2000) NULL,status NVARCHAR(20) NOT NULL DEFAULT N'PENDING',resolved_brand_id INT NULL,
+ review_reason NVARCHAR(1000) NULL,reviewed_by_user_id INT NULL,reviewed_at DATETIME2 NULL,created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+ updated_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),row_version ROWVERSION,
+ FOREIGN KEY(requester_user_id) REFERENCES dbo.Users(id),FOREIGN KEY(shop_id) REFERENCES dbo.Shops(id),FOREIGN KEY(resolved_brand_id) REFERENCES dbo.Brands(id),
+ FOREIGN KEY(reviewed_by_user_id) REFERENCES dbo.Users(id),CHECK(status IN(N'PENDING',N'APPROVED',N'REJECTED')),
+ CONSTRAINT CK_BrandRequests_State CHECK((status=N'PENDING' AND resolved_brand_id IS NULL AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL AND review_reason IS NULL)
+ OR(status=N'APPROVED' AND resolved_brand_id IS NOT NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)
+ OR(status=N'REJECTED' AND resolved_brand_id IS NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL AND LEN(LTRIM(RTRIM(review_reason)))>0))
+);
+CREATE UNIQUE INDEX UX_BrandRequests_PendingNormalized ON dbo.BrandRequests(normalized_name) WHERE status=N'PENDING';
+CREATE INDEX IX_BrandRequests_Shop_Status_Created ON dbo.BrandRequests(shop_id,status,created_at DESC,id DESC);
+CREATE TABLE dbo.BrandRequestStatusHistory(id BIGINT IDENTITY(1,1) PRIMARY KEY,brand_request_id INT NOT NULL,from_status NVARCHAR(20) NULL,to_status NVARCHAR(20) NOT NULL,actor_user_id INT NULL,reason NVARCHAR(1000) NULL,created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),FOREIGN KEY(brand_request_id) REFERENCES dbo.BrandRequests(id),FOREIGN KEY(actor_user_id) REFERENCES dbo.Users(id));
+GO
+CREATE OR ALTER TRIGGER dbo.TR_BrandRequestStatusHistory_Immutable ON dbo.BrandRequestStatusHistory AFTER UPDATE,DELETE AS BEGIN SET NOCOUNT ON;THROW 51300,'Brand request status history is immutable.',1;END;
+GO
+

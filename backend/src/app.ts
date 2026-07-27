@@ -36,11 +36,13 @@ import userRoutes from './modules/users/users.routes';
 import sellerApplicationRoutes from './modules/seller-applications/seller-applications.routes';
 import adminSellerApplicationRoutes from './modules/seller-applications/admin-seller-applications.routes';
 import { adminShopRouter, publicShopRouter, sellerShopRouter } from './modules/shops/shops.routes';
+import brandRequestRoutes from './modules/brand-requests/brand-requests.routes';
+import adminBrandRequestRoutes from './modules/brand-requests/admin-brand-requests.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -106,6 +108,8 @@ app.use('/api/admin/seller-applications', adminSellerApplicationRoutes);
 app.use('/api/seller/shop', sellerShopRouter);
 app.use('/api/shops', publicShopRouter);
 app.use('/api/admin/shops', adminShopRouter);
+app.use('/api/seller/brand-requests',brandRequestRoutes);
+app.use('/api/admin/brand-requests',adminBrandRequestRoutes);
 app.use('/api/media', mediaRoutes);
 
 app.use(notFoundHandler);

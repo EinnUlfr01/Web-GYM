@@ -4,9 +4,11 @@ import bcrypt from 'bcryptjs';
 import * as sql from 'mssql';
 import { config } from '../config/config';
 
-if(process.env.SELLER002_ACCEPTANCE!=='1')throw new Error('SELLER002_ACCEPTANCE=1 is required');
+const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1';
+if(!seller002&&!seller003)throw new Error('SELLER002_ACCEPTANCE=1 or SELLER003_ACCEPTANCE=1 is required');
 const target=config.db.database;
-if(target==='GYMFIT_DB'||!/^GYMFIT_DB_SELLER002_ACCEPTANCE_[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
+const safePrefix=seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
+if(target==='GYMFIT_DB'||!target.startsWith(safePrefix)||!/^[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
 const action=process.argv[2];
 const masterConfig={...config.db,database:'master'};
 
@@ -24,6 +26,16 @@ async function run(){
     const dbPool=await new sql.ConnectionPool({...config.db,database:target}).connect();
     try{
       for(const batch of batches(body))await dbPool.request().batch(batch);
+      if(await dbPool.request().query(`SELECT OBJECT_ID(N'dbo.BrandRequests') id`).then(r=>r.recordset[0].id)){
+        await dbPool.request().batch(`DROP TRIGGER IF EXISTS dbo.TR_BrandRequestStatusHistory_Immutable;DROP TABLE IF EXISTS dbo.BrandRequestStatusHistory;DROP TABLE IF EXISTS dbo.BrandRequests;
+          DELETE dbo.Brands WHERE is_generic=1;
+          DROP INDEX IF EXISTS UX_Brands_OneGeneric ON dbo.Brands;DROP INDEX IF EXISTS UX_Brands_NormalizedName ON dbo.Brands;
+          DECLARE @dc SYSNAME=(SELECT dc.name FROM sys.default_constraints dc JOIN sys.columns c ON c.default_object_id=dc.object_id WHERE c.object_id=OBJECT_ID(N'dbo.Brands') AND c.name=N'is_generic');
+          IF @dc IS NOT NULL BEGIN DECLARE @dropDc NVARCHAR(500)=N'ALTER TABLE dbo.Brands DROP CONSTRAINT '+QUOTENAME(@dc);EXEC(@dropDc);END;
+          ALTER TABLE dbo.Brands DROP COLUMN normalized_name,is_generic;
+          ALTER TABLE dbo.Products DROP CONSTRAINT FK_Products_Shops;DROP INDEX IX_Products_Shop_Active ON dbo.Products;ALTER TABLE dbo.Products DROP COLUMN shop_id;
+          DROP TABLE dbo.Shops;`);
+      }
       await dbPool.request().batch(`DROP TRIGGER IF EXISTS dbo.TR_SellerApplicationStatusHistory_Immutable;
         DROP TABLE IF EXISTS dbo.SellerApplicationStatusHistory;
         DROP TABLE IF EXISTS dbo.SellerApplications;`);
