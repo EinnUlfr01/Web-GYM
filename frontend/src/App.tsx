@@ -51,6 +51,10 @@ import SellerApplicationPage from './pages/seller/SellerApplicationPage';
 import SellerFoundationPage from './pages/seller/SellerFoundationPage';
 import AdminSellerApplicationsPage from './pages/admin/AdminSellerApplicationsPage';
 import AdminSellerApplicationDetailPage from './pages/admin/AdminSellerApplicationDetailPage';
+import SellerShopPage from './pages/seller/SellerShopPage';
+import PublicShopPage from './pages/shops/PublicShopPage';
+import AdminShopsPage from './pages/admin/AdminShopsPage';
+import AdminShopDetailPage from './pages/admin/AdminShopDetailPage';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -88,6 +92,7 @@ export default function App() {
         <Route path="/workout-programs" element={<MarketingHeaderWrapper><WorkoutPrograms /></MarketingHeaderWrapper>} />
         <Route path="/products" element={<MarketingHeaderWrapper><ProductsListPage /></MarketingHeaderWrapper>} />
         <Route path="/products/:id" element={<MarketingHeaderWrapper><ProductDetailPage /></MarketingHeaderWrapper>} />
+        <Route path="/shops/:shopSlug" element={<MarketingHeaderWrapper><PublicShopPage /></MarketingHeaderWrapper>} />
         <Route path="/cart" element={<MarketingHeaderWrapper><CartPage /></MarketingHeaderWrapper>} />
 
         {/* AUTH */}
@@ -109,6 +114,7 @@ export default function App() {
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/seller/apply" element={<AccessRoute path="/seller/apply"><SellerApplicationPage /></AccessRoute>} />
           <Route path="/seller" element={<AccessRoute path="/seller"><SellerFoundationPage /></AccessRoute>} />
+          <Route path="/seller/shop" element={<AccessRoute path="/seller/shop"><SellerShopPage /></AccessRoute>} />
           <Route path="/orders/:orderId" element={<AccessRoute path="/orders"><CustomerOrderDetailPage /></AccessRoute>} />
           <Route path="/orders" element={<AccessRoute path="/orders"><CustomerOrdersPage /></AccessRoute>} />
           <Route path="/checkout" element={<AccessRoute path="/checkout"><CheckoutPage /></AccessRoute>} />
@@ -123,6 +129,8 @@ export default function App() {
           <Route path="/admin/orders/:orderId" element={<AccessRoute path="/admin"><AdminOrderDetailPage /></AccessRoute>} />
           <Route path="/admin/seller-applications" element={<AccessRoute path="/admin"><AdminSellerApplicationsPage /></AccessRoute>} />
           <Route path="/admin/seller-applications/:applicationId" element={<AccessRoute path="/admin"><AdminSellerApplicationDetailPage /></AccessRoute>} />
+          <Route path="/admin/shops" element={<AccessRoute path="/admin"><AdminShopsPage /></AccessRoute>} />
+          <Route path="/admin/shops/:shopId" element={<AccessRoute path="/admin"><AdminShopDetailPage /></AccessRoute>} />
           <Route path="/admin/categories" element={<AccessRoute path="/admin"><AdminCatalogPage entity="categories" /></AccessRoute>} />
           <Route path="/admin/brands" element={<AccessRoute path="/admin"><AdminCatalogPage entity="brands" /></AccessRoute>} />
           <Route path="/admin/inventory" element={<AccessRoute path="/admin"><AdminInventoryPage /></AccessRoute>} />

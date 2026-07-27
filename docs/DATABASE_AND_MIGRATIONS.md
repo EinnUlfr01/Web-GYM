@@ -29,3 +29,25 @@ Marketplace allocation is reserved as Coach `0007`–`0049`, shared `0050`–`00
 Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
 
 Canonical migration `0006_auth_session_security.sql` applied successfully via the migration runner with checksum `e6608c0d29d163f4f4a6627e8e1f34fa22f642bbec1f3cea5ac01cc31982dd74`; pending migrations are `0` and checksum mismatches are `0`. Backup and `RESTORE VERIFYONLY WITH CHECKSUM` passed before mutation.
+# Migration 0101 — Shop ownership baseline
+
+`0101_shop_foundation_and_product_ownership_baseline.sql` creates `Shops`, the
+GymFit Official system row, Seller Shop backfill and mandatory
+`Products.shop_id`.
+
+Key invariants:
+
+- filtered unique indexes enforce one Shop per non-null owner and unique
+  `system_key`;
+- Shop slug is unique;
+- system Shops have no owner and non-system Shops require an owner;
+- Shop status is ACTIVE or SUSPENDED and aggregate placeholders are bounded;
+- every Product has a non-null, FK-backed Shop;
+- all Products that existed before 0101, including Product ID 0, belong to
+  `system_key=GYMFIT_OFFICIAL`;
+- Product, ProductVariant, Inventory and ProductImage identities and counts are
+  not rewritten.
+
+SELLER-002 acceptance databases must start with
+`GYMFIT_DB_SELLER002_ACCEPTANCE_` and require `SELLER002_ACCEPTANCE=1`.
+Canonical `GYMFIT_DB` is explicitly refused by the acceptance runner.

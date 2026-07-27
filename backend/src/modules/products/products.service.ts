@@ -36,6 +36,7 @@ CROSS APPLY (
 const joins = `
 LEFT JOIN dbo.Brands b ON p.brand_id = b.id
 LEFT JOIN dbo.Categories c ON p.category_id = c.id
+JOIN dbo.Shops shop ON shop.id=p.shop_id
 ${displayVariantApply}
 OUTER APPLY (
   SELECT TOP (1) pi.id, pi.image_url, pi.is_primary, pi.sort_order
@@ -53,7 +54,7 @@ function bindListParams(request: any, params: ProductListParams) {
 }
 
 function buildWhere(params: ProductListParams) {
-  const clauses = ['p.is_active = 1'];
+  const clauses = ['p.is_active = 1', `shop.status=N'ACTIVE'`];
   if (params.search) clauses.push('(p.product_name LIKE @search OR b.name LIKE @search)');
   if (params.category) clauses.push('c.slug = @category');
   if (params.brand) clauses.push('b.slug = @brand');
@@ -102,6 +103,7 @@ function mapProduct(row: any): any {
     brand_slug: row.brand_slug ?? null,
     category: row.category ?? null,
     category_slug: row.category_slug ?? null,
+    shop: { id:Number(row.shop_id),name:row.shop_name,slug:row.shop_slug,isVerified:Boolean(row.shop_verified) },
     is_active: Boolean(row.is_active),
     is_featured: Boolean(row.is_featured),
     is_on_sale: Boolean(row.is_on_sale),
@@ -140,6 +142,7 @@ const productSelect = `
 SELECT p.id, p.product_name, p.slug, p.description, p.description AS short_description,
   p.specifications, p.is_active, p.is_featured, p.is_on_sale, p.created_at,
   b.name AS brand, b.slug AS brand_slug, c.name AS category, c.slug AS category_slug,
+  shop.id AS shop_id,shop.name AS shop_name,shop.slug AS shop_slug,shop.is_verified AS shop_verified,
   dv.id AS variant_id, dv.variant_name, dv.sku AS variant_sku, dv.barcode AS variant_barcode,
   dv.price AS variant_price, dv.sale_price AS variant_sale_price,
   dv.effective_price, dv.weight AS variant_weight, dv.is_active AS variant_is_active, dv.is_default AS variant_is_default,
@@ -216,13 +219,13 @@ export const productsService = {
   async getDetail(predicate: string, lookup: string | number, includeInactive = false) {
     const pool = await getPool();
     const baseResult = await pool.request().input('lookup', lookup).query(
-      `${productSelect} WHERE ${predicate}${includeInactive ? '' : ' AND p.is_active = 1'}`
+      `${productSelect} WHERE ${predicate}${includeInactive ? '' : ` AND p.is_active = 1 AND shop.status=N'ACTIVE'`}`
     );
     if (!baseResult.recordset[0]) {
-      const unavailable=await pool.request().input('lookupFallback',lookup).query(`SELECT p.id,p.product_name,p.slug,p.description,p.description AS short_description,p.specifications,p.is_active,p.is_featured,p.is_on_sale,p.created_at,b.name AS brand,b.slug AS brand_slug,c.name AS category,c.slug AS category_slug FROM dbo.Products p LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.Categories c ON c.id=p.category_id WHERE ${predicate.replace('@lookup','@lookupFallback')}${includeInactive?'':' AND p.is_active=1'}`);
+      const unavailable=await pool.request().input('lookupFallback',lookup).query(`SELECT p.id,p.product_name,p.slug,p.description,p.description AS short_description,p.specifications,p.is_active,p.is_featured,p.is_on_sale,p.created_at,b.name AS brand,b.slug AS brand_slug,c.name AS category,c.slug AS category_slug,shop.id shop_id,shop.name shop_name,shop.slug shop_slug,shop.is_verified shop_verified FROM dbo.Products p LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.Categories c ON c.id=p.category_id JOIN dbo.Shops shop ON shop.id=p.shop_id WHERE ${predicate.replace('@lookup','@lookupFallback')}${includeInactive?'':` AND p.is_active=1 AND shop.status=N'ACTIVE'`}`);
       const row=unavailable.recordset[0];
       if(!row)return null;
-      return {...row,is_active:Boolean(row.is_active),is_featured:Boolean(row.is_featured),is_on_sale:Boolean(row.is_on_sale),display_variant:null,variants:[],images:[],primary_image:null,main_image:null,additional_images:null};
+      return {...row,is_active:Boolean(row.is_active),is_featured:Boolean(row.is_featured),is_on_sale:Boolean(row.is_on_sale),shop:{id:Number(row.shop_id),name:row.shop_name,slug:row.shop_slug,isVerified:Boolean(row.shop_verified)},display_variant:null,variants:[],images:[],primary_image:null,main_image:null,additional_images:null};
     }
 
     const product = mapProduct(baseResult.recordset[0]);

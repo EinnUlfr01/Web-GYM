@@ -96,3 +96,34 @@ Validation failures use 400-class responses, missing/invalid authentication uses
 Order and Payment histories are immutable normal-flow audit data. Email is attempted after committed commerce state and cannot roll back the transaction. Planned TASK-008 workout/progress APIs are **PLANNED, NOT IMPLEMENTED** and must enforce Member ownership, Coach scope, privacy and concurrency rules from the specification.
 
 Auth/RBAC closure preserved the canonical Order and verified no acceptance fixtures remain in the canonical database.
+# SELLER-002 Shop APIs
+
+## Seller
+
+- `GET /api/seller/shop` — SELLER only; resolves ownership exclusively from the
+  authenticated user.
+- `PATCH /api/seller/shop` — SELLER only; accepts only `name`, `slug`,
+  `logoUrl`, `bannerUrl`, `description`, and `pickupAddress`.
+
+Owner IDs, system identity, status, verification, aggregates and Product
+ownership are rejected by strict validation. Slug conflicts return 409.
+
+## Public
+
+- `GET /api/shops/:shopSlug?page=&limit=` — ACTIVE Shops only. The response
+  excludes owner data, pickup address and system key and includes paginated
+  active Products.
+- Existing public Product list/detail queries exclude Products belonging to a
+  SUSPENDED Shop and include an additive safe Shop summary.
+
+## Admin
+
+- `GET /api/admin/shops`
+- `GET /api/admin/shops/:shopId`
+- `PATCH /api/admin/shops/:shopId/status`
+- `PATCH /api/admin/shops/:shopId/verification`
+
+All endpoints require ADMIN. Suspending requires a reason. Status and
+verification updates lock the Shop row and write `AuditLogs`. GymFit Official
+cannot be suspended or unverified. No Shop delete or owner-transfer endpoint
+exists.

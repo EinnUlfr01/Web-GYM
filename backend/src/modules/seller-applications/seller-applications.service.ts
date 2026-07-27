@@ -7,6 +7,7 @@ import type {
   SellerApplicationInput,
   SellerApplicationStatus,
 } from './seller-applications.types';
+import { createSellerShopInTransaction } from '../shops/shops.service';
 
 const editableStatuses: SellerApplicationStatus[] = ['DRAFT', 'REJECTED', 'WITHDRAWN'];
 const submitStatuses: SellerApplicationStatus[] = ['DRAFT', 'REJECTED', 'WITHDRAWN'];
@@ -317,7 +318,7 @@ export const sellerApplicationsService = {
       await transaction.begin();
       started = true;
       const application = await transaction.request().input('applicationId', sql.Int, applicationId)
-        .query(`SELECT id,user_id,status FROM dbo.SellerApplications WITH (UPDLOCK,HOLDLOCK) WHERE id=@applicationId`);
+        .query(`SELECT id,user_id,status,business_name,pickup_address,description FROM dbo.SellerApplications WITH (UPDLOCK,HOLDLOCK) WHERE id=@applicationId`);
       const row = application.recordset[0];
       if (!row) throw new AppError(404, 'Seller application not found');
       if (row.status !== 'PENDING') throw new AppError(409, 'Only a pending application may be approved');
@@ -335,6 +336,12 @@ export const sellerApplicationsService = {
         SET revoked_at=COALESCE(revoked_at,SYSUTCDATETIME()) WHERE user_id=@sessionUserId`);
       await insertHistory(transaction, applicationId, 'PENDING', 'APPROVED', adminId, null);
       await insertAudit(transaction, adminId, applicationId, 'seller_application.approved', 'PENDING', 'APPROVED', null);
+      await createSellerShopInTransaction(transaction, {
+        userId:Number(row.user_id),
+        businessName:String(row.business_name),
+        pickupAddress:row.pickup_address ? String(row.pickup_address) : null,
+        description:row.description ? String(row.description) : null,
+      }, adminId);
       await transaction.commit();
       started = false;
       return this.getAdminDetail(applicationId);

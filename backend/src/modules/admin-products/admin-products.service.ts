@@ -124,13 +124,16 @@ export const adminProductsService = {
       const slug = await uniqueSlug(request, input.product_name!.trim());
       const duplicate = await tx.request().input('sku', sql.NVarChar, input.sku!.trim()).query('SELECT id FROM dbo.ProductVariants WHERE sku=@sku');
       if (duplicate.recordset[0]) throw new AppError(409, 'SKU already exists');
+      const official = await tx.request().query(`SELECT id FROM dbo.Shops WITH (UPDLOCK,HOLDLOCK) WHERE system_key=N'GYMFIT_OFFICIAL' AND is_system=1`);
+      if (!official.recordset[0]) throw new AppError(500, 'GymFit Official shop is missing; product creation was rolled back');
       const inserted = await tx.request()
         .input('name', sql.NVarChar, input.product_name!.trim()).input('slug', sql.NVarChar, slug).input('description', sql.NVarChar, input.description?.trim() || null)
         .input('brandId', sql.Int, input.brand_id || null).input('categoryId', sql.Int, input.category_id)
         .input('active', sql.Bit, input.is_active ?? true).input('featured', sql.Bit, input.is_featured ?? false).input('sale', sql.Bit, input.is_on_sale ?? false)
         .input('sku', sql.NVarChar, input.sku!.trim()).input('price', sql.Decimal(10,2), input.price).input('salePrice', sql.Decimal(10,2), input.sale_price ?? null).input('stock', sql.Int, input.stock)
-        .query(`INSERT dbo.Products(product_name,slug,description,sku,price,sale_price,stock,brand_id,category_id,is_active,is_featured,is_on_sale,created_at,updated_at)
-          OUTPUT INSERTED.id VALUES(@name,@slug,@description,@sku,@price,@salePrice,@stock,@brandId,@categoryId,@active,@featured,@sale,SYSUTCDATETIME(),SYSUTCDATETIME())`);
+        .input('officialShopId',sql.Int,official.recordset[0].id)
+        .query(`INSERT dbo.Products(product_name,slug,description,sku,price,sale_price,stock,brand_id,category_id,is_active,is_featured,is_on_sale,shop_id,created_at,updated_at)
+          OUTPUT INSERTED.id VALUES(@name,@slug,@description,@sku,@price,@salePrice,@stock,@brandId,@categoryId,@active,@featured,@sale,@officialShopId,SYSUTCDATETIME(),SYSUTCDATETIME())`);
       const productId = inserted.recordset[0].id;
       const variant = await tx.request().input('productId', productId).input('sku', input.sku!.trim()).input('price', input.price).input('salePrice', input.sale_price ?? null)
         .query(`INSERT dbo.ProductVariants(product_id,variant_name,sku,price,sale_price,is_active,is_default,created_at,updated_at) OUTPUT INSERTED.id VALUES(@productId,N'Default',@sku,@price,@salePrice,1,1,SYSUTCDATETIME(),SYSUTCDATETIME())`);
@@ -143,7 +146,7 @@ export const adminProductsService = {
     if (input.stock !== undefined) throw new AppError(400, 'Stock must be changed through inventory adjustment API');
     validate(input, true);
     const existing = await this.get(id);
-    const merged = { product_name: input.product_name?.trim() ?? existing.product_name, description: input.description === undefined ? existing.description : input.description?.trim() || null, sku: input.sku?.trim() ?? existing.display_variant.sku, price: input.price ?? existing.display_variant.price, sale_price: input.sale_price === undefined ? existing.display_variant.sale_price : input.sale_price, brand_id: input.brand_id === undefined ? existing.brand_id : input.brand_id, category_id: input.category_id ?? existing.category_id, is_active: input.is_active ?? existing.is_active, is_featured: input.is_featured ?? existing.is_featured, is_on_sale: input.is_on_sale ?? existing.is_on_sale };
+    const merged = { product_name: input.product_name?.trim() ?? existing.product_name, description: input.description === undefined ? existing.description : input.description?.trim() || null, sku: input.sku?.trim() ?? existing.display_variant.sku, price: input.price ?? existing.display_variant.price, sale_price: input.sale_price === undefined ? existing.display_variant.sale_price : input.sale_price, stock:existing.stock, brand_id: input.brand_id === undefined ? existing.brand_id : input.brand_id, category_id: input.category_id ?? existing.category_id, is_active: input.is_active ?? existing.is_active, is_featured: input.is_featured ?? existing.is_featured, is_on_sale: input.is_on_sale ?? existing.is_on_sale };
     validate(merged);
     const pool = await getPool(); const tx = pool.transaction(); await tx.begin();
     try {
