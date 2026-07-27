@@ -54,7 +54,7 @@ export default function SellerApplicationPage() {
   return <section className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
     <header><p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">Kênh người bán</p><h1 className="text-3xl font-bold">Hồ sơ đăng ký Seller</h1><p className="mt-2 text-slate-400">Lưu bản nháp trước, sau đó chủ động gửi xét duyệt.</p></header>
     {error&&<p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{error}</p>}
-    {application?.status==='REJECTED'&&<div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5"><strong>Hồ sơ cần chỉnh sửa</strong><p className="mt-2">{application.reviewReason}</p><p className="mt-2 text-sm text-slate-300">Reason cũ vẫn được giữ trong lịch sử khi bạn gửi lại.</p></div>}
+    {application?.status==='REJECTED'&&<div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5"><strong>Hồ sơ bị từ chối</strong><p className="mt-3 text-sm font-semibold text-red-100">Lý do từ chối</p><p className="mt-1 whitespace-pre-wrap text-slate-200">{application.reviewReason?.trim()||'Admin chưa cung cấp lý do chi tiết.'}</p><p className="mt-3 text-sm text-slate-300">Bạn có thể cập nhật hồ sơ và gửi lại để xét duyệt.</p><p className="mt-1 text-sm text-slate-400">Lý do từ chối trước đó vẫn được lưu trong lịch sử trạng thái.</p></div>}
     {application?.status==='WITHDRAWN'&&<div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">Hồ sơ đã rút. Bạn có thể chỉnh sửa và gửi lại cùng hồ sơ này.</div>}
     {pending&&<div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-5"><strong>Đang chờ xét duyệt</strong><p className="mt-2 text-slate-300">Đã gửi {application.submittedAt?new Date(application.submittedAt).toLocaleString('vi-VN'):'—'}. Hồ sơ đang ở chế độ chỉ đọc.</p></div>}
     <form onSubmit={onSave} className="grid gap-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 md:grid-cols-2 md:p-8">
@@ -64,4 +64,3 @@ export default function SellerApplicationPage() {
     {application&&<section className="rounded-2xl border border-slate-800 p-5"><h2 className="text-lg font-semibold">Lịch sử trạng thái</h2><ol className="mt-4 space-y-3">{application.history.map(item=><li key={item.id} className="border-l-2 border-emerald-500/40 pl-4"><strong>{item.fromStatus||'Mới'} → {item.toStatus}</strong><p className="text-sm text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')} · {item.actorName||'System'}</p>{item.reason&&<p className="text-sm text-red-200">{item.reason}</p>}</li>)}</ol></section>}
   </section>;
 }
-

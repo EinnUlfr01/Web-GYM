@@ -11,6 +11,7 @@
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:migrate:status": "tsx src/scripts/migrate.ts --status",
     "acceptance:seller-001": "tsx src/scripts/seller-001-acceptance.ts",
+    "acceptance:seller-001-password": "tsx src/scripts/seller-001-password-acceptance.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",
     "images:restore": "tsx src/scripts/restore-product-images.ts",
     "images:finalize": "tsx src/scripts/finalize-product-images.ts"
