@@ -26,6 +26,17 @@ TASK-008 is not started and may not reuse `0006`; any future numbering must be c
 
 Marketplace allocation is reserved as Coach `0007`–`0049`, shared `0050`–`0099`, and Seller `0100`–`0199`. SELLER-001 uses `0100`; applied migrations must never be renumbered or edited. `SellerApplications` owns one mutable application per User while `SellerApplicationStatusHistory` is append-only.
 
+SELLER-004 requires no database migration. Migration `0101` already provides
+the authoritative `Products.shop_id` NOT NULL foreign key and
+`IX_Products_Shop_Active`; its backfill assigned the legacy catalog to GymFit
+Official. ProductVariants, ProductImages, and Inventory intentionally do not
+duplicate `shop_id` because they inherit ownership through Product. The
+canonical state therefore remains nine applied migrations with no `0103`.
+
+SELLER-004 acceptance databases require `SELLER004_ACCEPTANCE=1`, use the
+`GYMFIT_DB_SELLER004_ACCEPTANCE_` prefix, and apply the existing `0001`–`0102`
+chain before tests.
+
 Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
 
 Canonical migration `0006_auth_session_security.sql` applied successfully via the migration runner with checksum `e6608c0d29d163f4f4a6627e8e1f34fa22f642bbec1f3cea5ac01cc31982dd74`; pending migrations are `0` and checksum mismatches are `0`. Backup and `RESTORE VERIFYONLY WITH CHECKSUM` passed before mutation.

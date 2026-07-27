@@ -4,10 +4,10 @@ import bcrypt from 'bcryptjs';
 import * as sql from 'mssql';
 import { config } from '../config/config';
 
-const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1';
-if(!seller002&&!seller003)throw new Error('SELLER002_ACCEPTANCE=1 or SELLER003_ACCEPTANCE=1 is required');
+const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1';
+if(!seller002&&!seller003&&!seller004)throw new Error('A SELLER002/003/004 acceptance flag is required');
 const target=config.db.database;
-const safePrefix=seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
+const safePrefix=seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
 if(target==='GYMFIT_DB'||!target.startsWith(safePrefix)||!/^[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
 const action=process.argv[2];
 const masterConfig={...config.db,database:'master'};

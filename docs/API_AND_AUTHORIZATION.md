@@ -139,3 +139,20 @@ exists.
   user+IP limiter. Suspended Shops cannot create requests.
 - Active Brand selectors return `id`, `name`, and `isGeneric`; inactive Brands
   are excluded.
+
+## SELLER-004 Product ownership APIs
+
+Catalog ownership is derived exclusively from `Products.shop_id`. Child
+resources inherit ownership through their Product; the backend never trusts a
+client Shop or owner identifier.
+
+| Method | Route | Authorization | Scope |
+|---|---|---|---|
+| GET | `/api/seller/products` | SELLER | Authenticated Seller's Shop only; includes inactive Products |
+| GET | `/api/seller/products/:productId` | SELLER | Own Product only; cross-Shop returns 404 |
+
+The Seller endpoints are read-only. Unknown list parameters and non-whitelisted
+sort/filter values return 400. Public Product APIs require both an active
+Product and an `ACTIVE` Shop and expose only a safe Shop summary. Admin Product
+APIs retain global scope and include Shop summary metadata; create resolves
+GymFit Official server-side and update cannot transfer ownership.

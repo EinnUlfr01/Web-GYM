@@ -1,4 +1,5 @@
 import { getPool } from '../../config/database';
+import { productScopes } from './product-ownership.service';
 
 export interface ProductListResult {
   products: any[];
@@ -54,7 +55,7 @@ function bindListParams(request: any, params: ProductListParams) {
 }
 
 function buildWhere(params: ProductListParams) {
-  const clauses = ['p.is_active = 1', `shop.status=N'ACTIVE'`];
+  const clauses = [productScopes.public];
   if (params.search) clauses.push('(p.product_name LIKE @search OR b.name LIKE @search)');
   if (params.category) clauses.push('c.slug = @category');
   if (params.brand) clauses.push('b.slug = @brand');

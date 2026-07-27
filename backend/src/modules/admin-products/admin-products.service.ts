@@ -88,15 +88,16 @@ export const adminProductsService = {
     const order = sorts[String(query.sort)] || sorts.updated_desc;
     const result = await request.query(`
       SELECT p.id,p.product_name,p.slug,p.description,p.brand_id,p.category_id,p.is_active,p.is_featured,p.is_on_sale,p.created_at,p.updated_at,
-        b.name brand,c.name category,c.slug category_slug,v.id variant_id,v.sku,v.price,v.sale_price,i.available stock,
+        b.name brand,c.name category,c.slug category_slug,s.id shop_id,s.name shop_name,s.slug shop_slug,s.status shop_status,s.is_verified shop_verified,v.id variant_id,v.sku,v.price,v.sale_price,i.available stock,
         pi.id image_id,pi.image_url,pi.is_primary,pi.sort_order,COUNT(*) OVER() total
       FROM dbo.Products p
       LEFT JOIN dbo.Brands b ON b.id=p.brand_id JOIN dbo.Categories c ON c.id=p.category_id
+      JOIN dbo.Shops s ON s.id=p.shop_id
       CROSS APPLY (SELECT TOP 1 * FROM dbo.ProductVariants WHERE product_id=p.id ORDER BY CASE WHEN variant_name=N'Default' THEN 0 ELSE 1 END,id) v
       JOIN dbo.Inventory i ON i.variant_id=v.id
       OUTER APPLY (SELECT TOP 1 * FROM dbo.ProductImages WHERE product_id=p.id ORDER BY is_primary DESC,sort_order,id) pi
       ${where} ORDER BY ${order},p.id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`);
-    return { products: result.recordset.map(row => ({ ...row, is_active: Boolean(row.is_active), is_featured: Boolean(row.is_featured), is_on_sale: Boolean(row.is_on_sale), primary_image: row.image_id ? { id: row.image_id, image_url: row.image_url, is_primary: Boolean(row.is_primary), sort_order: row.sort_order } : null })), page, limit, total: result.recordset[0]?.total || 0 };
+    return { products: result.recordset.map(row => ({ ...row, is_active: Boolean(row.is_active), is_featured: Boolean(row.is_featured), is_on_sale: Boolean(row.is_on_sale),shop:{id:Number(row.shop_id),name:row.shop_name,slug:row.shop_slug,status:row.shop_status,isVerified:Boolean(row.shop_verified)}, primary_image: row.image_id ? { id: row.image_id, image_url: row.image_url, is_primary: Boolean(row.is_primary), sort_order: row.sort_order } : null })), page, limit, total: result.recordset[0]?.total || 0 };
   },
 
   async filters() {
