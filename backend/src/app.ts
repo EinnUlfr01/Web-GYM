@@ -33,11 +33,13 @@ import adminInventoryRoutes from './modules/admin-inventory/admin-inventory.rout
 import adminOrderRoutes from './modules/admin-orders/admin-orders.routes';
 import orderRoutes from './modules/orders/orders.routes';
 import userRoutes from './modules/users/users.routes';
+import sellerApplicationRoutes from './modules/seller-applications/seller-applications.routes';
+import adminSellerApplicationRoutes from './modules/seller-applications/admin-seller-applications.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
 import path from 'path';
 
 const app = express();
-startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -98,6 +100,8 @@ app.use('/api/admin', adminInventoryRoutes);
 app.use('/api/admin', adminOrderRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/seller-applications', sellerApplicationRoutes);
+app.use('/api/admin/seller-applications', adminSellerApplicationRoutes);
 app.use('/api/media', mediaRoutes);
 
 app.use(notFoundHandler);

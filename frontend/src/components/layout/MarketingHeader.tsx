@@ -30,6 +30,7 @@ export default function MarketingHeader() {
     { to: '/membership', label: 'Pricing' },
     { to: '/blog', label: 'Blog' },
     { to: '/about', label: 'About' },
+    { to: '/seller/apply', label: 'Kênh người bán' },
   ];
 
   const isActive = (path: string) => path === '/products'

@@ -21,3 +21,10 @@ export function startOrderExpirationRunner():void{
   timer.unref();
   void runExpirationBatch();
 }
+
+export function stopOrderExpirationRunner():void{
+  if(timer){
+    clearInterval(timer);
+    timer=null;
+  }
+}

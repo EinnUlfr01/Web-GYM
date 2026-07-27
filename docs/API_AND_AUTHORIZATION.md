@@ -41,6 +41,24 @@ The complete six-actor authorization matrix and session/ownership rules are main
 
 All routes below are protected by `authenticate` plus `ADMIN` authorization at router level.
 
+## Seller Application
+
+Applicant routes are backend role-protected. Only MEMBER may create, edit, submit, resubmit, or withdraw; MEMBER and the resulting SELLER may read their own application.
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/seller-applications/me` | MEMBER/SELLER owner | Read own application and history |
+| POST | `/api/seller-applications` | MEMBER | Create the single DRAFT |
+| PATCH | `/api/seller-applications/me` | MEMBER owner | Edit DRAFT/REJECTED/WITHDRAWN |
+| POST | `/api/seller-applications/me/submit` | MEMBER owner | Move eligible application to PENDING |
+| POST | `/api/seller-applications/me/withdraw` | MEMBER owner | Withdraw PENDING |
+| GET | `/api/admin/seller-applications` | ADMIN | Filtered/paginated review inbox |
+| GET | `/api/admin/seller-applications/:applicationId` | ADMIN | Safe applicant detail and history |
+| POST | `/api/admin/seller-applications/:applicationId/approve` | ADMIN | Approve PENDING and atomically promote/revoke sessions |
+| POST | `/api/admin/seller-applications/:applicationId/reject` | ADMIN | Reject PENDING with required reason |
+
+Approval does not create a Shop. Seller Product/Order APIs do not exist in SELLER-001.
+
 | Method | Path | Purpose |
 |---|---|---|
 | GET/POST | `/api/admin/products` | List/create products |

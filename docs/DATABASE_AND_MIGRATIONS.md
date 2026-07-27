@@ -14,6 +14,7 @@ Filenames must match `NNNN_description.sql` and execute lexicographically. Each 
 | 0004 | PaymentStatusHistory |
 | 0005 | Reservation expiration metadata/index |
 | 0006 | Auth session security: `Users.token_version`, hashed rotating `AuthSessions`, and active booking-slot uniqueness |
+| 0100 | Seller Application and `seller` primary-role foundation |
 
 Verified canonical baseline after auth-session closure: Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, active AuthSessions 0. Inventory enforces non-negative `on_hand`, `0 <= reserved <= on_hand`, and computed `available = on_hand - reserved`. Products own variants/images; variants own inventory; Orders own item snapshots and immutable status/payment history. Expiration releases eligible unpaid reservations; delivery consumes reserved/on-hand stock.
 
@@ -22,6 +23,8 @@ Before applying a migration: confirm target identity, create a canonical backup 
 Acceptance uses an isolated database such as `GYMFIT_DB_TASK008_ACCEPTANCE_<timestamp>` restored from a verified baseline. Verify identity before mutation, run acceptance there, clean up, and re-check canonical counts/integrity.
 
 TASK-008 is not started and may not reuse `0006`; any future numbering must be chosen only after its Discovery Gate. See the [full specification](TASK-008_IMPLEMENTATION_SPEC.md).
+
+Marketplace allocation is reserved as Coach `0007`–`0049`, shared `0050`–`0099`, and Seller `0100`–`0199`. SELLER-001 uses `0100`; applied migrations must never be renumbered or edited. `SellerApplications` owns one mutable application per User while `SellerApplicationStatusHistory` is append-only.
 
 Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
 

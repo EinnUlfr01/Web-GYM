@@ -61,6 +61,8 @@ DROP TABLE IF EXISTS Notifications;
 DROP TABLE IF EXISTS Payments;
 DROP TABLE IF EXISTS Memberships;
 DROP TABLE IF EXISTS Plans;
+DROP TABLE IF EXISTS SellerApplicationStatusHistory;
+DROP TABLE IF EXISTS SellerApplications;
 DROP TABLE IF EXISTS AnalyticsRetention;
 DROP TABLE IF EXISTS AnalyticsDaily;
 DROP TABLE IF EXISTS Users;
@@ -84,7 +86,7 @@ CREATE TABLE Users (
   password NVARCHAR(255) NOT NULL,
   name NVARCHAR(100) NOT NULL,
   phone NVARCHAR(20) NULL,
-  role NVARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('member','coach','admin')),
+  role NVARCHAR(20) NOT NULL DEFAULT 'member' CONSTRAINT CK_Users_Role CHECK (role IN ('member','coach','admin','seller')),
   referral_code NVARCHAR(10) NULL,
   referred_by INT NULL,
   avatar_url NVARCHAR(500) NULL,
@@ -97,6 +99,66 @@ CREATE TABLE Users (
 );
 CREATE INDEX IX_Users_Email ON Users(email);
 CREATE INDEX IX_Users_Role ON Users(role);
+
+CREATE TABLE SellerApplications (
+  id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SellerApplications PRIMARY KEY,
+  user_id INT NOT NULL,
+  status NVARCHAR(20) NOT NULL CONSTRAINT DF_SellerApplications_Status DEFAULT 'DRAFT',
+  business_name NVARCHAR(200) NULL,
+  business_type NVARCHAR(30) NULL,
+  contact_name NVARCHAR(200) NULL,
+  contact_email NVARCHAR(255) NULL,
+  contact_phone NVARCHAR(50) NULL,
+  business_address NVARCHAR(500) NULL,
+  pickup_address NVARCHAR(500) NULL,
+  tax_code NVARCHAR(50) NULL,
+  website_url NVARCHAR(500) NULL,
+  social_url NVARCHAR(500) NULL,
+  description NVARCHAR(2000) NULL,
+  review_reason NVARCHAR(1000) NULL,
+  submitted_at DATETIME2 NULL,
+  reviewed_at DATETIME2 NULL,
+  reviewed_by_user_id INT NULL,
+  created_at DATETIME2 NOT NULL CONSTRAINT DF_SellerApplications_CreatedAt DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2 NOT NULL CONSTRAINT DF_SellerApplications_UpdatedAt DEFAULT SYSUTCDATETIME(),
+  row_version ROWVERSION NOT NULL,
+  CONSTRAINT UQ_SellerApplications_User UNIQUE (user_id),
+  CONSTRAINT FK_SellerApplications_User FOREIGN KEY (user_id) REFERENCES Users(id),
+  CONSTRAINT FK_SellerApplications_ReviewedBy FOREIGN KEY (reviewed_by_user_id) REFERENCES Users(id),
+  CONSTRAINT CK_SellerApplications_Status CHECK (status IN ('DRAFT','PENDING','APPROVED','REJECTED','WITHDRAWN')),
+  CONSTRAINT CK_SellerApplications_BusinessType CHECK (business_type IS NULL OR business_type IN ('BRAND','SPORTS_STORE','SMALL_BUSINESS','OTHER')),
+  CONSTRAINT CK_SellerApplications_ContactEmail CHECK (contact_email IS NULL OR LEN(LTRIM(RTRIM(contact_email))) BETWEEN 3 AND 255),
+  CONSTRAINT CK_SellerApplications_ReviewFields CHECK ((status IN ('APPROVED','REJECTED') AND reviewed_at IS NOT NULL AND reviewed_by_user_id IS NOT NULL) OR status NOT IN ('APPROVED','REJECTED')),
+  CONSTRAINT CK_SellerApplications_SubmittedAt CHECK (status='DRAFT' OR submitted_at IS NOT NULL)
+);
+CREATE INDEX IX_SellerApplications_Status_SubmittedAt ON SellerApplications(status,submitted_at DESC,id DESC);
+
+CREATE TABLE SellerApplicationStatusHistory (
+  id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SellerApplicationStatusHistory PRIMARY KEY,
+  seller_application_id INT NOT NULL,
+  from_status NVARCHAR(20) NULL,
+  to_status NVARCHAR(20) NOT NULL,
+  actor_user_id INT NULL,
+  reason NVARCHAR(1000) NULL,
+  created_at DATETIME2 NOT NULL CONSTRAINT DF_SellerApplicationStatusHistory_CreatedAt DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT FK_SellerApplicationStatusHistory_Application FOREIGN KEY (seller_application_id) REFERENCES SellerApplications(id),
+  CONSTRAINT FK_SellerApplicationStatusHistory_Actor FOREIGN KEY (actor_user_id) REFERENCES Users(id),
+  CONSTRAINT CK_SellerApplicationStatusHistory_FromStatus CHECK (from_status IS NULL OR from_status IN ('DRAFT','PENDING','APPROVED','REJECTED','WITHDRAWN')),
+  CONSTRAINT CK_SellerApplicationStatusHistory_ToStatus CHECK (to_status IN ('DRAFT','PENDING','APPROVED','REJECTED','WITHDRAWN')),
+  CONSTRAINT CK_SellerApplicationStatusHistory_Changed CHECK (from_status IS NULL OR from_status<>to_status),
+  CONSTRAINT CK_SellerApplicationStatusHistory_Reason CHECK (reason IS NULL OR LEN(LTRIM(RTRIM(reason)))>0)
+);
+CREATE INDEX IX_SellerApplicationStatusHistory_Application_CreatedAt ON SellerApplicationStatusHistory(seller_application_id,created_at,id);
+GO
+CREATE OR ALTER TRIGGER TR_SellerApplicationStatusHistory_Immutable
+ON SellerApplicationStatusHistory
+AFTER UPDATE, DELETE
+AS
+BEGIN
+  SET NOCOUNT ON;
+  THROW 51100, 'Seller application status history is immutable.', 1;
+END;
+GO
 
 CREATE TABLE Plans (
   id INT IDENTITY(1,1) PRIMARY KEY,
