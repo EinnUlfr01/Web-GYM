@@ -112,7 +112,7 @@ export const adminProductsService = {
     const product = await productsService.getDetail('p.id=@lookup', id, true);
     if (!product) throw new AppError(404, 'Product not found');
     const pool = await getPool();
-    const meta = await pool.request().input('id', id).query('SELECT brand_id,brand_request_id,category_id,moderation_status,submitted_at,review_reason,updated_at FROM dbo.Products WHERE id=@id');
+    const meta = await pool.request().input('id', id).query('SELECT p.brand_id,p.brand_request_id,p.category_id,p.moderation_status,p.submitted_at,p.reviewed_at,p.published_at,p.review_reason,p.updated_at,s.is_system shop_is_system FROM dbo.Products p JOIN dbo.Shops s ON s.id=p.shop_id WHERE p.id=@id');
     return { ...product, ...meta.recordset[0] };
   },
 
@@ -151,6 +151,7 @@ export const adminProductsService = {
     if (input.stock !== undefined) throw new AppError(400, 'Stock must be changed through inventory adjustment API');
     validate(input, true);
     const existing = await this.get(id);
+    if (!existing.shop_is_system && input.is_active !== undefined) throw new AppError(409, 'Seller Product activity is controlled by Product moderation');
     const merged = { product_name: input.product_name?.trim() ?? existing.product_name, description: input.description === undefined ? existing.description : input.description?.trim() || null, sku: input.sku?.trim() ?? existing.display_variant.sku, price: input.price ?? existing.display_variant.price, sale_price: input.sale_price === undefined ? existing.display_variant.sale_price : input.sale_price, stock:existing.stock, brand_id: input.brand_id === undefined ? existing.brand_id : input.brand_id, category_id: input.category_id ?? existing.category_id, is_active: input.is_active ?? existing.is_active, is_featured: input.is_featured ?? existing.is_featured, is_on_sale: input.is_on_sale ?? existing.is_on_sale };
     validate(merged);
     const pool = await getPool(); const tx = pool.transaction(); await tx.begin();

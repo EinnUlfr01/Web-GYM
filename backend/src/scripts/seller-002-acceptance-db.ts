@@ -4,10 +4,10 @@ import bcrypt from 'bcryptjs';
 import * as sql from 'mssql';
 import { config } from '../config/config';
 
-const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1',seller005=process.env.SELLER005_ACCEPTANCE==='1';
-if(!seller002&&!seller003&&!seller004&&!seller005)throw new Error('A SELLER002/003/004/005 acceptance flag is required');
+const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1',seller005=process.env.SELLER005_ACCEPTANCE==='1',seller006=process.env.SELLER006_ACCEPTANCE==='1';
+if(!seller002&&!seller003&&!seller004&&!seller005&&!seller006)throw new Error('A SELLER002/003/004/005/006 acceptance flag is required');
 const target=config.db.database;
-const safePrefix=seller005?'GYMFIT_DB_SELLER005_ACCEPTANCE_':seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
+const safePrefix=seller006?'GYMFIT_DB_SELLER006_ACCEPTANCE_':seller005?'GYMFIT_DB_SELLER005_ACCEPTANCE_':seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
 if(target==='GYMFIT_DB'||!target.startsWith(safePrefix)||!/^[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
 const action=process.argv[2];
 const masterConfig={...config.db,database:'master'};
@@ -26,6 +26,13 @@ async function run(){
     const dbPool=await new sql.ConnectionPool({...config.db,database:target}).connect();
     try{
       for(const batch of batches(body))await dbPool.request().batch(batch);
+      if(await dbPool.request().query(`SELECT COL_LENGTH(N'dbo.Products',N'reviewed_at') value`).then(r=>r.recordset[0].value)){
+        await dbPool.request().batch(`DROP TRIGGER IF EXISTS dbo.TR_ProductModerationHistory_Immutable;
+          DROP TABLE IF EXISTS dbo.ProductModerationHistory;
+          DROP INDEX IF EXISTS IX_Products_Moderation_Reviewed ON dbo.Products;
+          ALTER TABLE dbo.Products DROP CONSTRAINT FK_Products_ReviewedBy;
+          ALTER TABLE dbo.Products DROP COLUMN reviewed_at,published_at,reviewed_by_user_id;`);
+      }
       if(await dbPool.request().query(`SELECT COL_LENGTH(N'dbo.Products',N'moderation_status') value`).then(r=>r.recordset[0].value)){
         await dbPool.request().batch(`DROP INDEX IF EXISTS IX_Products_Moderation_Submitted ON dbo.Products;
           DROP INDEX IF EXISTS IX_Products_Shop_Moderation ON dbo.Products;

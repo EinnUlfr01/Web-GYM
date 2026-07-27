@@ -174,3 +174,13 @@ Protected Shop, owner, publication, moderation, review, reservation, and
 derived Inventory fields are rejected by strict validation. Cross-Shop path
 IDs return 404. Seller submission can only transition DRAFT/REJECTED to
 PENDING_REVIEW; no Seller endpoint can publish.
+# SELLER-006 Admin Product Moderation
+
+- `GET /api/admin/product-moderation` — ADMIN-only Seller Product inbox with strict pagination/search/filter/date/sort whitelist; defaults to `PENDING_REVIEW`.
+- `GET /api/admin/product-moderation/:productId` — ADMIN-only non-system Seller Product preview, readiness, Variants, Images, Inventory, and history.
+- `POST /api/admin/product-moderation/:productId/approve` — `PENDING_REVIEW → PUBLISHED`.
+- `POST /api/admin/product-moderation/:productId/reject` — `PENDING_REVIEW → REJECTED`, reason required.
+- `POST /api/admin/product-moderation/:productId/suspend` — `PUBLISHED → SUSPENDED`, reason required.
+- `POST /api/admin/product-moderation/:productId/republish` — `SUSPENDED → PUBLISHED`.
+- Seller Product DTOs add `reviewedAt`, `publishedAt`, and neutral moderation history. Seller has no moderation action endpoint.
+- Order creation revalidates Product/Shop/Variant publication eligibility and database price before any reservation.

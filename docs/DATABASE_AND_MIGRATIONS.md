@@ -78,3 +78,6 @@ the Generic Brand, transactional `BrandRequests`, and immutable
 `BrandRequestStatusHistory`. It preserves existing Brand IDs and every
 `Products.brand_id` reference. A filtered unique index permits only one global
 PENDING request per normalized name.
+# SELLER-006 / Migration 0104
+
+`0104_admin_product_moderation.sql` adds nullable current-decision fields to Products and append-only `ProductModerationHistory`. Existing GymFit Official Products retain null `reviewed_at`, `published_at`, and `reviewed_by_user_id`; migration 0104 does not fabricate legacy history. The history table has Product/User foreign keys, lifecycle/reason checks, inbox/history indexes, and an UPDATE/DELETE rejection trigger.

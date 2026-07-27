@@ -124,7 +124,7 @@ export const ordersService = {
           .request()
           .input("variantId", sql.Int, item.variantId)
           .query<OrderCreationRow>(
-            "SELECT v.id AS variantId,v.product_id AS productId,p.product_name AS productName,v.variant_name AS variantName,v.sku,v.price,v.sale_price AS salePrice,i.on_hand AS onHand,i.reserved FROM dbo.ProductVariants v WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Products p ON p.id=v.product_id JOIN dbo.Inventory i WITH (UPDLOCK,HOLDLOCK) ON i.variant_id=v.id WHERE v.id=@variantId",
+            "SELECT v.id AS variantId,v.product_id AS productId,p.product_name AS productName,v.variant_name AS variantName,v.sku,v.price,v.sale_price AS salePrice,i.on_hand AS onHand,i.reserved FROM dbo.ProductVariants v WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Products p WITH (UPDLOCK,HOLDLOCK) ON p.id=v.product_id JOIN dbo.Shops s ON s.id=p.shop_id JOIN dbo.Inventory i WITH (UPDLOCK,HOLDLOCK) ON i.variant_id=v.id WHERE v.id=@variantId AND p.is_active=1 AND p.moderation_status=N'PUBLISHED' AND s.status=N'ACTIVE' AND v.is_active=1",
           );
         const row = result.recordset[0];
         if (!row)
@@ -133,18 +133,6 @@ export const ordersService = {
             `Variant ${item.variantId} or Inventory not found`,
           );
         if (!row.productId) throw new AppError(404, "Product not found");
-        const state = (
-          await tx
-            .request()
-            .input("variantId", sql.Int, item.variantId)
-            .query<{ variant_active: boolean; product_active: boolean }>(
-              "SELECT v.is_active AS variant_active,p.is_active AS product_active FROM dbo.ProductVariants v JOIN dbo.Products p ON p.id=v.product_id WHERE v.id=@variantId",
-            )
-        ).recordset[0];
-        if (!state?.product_active)
-          throw new AppError(409, "Product is not active");
-        if (!state.variant_active)
-          throw new AppError(409, "Variant is not active");
         if (row.onHand - row.reserved < item.quantity)
           throw new AppError(
             409,

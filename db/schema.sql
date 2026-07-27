@@ -1597,3 +1597,23 @@ CREATE INDEX IX_Products_Shop_Moderation ON dbo.Products(shop_id,moderation_stat
 CREATE INDEX IX_Products_Moderation_Submitted ON dbo.Products(moderation_status,submitted_at,id) INCLUDE(shop_id,is_active,brand_id,category_id);
 GO
 
+-- SELLER-006 Admin Product moderation
+ALTER TABLE dbo.Products ADD reviewed_at DATETIME2 NULL,published_at DATETIME2 NULL,reviewed_by_user_id INT NULL,
+ CONSTRAINT FK_Products_ReviewedBy FOREIGN KEY(reviewed_by_user_id) REFERENCES dbo.Users(id);
+CREATE TABLE dbo.ProductModerationHistory(
+ id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ProductModerationHistory PRIMARY KEY,
+ product_id INT NOT NULL,from_status NVARCHAR(20) NULL,to_status NVARCHAR(20) NOT NULL,actor_user_id INT NULL,reason NVARCHAR(1000) NULL,
+ created_at DATETIME2 NOT NULL CONSTRAINT DF_ProductModerationHistory_CreatedAt DEFAULT SYSUTCDATETIME(),
+ CONSTRAINT FK_ProductModerationHistory_Product FOREIGN KEY(product_id) REFERENCES dbo.Products(id),
+ CONSTRAINT FK_ProductModerationHistory_Actor FOREIGN KEY(actor_user_id) REFERENCES dbo.Users(id),
+ CONSTRAINT CK_ProductModerationHistory_FromStatus CHECK(from_status IS NULL OR from_status IN(N'DRAFT',N'PENDING_REVIEW',N'PUBLISHED',N'REJECTED',N'SUSPENDED')),
+ CONSTRAINT CK_ProductModerationHistory_ToStatus CHECK(to_status IN(N'DRAFT',N'PENDING_REVIEW',N'PUBLISHED',N'REJECTED',N'SUSPENDED')),
+ CONSTRAINT CK_ProductModerationHistory_Reason CHECK(to_status NOT IN(N'REJECTED',N'SUSPENDED') OR LEN(LTRIM(RTRIM(reason)))>0));
+CREATE INDEX IX_ProductModerationHistory_Product_Created ON dbo.ProductModerationHistory(product_id,created_at DESC,id DESC);
+CREATE INDEX IX_ProductModerationHistory_Status_Created ON dbo.ProductModerationHistory(to_status,created_at DESC,id DESC);
+CREATE INDEX IX_Products_Moderation_Reviewed ON dbo.Products(moderation_status,reviewed_at DESC,id DESC) INCLUDE(shop_id,is_active,submitted_at,published_at);
+GO
+CREATE OR ALTER TRIGGER dbo.TR_ProductModerationHistory_Immutable ON dbo.ProductModerationHistory AFTER UPDATE,DELETE AS
+BEGIN SET NOCOUNT ON;THROW 51400,'Product moderation history is immutable.',1;END;
+GO
+

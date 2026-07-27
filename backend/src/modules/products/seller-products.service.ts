@@ -7,6 +7,7 @@ import { adminProductsService } from '../admin-products/admin-products.service';
 import { adminVariantsService } from '../admin-variants/admin-variants.service';
 import { adminInventoryService } from '../admin-inventory/admin-inventory.service';
 import { productOwnershipService } from './product-ownership.service';
+import { evaluateProductReadiness } from '../product-moderation/product-moderation.readiness';
 
 type Filters={page:number;limit:number;search?:string;status?:'active'|'inactive';moderationStatus?:string;sort:'created_desc'|'created_asc'|'name_asc'|'name_desc'};
 type ProductInput={name?:string;slug?:string;description?:string|null;categoryId?:number;brandId?:number;brandRequestId?:number;defaultVariant?:{name:string;sku:string;price:number;salePrice?:number|null;initialOnHand:number;lowStockThreshold:number}};
@@ -81,7 +82,7 @@ export const sellerProductsService={
     if(f.status)clauses.push(`p.is_active=${f.status==='active'?1:0}`);
     if(f.moderationStatus){req.input('moderation',sql.NVarChar(20),f.moderationStatus);clauses.push('p.moderation_status=@moderation');}
     const order={created_desc:'p.created_at DESC',created_asc:'p.created_at ASC',name_asc:'p.product_name ASC',name_desc:'p.product_name DESC'}[f.sort];
-    const r=await req.query(`SELECT p.id,p.product_name name,p.slug,p.is_active isActive,p.moderation_status moderationStatus,p.submitted_at submittedAt,p.review_reason reviewReason,p.created_at createdAt,p.updated_at updatedAt,b.id brandId,b.name brand,c.id categoryId,c.name category,
+    const r=await req.query(`SELECT p.id,p.product_name name,p.slug,p.is_active isActive,p.moderation_status moderationStatus,p.submitted_at submittedAt,p.reviewed_at reviewedAt,p.published_at publishedAt,p.review_reason reviewReason,p.created_at createdAt,p.updated_at updatedAt,b.id brandId,b.name brand,c.id categoryId,c.name category,
       br.id brandRequestId,br.requested_name brandRequestName,br.status brandRequestStatus,
       (SELECT COUNT(*) FROM dbo.ProductVariants v WHERE v.product_id=p.id) variantCount,
       (SELECT SUM(i.available) FROM dbo.ProductVariants v JOIN dbo.Inventory i ON i.variant_id=v.id WHERE v.product_id=p.id) availableInventory,
@@ -94,14 +95,15 @@ export const sellerProductsService={
   },
   async detail(userId:number,productId:number){
     await productOwnershipService.assertSellerOwnsProduct(productId,userId);const pool=await getPool();
-    const base=await pool.request().input('id',sql.Int,productId).query(`SELECT p.id,p.product_name name,p.slug,p.description,p.specifications,p.is_active isActive,p.moderation_status moderationStatus,p.submitted_at submittedAt,p.review_reason reviewReason,p.created_at createdAt,p.updated_at updatedAt,b.id brandId,b.name brand,br.id brandRequestId,br.requested_name brandRequestName,br.status brandRequestStatus,br.review_reason brandRequestReviewReason,c.id categoryId,c.name category,s.id shopId,s.name shopName,s.slug shopSlug,s.status shopStatus,s.is_verified shopVerified FROM dbo.Products p JOIN dbo.Shops s ON s.id=p.shop_id LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.BrandRequests br ON br.id=p.brand_request_id LEFT JOIN dbo.Categories c ON c.id=p.category_id WHERE p.id=@id`);
+    const base=await pool.request().input('id',sql.Int,productId).query(`SELECT p.id,p.product_name name,p.slug,p.description,p.specifications,p.is_active isActive,p.moderation_status moderationStatus,p.submitted_at submittedAt,p.reviewed_at reviewedAt,p.published_at publishedAt,p.review_reason reviewReason,p.created_at createdAt,p.updated_at updatedAt,b.id brandId,b.name brand,br.id brandRequestId,br.requested_name brandRequestName,br.status brandRequestStatus,br.review_reason brandRequestReviewReason,c.id categoryId,c.name category,s.id shopId,s.name shopName,s.slug shopSlug,s.status shopStatus,s.is_verified shopVerified FROM dbo.Products p JOIN dbo.Shops s ON s.id=p.shop_id LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.BrandRequests br ON br.id=p.brand_request_id LEFT JOIN dbo.Categories c ON c.id=p.category_id WHERE p.id=@id`);
     if(!base.recordset[0])throw new AppError(404,'Product not found');
-    const[variants,images]=await Promise.all([
+    const[variants,images,moderationHistory]=await Promise.all([
       pool.request().input('id',sql.Int,productId).query(`SELECT v.id,v.variant_name variantName,v.sku,v.barcode,v.price,v.sale_price salePrice,v.weight,v.is_active isActive,v.is_default isDefault,i.id inventoryId,i.on_hand onHand,i.reserved,i.available,i.low_stock_threshold lowStockThreshold FROM dbo.ProductVariants v JOIN dbo.Inventory i ON i.variant_id=v.id WHERE v.product_id=@id ORDER BY v.is_default DESC,v.id`),
-      pool.request().input('id',sql.Int,productId).query(`SELECT id,image_url imageUrl,alt_text altText,is_primary isPrimary,sort_order sortOrder FROM dbo.ProductImages WHERE product_id=@id ORDER BY is_primary DESC,sort_order,id`)
+      pool.request().input('id',sql.Int,productId).query(`SELECT id,image_url imageUrl,alt_text altText,is_primary isPrimary,sort_order sortOrder FROM dbo.ProductImages WHERE product_id=@id ORDER BY is_primary DESC,sort_order,id`),
+      pool.request().input('id',sql.Int,productId).query(`SELECT from_status fromStatus,to_status toStatus,reason,created_at createdAt,CASE WHEN actor_user_id IS NULL THEN N'System' ELSE N'Admin' END actorLabel FROM dbo.ProductModerationHistory WHERE product_id=@id ORDER BY created_at DESC,id DESC`)
     ]);
     const row=base.recordset[0];
-    return{...row,isActive:Boolean(row.isActive),shop:{id:row.shopId,name:row.shopName,slug:row.shopSlug,status:row.shopStatus,isVerified:Boolean(row.shopVerified)},variants:variants.recordset.map(v=>({...v,isActive:Boolean(v.isActive),isDefault:Boolean(v.isDefault)})),images:images.recordset.map(i=>({...i,isPrimary:Boolean(i.isPrimary)}))};
+    return{...row,isActive:Boolean(row.isActive),shop:{id:row.shopId,name:row.shopName,slug:row.shopSlug,status:row.shopStatus,isVerified:Boolean(row.shopVerified)},variants:variants.recordset.map(v=>({...v,isActive:Boolean(v.isActive),isDefault:Boolean(v.isDefault)})),images:images.recordset.map(i=>({...i,isPrimary:Boolean(i.isPrimary)})),history:moderationHistory.recordset};
   },
   async filters(userId:number){
     const shop=await productOwnershipService.resolveSellerShop(userId),pool=await getPool();
@@ -151,8 +153,8 @@ export const sellerProductsService={
     const pool=await getPool(),tx=pool.transaction();await tx.begin();let images:string[]=[];
     try{
       const current=await mutable(tx,userId,productId);
-      const refs=(await tx.request().input('id',sql.Int,productId).query(`SELECT (SELECT COUNT(*) FROM dbo.OrderItems WHERE product_id=@id) orders,(SELECT COUNT(*) FROM dbo.Inventory i JOIN dbo.ProductVariants v ON v.id=i.variant_id WHERE v.product_id=@id AND i.reserved>0) reservations,(SELECT COUNT(*) FROM dbo.InventoryAdjustments ia JOIN dbo.ProductVariants v ON v.id=ia.variant_id WHERE v.product_id=@id) adjustments`)).recordset[0];
-      if(Number(refs.orders)>0||Number(refs.reservations)>0||Number(refs.adjustments)>0)throw new AppError(409,'Product has commerce, reservation, or immutable Inventory history');
+      const refs=(await tx.request().input('id',sql.Int,productId).query(`SELECT (SELECT COUNT(*) FROM dbo.OrderItems WHERE product_id=@id) orders,(SELECT COUNT(*) FROM dbo.Inventory i JOIN dbo.ProductVariants v ON v.id=i.variant_id WHERE v.product_id=@id AND i.reserved>0) reservations,(SELECT COUNT(*) FROM dbo.InventoryAdjustments ia JOIN dbo.ProductVariants v ON v.id=ia.variant_id WHERE v.product_id=@id) adjustments,(SELECT COUNT(*) FROM dbo.ProductModerationHistory WHERE product_id=@id) moderationHistory`)).recordset[0];
+      if(Number(refs.orders)>0||Number(refs.reservations)>0||Number(refs.adjustments)>0||Number(refs.moderationHistory)>0)throw new AppError(409,'Product has commerce, reservation, Inventory, or immutable moderation history');
       images=(await tx.request().input('imageProduct',sql.Int,productId).query('SELECT image_url FROM dbo.ProductImages WHERE product_id=@imageProduct')).recordset.map(x=>String(x.image_url));
       await txAudit(tx,userId,'seller_product.deleted','Product',productId,{name:current.product_name,moderationStatus:current.moderation_status},null);
       await tx.request().input('deleteId',sql.Int,productId).query(`DELETE dbo.VariantOptionValues WHERE variant_id IN(SELECT id FROM dbo.ProductVariants WHERE product_id=@deleteId);
@@ -166,21 +168,10 @@ export const sellerProductsService={
     const pool=await getPool(),tx=pool.transaction();await tx.begin();
     try{
       const current=await mutable(tx,userId,productId);
-      const state=(await tx.request().input('id',sql.Int,productId).query(`SELECT p.brand_id,p.brand_request_id,c.is_active category_active,b.is_active brand_active,
-        (SELECT COUNT(*) FROM dbo.ProductVariants WHERE product_id=@id) variants,
-        (SELECT COUNT(*) FROM dbo.ProductVariants WHERE product_id=@id AND is_active=1) active_variants,
-        (SELECT COUNT(*) FROM dbo.ProductVariants WHERE product_id=@id AND is_active=1 AND is_default=1) defaults,
-        (SELECT COUNT(*) FROM dbo.ProductVariants v LEFT JOIN dbo.Inventory i ON i.variant_id=v.id WHERE v.product_id=@id AND i.id IS NULL) missing_inventory,
-        (SELECT COUNT(*) FROM dbo.ProductVariants v JOIN dbo.Inventory i ON i.variant_id=v.id WHERE v.product_id=@id AND (v.price<=0 OR (v.sale_price IS NOT NULL AND v.sale_price>=v.price) OR i.on_hand<0 OR i.reserved<0 OR i.reserved>i.on_hand)) invalid_children,
-        (SELECT COUNT(*) FROM dbo.ProductImages WHERE product_id=@id) images,
-        (SELECT COUNT(*) FROM dbo.ProductImages WHERE product_id=@id AND is_primary=1) primaries
-        FROM dbo.Products p LEFT JOIN dbo.Categories c ON c.id=p.category_id LEFT JOIN dbo.Brands b ON b.id=p.brand_id WHERE p.id=@id`)).recordset[0];
-      if(!state.category_active)throw new AppError(409,'Product requires an active Category');
-      if(!state.brand_id||state.brand_request_id||!state.brand_active)throw new AppError(409,'Product requires an approved active Brand');
-      if(Number(state.variants)<1||Number(state.active_variants)<1||Number(state.defaults)!==1)throw new AppError(409,'Product requires active Variants and exactly one default Variant');
-      if(Number(state.missing_inventory)>0||Number(state.invalid_children)>0)throw new AppError(409,'Variant price or Inventory invariant is invalid');
-      if(Number(state.images)<1||Number(state.primaries)!==1)throw new AppError(409,'Product requires at least one image and exactly one primary image');
+      const readiness=await evaluateProductReadiness(tx,productId);if(!readiness.ready)throw new AppError(409,`Product is not ready: ${readiness.missing.join(', ')}`);
       await tx.request().input('submitId',sql.Int,productId).query(`UPDATE dbo.Products SET moderation_status=N'PENDING_REVIEW',submitted_at=SYSUTCDATETIME(),review_reason=NULL,is_active=0,updated_at=SYSUTCDATETIME() WHERE id=@submitId`);
+      await tx.request().input('historyProduct',sql.Int,productId).input('historyActor',sql.Int,userId).input('historyFrom',sql.NVarChar(20),current.moderation_status)
+        .query(`INSERT dbo.ProductModerationHistory(product_id,from_status,to_status,actor_user_id,reason,created_at) VALUES(@historyProduct,@historyFrom,N'PENDING_REVIEW',@historyActor,NULL,SYSUTCDATETIME())`);
       await txAudit(tx,userId,'seller_product.submitted','Product',productId,{moderationStatus:current.moderation_status},{moderationStatus:'PENDING_REVIEW'});await tx.commit();return this.detail(userId,productId);
     }catch(error){await tx.rollback();throw error;}
   },

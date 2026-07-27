@@ -30,6 +30,7 @@ import adminProductRoutes from './modules/admin-products/admin-products.routes';
 import adminCatalogRoutes from './modules/admin-catalog/admin-catalog.routes';
 import adminVariantRoutes from './modules/admin-variants/admin-variants.routes';
 import adminInventoryRoutes from './modules/admin-inventory/admin-inventory.routes';
+import productModerationRoutes from './modules/product-moderation/product-moderation.routes';
 import adminOrderRoutes from './modules/admin-orders/admin-orders.routes';
 import orderRoutes from './modules/orders/orders.routes';
 import userRoutes from './modules/users/users.routes';
@@ -43,7 +44,7 @@ import { startOrderExpirationRunner } from './modules/orders/order-expiration.ru
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -101,6 +102,7 @@ app.use('/api/admin/products', adminProductRoutes);
 app.use('/api/admin', adminCatalogRoutes);
 app.use('/api/admin', adminVariantRoutes);
 app.use('/api/admin', adminInventoryRoutes);
+app.use('/api/admin/product-moderation', productModerationRoutes);
 app.use('/api/admin', adminOrderRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
