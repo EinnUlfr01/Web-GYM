@@ -108,6 +108,9 @@ function mapProduct(row: any): any {
     is_active: Boolean(row.is_active),
     is_featured: Boolean(row.is_featured),
     is_on_sale: Boolean(row.is_on_sale),
+    moderation_status: row.moderation_status,
+    submitted_at: row.submitted_at ?? null,
+    review_reason: row.review_reason ?? null,
     created_at: row.created_at,
     display_variant: displayVariant,
     primary_image: primaryImage,
@@ -141,7 +144,7 @@ function attachImages(product: any, imageRows: any[]) {
 
 const productSelect = `
 SELECT p.id, p.product_name, p.slug, p.description, p.description AS short_description,
-  p.specifications, p.is_active, p.is_featured, p.is_on_sale, p.created_at,
+  p.specifications, p.is_active, p.is_featured, p.is_on_sale, p.moderation_status, p.submitted_at, p.review_reason, p.created_at,
   b.name AS brand, b.slug AS brand_slug, c.name AS category, c.slug AS category_slug,
   shop.id AS shop_id,shop.name AS shop_name,shop.slug AS shop_slug,shop.is_verified AS shop_verified,
   dv.id AS variant_id, dv.variant_name, dv.sku AS variant_sku, dv.barcode AS variant_barcode,
@@ -220,10 +223,10 @@ export const productsService = {
   async getDetail(predicate: string, lookup: string | number, includeInactive = false) {
     const pool = await getPool();
     const baseResult = await pool.request().input('lookup', lookup).query(
-      `${productSelect} WHERE ${predicate}${includeInactive ? '' : ` AND p.is_active = 1 AND shop.status=N'ACTIVE'`}`
+      `${productSelect} WHERE ${predicate}${includeInactive ? '' : ` AND ${productScopes.public}`}`
     );
     if (!baseResult.recordset[0]) {
-      const unavailable=await pool.request().input('lookupFallback',lookup).query(`SELECT p.id,p.product_name,p.slug,p.description,p.description AS short_description,p.specifications,p.is_active,p.is_featured,p.is_on_sale,p.created_at,b.name AS brand,b.slug AS brand_slug,c.name AS category,c.slug AS category_slug,shop.id shop_id,shop.name shop_name,shop.slug shop_slug,shop.is_verified shop_verified FROM dbo.Products p LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.Categories c ON c.id=p.category_id JOIN dbo.Shops shop ON shop.id=p.shop_id WHERE ${predicate.replace('@lookup','@lookupFallback')}${includeInactive?'':` AND p.is_active=1 AND shop.status=N'ACTIVE'`}`);
+      const unavailable=await pool.request().input('lookupFallback',lookup).query(`SELECT p.id,p.product_name,p.slug,p.description,p.description AS short_description,p.specifications,p.is_active,p.is_featured,p.is_on_sale,p.moderation_status,p.submitted_at,p.review_reason,p.created_at,b.name AS brand,b.slug AS brand_slug,c.name AS category,c.slug AS category_slug,shop.id shop_id,shop.name shop_name,shop.slug shop_slug,shop.is_verified shop_verified FROM dbo.Products p LEFT JOIN dbo.Brands b ON b.id=p.brand_id LEFT JOIN dbo.Categories c ON c.id=p.category_id JOIN dbo.Shops shop ON shop.id=p.shop_id WHERE ${predicate.replace('@lookup','@lookupFallback')}${includeInactive?'':` AND ${productScopes.public}`}`);
       const row=unavailable.recordset[0];
       if(!row)return null;
       return {...row,is_active:Boolean(row.is_active),is_featured:Boolean(row.is_featured),is_on_sale:Boolean(row.is_on_sale),shop:{id:Number(row.shop_id),name:row.shop_name,slug:row.shop_slug,isVerified:Boolean(row.shop_verified)},display_variant:null,variants:[],images:[],primary_image:null,main_image:null,additional_images:null};

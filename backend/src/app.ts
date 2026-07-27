@@ -43,7 +43,7 @@ import { startOrderExpirationRunner } from './modules/orders/order-expiration.ru
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);

@@ -2,7 +2,7 @@ import { getPool,sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 
 export const productScopes={
-  public:`p.is_active=1 AND shop.status=N'ACTIVE'`,
+  public:`p.is_active=1 AND p.moderation_status=N'PUBLISHED' AND shop.status=N'ACTIVE'`,
   admin:'1=1',
   seller:'s.owner_user_id=@sellerUserId',
 };

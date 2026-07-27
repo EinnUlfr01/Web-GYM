@@ -32,7 +32,8 @@ export default function SellerProductsPage() {
     <div>
       <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">Seller catalog · chỉ đọc</p>
       <h1 className="text-3xl font-bold">Sản phẩm của Shop</h1>
-      <p className="text-slate-400">Quản lý tạo và chỉnh sửa sản phẩm sẽ được bổ sung ở bước tiếp theo.</p>
+      <p className="text-slate-400">Tạo DRAFT, chuẩn bị Variant/Image/Inventory và gửi xét duyệt.</p>
+      <Link className="btn-primary mt-3 inline-block" to="/seller/products/new">Tạo Product</Link>
     </div>
     <form className="flex flex-wrap gap-3" onSubmit={submit}>
       <input className="min-w-64 rounded border border-slate-700 bg-slate-950 p-2" placeholder="Tên hoặc SKU" value={search} onChange={event => setSearch(event.target.value)} />
@@ -43,10 +44,10 @@ export default function SellerProductsPage() {
     </form>
     {error && <p className="text-red-400">{error}</p>}
     {loading ? <p>Đang tải…</p> : <div className="overflow-x-auto rounded-xl border border-slate-800">
-      <table className="w-full text-left"><thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Sản phẩm</th><th>Brand / Category</th><th>Biến thể</th><th>Tồn khả dụng</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+      <table className="w-full text-left"><thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Sản phẩm</th><th>Brand / Category</th><th>Biến thể</th><th>Tồn khả dụng</th><th>Moderation</th><th>Cập nhật</th></tr></thead>
         <tbody>{items.map(product => <tr className="border-t border-slate-800" key={product.id}>
           <td className="p-3"><div className="flex items-center gap-3">{product.primaryImage ? <img className="h-12 w-12 rounded object-cover" src={product.primaryImage} alt="" /> : <div className="h-12 w-12 rounded bg-slate-800" />}<div><Link className="font-semibold text-emerald-400" to={`/seller/products/${product.id}`}>{product.name}</Link><small className="block text-slate-500">#{product.id}</small></div></div></td>
-          <td>{product.brand || '—'} / {product.category || '—'}</td><td>{product.variantCount}</td><td>{product.availableInventory ?? 0}</td><td>{product.isActive ? 'Đang hoạt động' : 'Tạm ẩn'}</td><td className="pr-3 text-sm text-slate-400">{new Date(product.updatedAt).toLocaleDateString('vi-VN')}<small className="block">Tạo {new Date(product.createdAt).toLocaleDateString('vi-VN')}</small></td>
+          <td>{product.brand || product.brandRequestName || '—'} / {product.category || '—'}</td><td>{product.variantCount}</td><td>{product.availableInventory ?? 0}</td><td>{product.moderationStatus}<small className="block text-slate-500">{product.isActive ? 'Active' : 'Not public'}</small></td><td className="pr-3 text-sm text-slate-400">{new Date(product.updatedAt).toLocaleDateString('vi-VN')}<small className="block">Tạo {new Date(product.createdAt).toLocaleDateString('vi-VN')}</small></td>
         </tr>)}</tbody>
       </table>
       {!items.length && <p className="p-6 text-center text-slate-400">Không có sản phẩm phù hợp.</p>}

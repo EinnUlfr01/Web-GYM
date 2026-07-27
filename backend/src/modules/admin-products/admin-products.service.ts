@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { randomBytes } from 'crypto';
 import sharp from 'sharp';
+import type { Metadata } from 'sharp';
 import { getPool, sql } from '../../config/database';
 import { config } from '../../config/config';
 import { AppError } from '../../middleware/errorHandler';
@@ -37,6 +38,7 @@ function validate(input: AdminProductInput, partial = false) {
   if (input.sale_price != null && (!Number.isFinite(Number(input.sale_price)) || Number(input.sale_price) < 0 || (input.price !== undefined && Number(input.sale_price) >= Number(input.price)))) throw new AppError(400, 'sale_price must be non-negative and lower than price');
   if (input.stock !== undefined && (!Number.isSafeInteger(Number(input.stock)) || Number(input.stock) < 0)) throw new AppError(400, 'stock must be a non-negative integer');
   if (input.category_id !== undefined && (!Number.isSafeInteger(Number(input.category_id)) || Number(input.category_id) < 1)) throw new AppError(400, 'category_id is invalid');
+  if (input.brand_id === null) throw new AppError(400, 'brand_id must reference an active Brand');
 }
 
 async function uniqueSlug(request: sql.Request, name: string, excludeId?: number) {
@@ -87,7 +89,7 @@ export const adminProductsService = {
     const sorts: Record<string, string> = { name_asc: 'p.product_name ASC', name_desc: 'p.product_name DESC', price_asc: 'v.price ASC', price_desc: 'v.price DESC', created_asc: 'p.created_at ASC', created_desc: 'p.created_at DESC', updated_desc: 'p.updated_at DESC' };
     const order = sorts[String(query.sort)] || sorts.updated_desc;
     const result = await request.query(`
-      SELECT p.id,p.product_name,p.slug,p.description,p.brand_id,p.category_id,p.is_active,p.is_featured,p.is_on_sale,p.created_at,p.updated_at,
+      SELECT p.id,p.product_name,p.slug,p.description,p.brand_id,p.category_id,p.is_active,p.is_featured,p.is_on_sale,p.moderation_status,p.submitted_at,p.review_reason,p.brand_request_id,p.created_at,p.updated_at,
         b.name brand,c.name category,c.slug category_slug,s.id shop_id,s.name shop_name,s.slug shop_slug,s.status shop_status,s.is_verified shop_verified,v.id variant_id,v.sku,v.price,v.sale_price,i.available stock,
         pi.id image_id,pi.image_url,pi.is_primary,pi.sort_order,COUNT(*) OVER() total
       FROM dbo.Products p
@@ -110,7 +112,7 @@ export const adminProductsService = {
     const product = await productsService.getDetail('p.id=@lookup', id, true);
     if (!product) throw new AppError(404, 'Product not found');
     const pool = await getPool();
-    const meta = await pool.request().input('id', id).query('SELECT brand_id,category_id,updated_at FROM dbo.Products WHERE id=@id');
+    const meta = await pool.request().input('id', id).query('SELECT brand_id,brand_request_id,category_id,moderation_status,submitted_at,review_reason,updated_at FROM dbo.Products WHERE id=@id');
     return { ...product, ...meta.recordset[0] };
   },
 
@@ -121,7 +123,9 @@ export const adminProductsService = {
     try {
       const request = tx.request().input('excludeId', sql.Int, -1);
       await assertCategory(request, Number(input.category_id));
-      await assertBrand(tx.request(), input.brand_id ?? null);
+      let brandId=input.brand_id??null;
+      if(brandId===null){const generic=await tx.request().query('SELECT id FROM dbo.Brands WHERE is_generic=1 AND is_active=1');if(!generic.recordset[0])throw new AppError(500,'Generic Brand is missing');brandId=Number(generic.recordset[0].id);}
+      await assertBrand(tx.request(), brandId);
       const slug = await uniqueSlug(request, input.product_name!.trim());
       const duplicate = await tx.request().input('sku', sql.NVarChar, input.sku!.trim()).query('SELECT id FROM dbo.ProductVariants WHERE sku=@sku');
       if (duplicate.recordset[0]) throw new AppError(409, 'SKU already exists');
@@ -129,12 +133,12 @@ export const adminProductsService = {
       if (!official.recordset[0]) throw new AppError(500, 'GymFit Official shop is missing; product creation was rolled back');
       const inserted = await tx.request()
         .input('name', sql.NVarChar, input.product_name!.trim()).input('slug', sql.NVarChar, slug).input('description', sql.NVarChar, input.description?.trim() || null)
-        .input('brandId', sql.Int, input.brand_id || null).input('categoryId', sql.Int, input.category_id)
+        .input('brandId', sql.Int, brandId).input('categoryId', sql.Int, input.category_id)
         .input('active', sql.Bit, input.is_active ?? true).input('featured', sql.Bit, input.is_featured ?? false).input('sale', sql.Bit, input.is_on_sale ?? false)
         .input('sku', sql.NVarChar, input.sku!.trim()).input('price', sql.Decimal(10,2), input.price).input('salePrice', sql.Decimal(10,2), input.sale_price ?? null).input('stock', sql.Int, input.stock)
         .input('officialShopId',sql.Int,official.recordset[0].id)
-        .query(`INSERT dbo.Products(product_name,slug,description,sku,price,sale_price,stock,brand_id,category_id,is_active,is_featured,is_on_sale,shop_id,created_at,updated_at)
-          OUTPUT INSERTED.id VALUES(@name,@slug,@description,@sku,@price,@salePrice,@stock,@brandId,@categoryId,@active,@featured,@sale,@officialShopId,SYSUTCDATETIME(),SYSUTCDATETIME())`);
+        .query(`INSERT dbo.Products(product_name,slug,description,sku,price,sale_price,stock,brand_id,category_id,is_active,is_featured,is_on_sale,shop_id,moderation_status,created_at,updated_at)
+          OUTPUT INSERTED.id VALUES(@name,@slug,@description,@sku,@price,@salePrice,@stock,@brandId,@categoryId,@active,@featured,@sale,@officialShopId,N'PUBLISHED',SYSUTCDATETIME(),SYSUTCDATETIME())`);
       const productId = inserted.recordset[0].id;
       const variant = await tx.request().input('productId', productId).input('sku', input.sku!.trim()).input('price', input.price).input('salePrice', input.sale_price ?? null)
         .query(`INSERT dbo.ProductVariants(product_id,variant_name,sku,price,sale_price,is_active,is_default,created_at,updated_at) OUTPUT INSERTED.id VALUES(@productId,N'Default',@sku,@price,@salePrice,1,1,SYSUTCDATETIME(),SYSUTCDATETIME())`);
@@ -183,10 +187,11 @@ export const adminProductsService = {
     const prepared: { target:string; url:string; alt:string; sort:number; primary:boolean }[]=[];
     try {
       for (const file of files) {
-        const metadata = await sharp(file.buffer, { failOn: 'error' }).metadata();
+        let metadata: Metadata;
+        try{metadata=await sharp(file.buffer,{failOn:'error'}).metadata();}catch{throw new AppError(400,`${file.originalname}: invalid image content`);}
         if (!['jpeg','png','webp'].includes(metadata.format || '')) throw new AppError(400, `${file.originalname}: unsupported image content`);
         const filename = `product-${productId}-${Date.now()}-${randomBytes(4).toString('hex')}.webp`; const target = path.join(productDir, filename);
-        await sharp(file.buffer).rotate().webp({ quality: 88 }).toFile(target); written.push(target);
+        try{await sharp(file.buffer).rotate().webp({ quality: 88 }).toFile(target);}catch{throw new AppError(400,`${file.originalname}: image transform failed`);}written.push(target);
         prepared.push({target,url:`/uploads/products/${productId}/${filename}`,alt:file.originalname.slice(0,200),sort:Number(count.recordset[0].total)+prepared.length,primary:Number(count.recordset[0].total)===0&&prepared.length===0});
       }
       const tx=pool.transaction(); await tx.begin();

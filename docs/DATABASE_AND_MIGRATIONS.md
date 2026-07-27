@@ -37,6 +37,15 @@ SELLER-004 acceptance databases require `SELLER004_ACCEPTANCE=1`, use the
 `GYMFIT_DB_SELLER004_ACCEPTANCE_` prefix, and apply the existing `0001`–`0102`
 chain before tests.
 
+SELLER-005 uses `0103_seller_product_mutation_and_submission.sql`. It adds the
+Product moderation foundation, submitted/review fields, and nullable
+BrandRequest FK, with constraints enforcing lifecycle consistency and exactly
+one Brand source. Existing Products are backfilled to PUBLISHED without
+changing catalog IDs or child data. Indexes support Shop moderation lists and
+the future Admin review queue. SELLER-005 acceptance requires
+`SELLER005_ACCEPTANCE=1`, an isolated
+`GYMFIT_DB_SELLER005_ACCEPTANCE_` database, and an isolated upload directory.
+
 Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
 
 Canonical migration `0006_auth_session_security.sql` applied successfully via the migration runner with checksum `e6608c0d29d163f4f4a6627e8e1f34fa22f642bbec1f3cea5ac01cc31982dd74`; pending migrations are `0` and checksum mismatches are `0`. Backup and `RESTORE VERIFYONLY WITH CHECKSUM` passed before mutation.

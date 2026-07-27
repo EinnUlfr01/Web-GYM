@@ -156,3 +156,21 @@ sort/filter values return 400. Public Product APIs require both an active
 Product and an `ACTIVE` Shop and expose only a safe Shop summary. Admin Product
 APIs retain global scope and include Shop summary metadata; create resolves
 GymFit Official server-side and update cannot transfer ownership.
+
+## SELLER-005 Product mutation APIs
+
+All routes require SELLER and derive ownership from the authenticated User:
+
+| Method | Route | Policy |
+|---|---|---|
+| POST | `/api/seller/products` | Active Shop; creates inactive DRAFT |
+| PATCH/DELETE | `/api/seller/products/:productId` | Owner; DRAFT/REJECTED only |
+| POST | `/api/seller/products/:productId/submit` | Owner; validates complete catalog state |
+| POST/PATCH/DELETE | `/api/seller/products/:productId/variants...` | Owner; DRAFT/REJECTED content |
+| POST/PATCH/DELETE | `/api/seller/products/:productId/images...` | Owner; DRAFT/REJECTED content |
+| POST | `/api/seller/products/:productId/variants/:variantId/inventory/adjustments` | Owner; transactional stock delta |
+
+Protected Shop, owner, publication, moderation, review, reservation, and
+derived Inventory fields are rejected by strict validation. Cross-Shop path
+IDs return 404. Seller submission can only transition DRAFT/REJECTED to
+PENDING_REVIEW; no Seller endpoint can publish.

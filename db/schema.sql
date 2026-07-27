@@ -1580,3 +1580,20 @@ GO
 CREATE OR ALTER TRIGGER dbo.TR_BrandRequestStatusHistory_Immutable ON dbo.BrandRequestStatusHistory AFTER UPDATE,DELETE AS BEGIN SET NOCOUNT ON;THROW 51300,'Brand request status history is immutable.',1;END;
 GO
 
+-- SELLER-005 Product lifecycle foundation
+ALTER TABLE dbo.Products ADD
+ moderation_status NVARCHAR(20) NOT NULL CONSTRAINT DF_Products_ModerationStatus DEFAULT N'PUBLISHED',
+ submitted_at DATETIME2 NULL,review_reason NVARCHAR(1000) NULL,brand_request_id INT NULL,
+ CONSTRAINT FK_Products_BrandRequest FOREIGN KEY(brand_request_id) REFERENCES dbo.BrandRequests(id),
+ CONSTRAINT CK_Products_ModerationStatus CHECK(moderation_status IN(N'DRAFT',N'PENDING_REVIEW',N'PUBLISHED',N'REJECTED',N'SUSPENDED')),
+ CONSTRAINT CK_Products_BrandSource CHECK((brand_id IS NOT NULL AND brand_request_id IS NULL) OR (brand_id IS NULL AND brand_request_id IS NOT NULL)),
+ CONSTRAINT CK_Products_ModerationState CHECK(
+  (moderation_status=N'DRAFT' AND submitted_at IS NULL AND is_active=0)
+  OR(moderation_status=N'PENDING_REVIEW' AND submitted_at IS NOT NULL AND review_reason IS NULL AND is_active=0)
+  OR(moderation_status=N'PUBLISHED' AND brand_id IS NOT NULL AND brand_request_id IS NULL)
+  OR(moderation_status=N'REJECTED' AND is_active=0)
+  OR(moderation_status=N'SUSPENDED' AND is_active=0));
+CREATE INDEX IX_Products_Shop_Moderation ON dbo.Products(shop_id,moderation_status,updated_at DESC,id DESC);
+CREATE INDEX IX_Products_Moderation_Submitted ON dbo.Products(moderation_status,submitted_at,id) INCLUDE(shop_id,is_active,brand_id,category_id);
+GO
+

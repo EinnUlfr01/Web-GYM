@@ -4,10 +4,10 @@ import bcrypt from 'bcryptjs';
 import * as sql from 'mssql';
 import { config } from '../config/config';
 
-const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1';
-if(!seller002&&!seller003&&!seller004)throw new Error('A SELLER002/003/004 acceptance flag is required');
+const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1',seller005=process.env.SELLER005_ACCEPTANCE==='1';
+if(!seller002&&!seller003&&!seller004&&!seller005)throw new Error('A SELLER002/003/004/005 acceptance flag is required');
 const target=config.db.database;
-const safePrefix=seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
+const safePrefix=seller005?'GYMFIT_DB_SELLER005_ACCEPTANCE_':seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
 if(target==='GYMFIT_DB'||!target.startsWith(safePrefix)||!/^[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
 const action=process.argv[2];
 const masterConfig={...config.db,database:'master'};
@@ -26,6 +26,12 @@ async function run(){
     const dbPool=await new sql.ConnectionPool({...config.db,database:target}).connect();
     try{
       for(const batch of batches(body))await dbPool.request().batch(batch);
+      if(await dbPool.request().query(`SELECT COL_LENGTH(N'dbo.Products',N'moderation_status') value`).then(r=>r.recordset[0].value)){
+        await dbPool.request().batch(`DROP INDEX IF EXISTS IX_Products_Moderation_Submitted ON dbo.Products;
+          DROP INDEX IF EXISTS IX_Products_Shop_Moderation ON dbo.Products;
+          ALTER TABLE dbo.Products DROP CONSTRAINT CK_Products_ModerationState,CK_Products_BrandSource,CK_Products_ModerationStatus,FK_Products_BrandRequest,DF_Products_ModerationStatus;
+          ALTER TABLE dbo.Products DROP COLUMN moderation_status,submitted_at,review_reason,brand_request_id;`);
+      }
       if(await dbPool.request().query(`SELECT OBJECT_ID(N'dbo.BrandRequests') id`).then(r=>r.recordset[0].id)){
         await dbPool.request().batch(`DROP TRIGGER IF EXISTS dbo.TR_BrandRequestStatusHistory_Immutable;DROP TABLE IF EXISTS dbo.BrandRequestStatusHistory;DROP TABLE IF EXISTS dbo.BrandRequests;
           DELETE dbo.Brands WHERE is_generic=1;
