@@ -1,399 +1,43 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, Loader2, Dumbbell, Sparkles, Zap } from 'lucide-react';
+import { FormEvent,useEffect,useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 import ProductCard from '../../components/products/ProductCard';
-import ProductFilters from '../../components/products/ProductFilters';
-import ProductSearchBar from '../../components/products/ProductSearchBar';
-import type { Product, ProductListResponse } from '../../types/product';
+import type { Product,ProductListResponse } from '../../types/product';
 
-interface Filters {
-  category: string; minPrice: number; maxPrice: number; brand: string;
-  inStock: boolean; featured: boolean; sort: string;
-}
+type Option={id:number;name:string;slug:string};
+type ShopOption=Option&{isVerified:boolean};
+type FilterOptions={categories:Option[];brands:Option[];shops:ShopOption[]};
+const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
 
-const LoadingSkeleton = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-    {Array.from({ length: 8 }).map((_, i) => (
-      <div key={i} className="bg-[#0F172A] border border-[#1e293b] rounded-2xl overflow-hidden animate-pulse">
-        <div className="aspect-[4/5] bg-dark-800/50" />
-        <div className="p-4 space-y-3">
-          <div className="h-3 w-16 bg-dark-800/70 rounded-full" />
-          <div className="h-4 w-3/4 bg-dark-800/70 rounded-lg" />
-          <div className="h-3 w-1/2 bg-dark-800/70 rounded-lg" />
-          <div className="flex justify-between">
-            <div className="h-5 w-20 bg-dark-800/70 rounded-lg" />
-            <div className="h-3 w-16 bg-dark-800/70 rounded-lg" />
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
-export default function ProductsListPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, limit: 20, pages: 0 });
-  const [filters, setFilters] = useState<Filters>({
-    category: '', minPrice: 0, maxPrice: 10000, brand: '',
-    inStock: false, featured: false, sort: 'newest'
-  });
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => { fetchProducts(); }, [filters, pagination.page]);
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filters.category && filters.category !== 'all') params.append('category', filters.category);
-      if (filters.minPrice > 0) params.append('minPrice', filters.minPrice.toString());
-      if (filters.maxPrice < 10000) params.append('maxPrice', filters.maxPrice.toString());
-      if (filters.brand && filters.brand !== 'all') params.append('brand', filters.brand);
-      if (filters.inStock) params.append('inStock', 'true');
-      if (filters.featured) params.append('featured', 'true');
-      if (searchQuery) params.append('search', searchQuery);
-      params.append('sort', filters.sort);
-      params.append('page', pagination.page.toString());
-      params.append('limit', pagination.limit.toString());
-
-      const response = await api.get<ProductListResponse>(`/products?${params.toString()}`);
-      setProducts(response.data.data || []);
-      setPagination(response.data.pagination || pagination);
-      setError(null);
-    } catch (err: any) {
-      console.error('Error fetching products:', err);
-      setError(err.message || 'Failed to load products');
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFiltersChange = (newFilters: Partial<Filters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const clearFilters = () => {
-    setFilters({ category: '', minPrice: 0, maxPrice: 10000, brand: '', inStock: false, featured: false, sort: 'newest' });
-    setSearchQuery('');
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const renderPagination = () => {
-    if (pagination.pages <= 1) return null;
-    const pages: (number | string)[] = [];
-    const total = pagination.pages;
-    const current = pagination.page;
-    if (total <= 7) {
-      for (let i = 1; i <= total; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (current > 3) pages.push('...');
-      const start = Math.max(2, current - 1);
-      const end = Math.min(total - 1, current + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (current < total - 2) pages.push('...');
-      pages.push(total);
-    }
-    return (
-      <div className="flex items-center justify-center gap-2 mt-12">
-        <button
-          onClick={() => handlePageChange(current - 1)}
-          disabled={current <= 1}
-          className="p-2.5 rounded-xl bg-[#0F172A] border border-[#1e293b] text-dark-300 hover:border-orange-500/30 hover:text-orange-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        {pages.map((page, i) =>
-          typeof page === 'string' ? (
-            <span key={`ellipsis-${i}`} className="px-2 text-dark-500">...</span>
-          ) : (
-            <motion.button
-              key={page}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handlePageChange(page)}
-              className={`min-w-[44px] h-11 rounded-xl font-bold text-sm transition-all duration-300 ${
-                current === page
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/20'
-                  : 'bg-[#0F172A] border border-[#1e293b] text-dark-300 hover:border-orange-500/30 hover:text-orange-400'
-              }`}
-            >
-              {page}
-            </motion.button>
-          )
-        )}
-        <button
-          onClick={() => handlePageChange(current + 1)}
-          disabled={current >= total}
-          className="p-2.5 rounded-xl bg-[#0F172A] border border-[#1e293b] text-dark-300 hover:border-orange-500/30 hover:text-orange-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-[#020617]">
-      {/* Floating Orbs Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-orange-500/5 rounded-full blur-3xl" />
-      </div>
-
-      {/* Hero Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#0F172A] via-[#0F172A] to-[#020617]">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMkM1NUUiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-emerald-500/10" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/10 to-emerald-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-widest mb-6">
-              <Sparkles size={14} /> Premium Fitness Collection
-            </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white mb-4 tracking-tight leading-tight">
-              Train Like a{' '}
-              <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">Pro</span>
-            </h1>
-            <p className="text-lg md:text-xl text-dark-300 max-w-2xl mx-auto">
-              Elite-grade supplements & gym gear used by champions. Fuel your performance.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        {/* Filter Bar - Glass effect */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative -mt-6 mb-8"
-        >
-          <div className="backdrop-blur-xl bg-[#0F172A]/80 border border-[#1e293b] rounded-2xl p-4 shadow-xl shadow-black/20">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="relative flex-1 w-full">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && fetchProducts()}
-                  placeholder="Search 500+ products..."
-                  className="w-full pl-12 pr-4 py-3 bg-dark-800/50 border border-dark-700/50 rounded-xl text-white placeholder:text-dark-400 focus:outline-none focus:border-orange-500/50 focus:shadow-lg focus:shadow-orange-500/5 transition-all duration-300"
-                />
-              </div>
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <ProductSearchBar
-                  onSearch={(query: string) => {
-                    setSearchQuery(query);
-                    setPagination(prev => ({ ...prev, page: 1 }));
-                    setTimeout(() => fetchProducts(), 0);
-                  }}
-                />
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2 px-5 py-3 bg-dark-800/50 border border-dark-700/50 rounded-xl text-dark-300 hover:text-orange-400 hover:border-orange-500/30 transition-all duration-300 lg:hidden"
-                >
-                  <SlidersHorizontal size={16} />
-                  <span className="text-sm font-medium">Filters</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <motion.aside
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="lg:w-64 xl:w-72 flex-shrink-0 hidden lg:block"
-          >
-            <div className="sticky top-8">
-              <div className="backdrop-blur-xl bg-[#0F172A]/80 border border-[#1e293b] rounded-2xl p-6 shadow-xl shadow-black/20">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="font-bold text-white flex items-center gap-2">
-                    <SlidersHorizontal size={16} className="text-orange-400" />
-                    Filters
-                  </h2>
-                  <button
-                    onClick={clearFilters}
-                    className="text-xs font-medium text-orange-400/70 hover:text-orange-400 transition-colors"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                <ProductFilters
-                  filters={filters}
-                  onChange={handleFiltersChange}
-                  onClose={() => setShowFilters(false)}
-                />
-              </div>
-            </div>
-          </motion.aside>
-
-          {/* Main Content */}
-          <main className="flex-1 min-w-0">
-            {/* Result Count */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-              className="flex items-center justify-between mb-6"
-            >
-              <p className="text-sm text-dark-400">
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" /> Loading...
-                  </span>
-                ) : (
-                  <>
-                    Showing <span className="text-white font-medium">{products.length}</span> of{' '}
-                    <span className="text-white font-medium">{pagination.total}</span> products
-                  </>
-                )}
-              </p>
-              {!loading && products.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-dark-500">
-                  <Zap size={12} className="text-orange-400" />
-                  Results for "{filters.sort.replace('-', ' ')}"
-                </div>
-              )}
-            </motion.div>
-
-            {/* Error */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-900/30 border border-red-500/30 text-red-300 px-5 py-3 rounded-xl mb-6 text-sm"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            {/* Loading */}
-            {loading ? (
-              <LoadingSkeleton />
-            ) : products.length === 0 ? (
-              /* Empty State */
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16"
-              >
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-dark-800/50 border border-dark-700/50 mb-6">
-                  <Dumbbell size={36} className="text-dark-500" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">No products found</h3>
-                <p className="text-dark-400 mb-8 max-w-md mx-auto">
-                  Try adjusting your filters or search terms to find what you're looking for.
-                </p>
-                <button
-                  onClick={clearFilters}
-                  className="px-8 py-3.5 rounded-xl font-bold text-sm
-                    bg-gradient-to-r from-orange-500 to-orange-600 text-white
-                    hover:from-orange-400 hover:to-orange-500
-                    shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30
-                    transition-all duration-300"
-                >
-                  Clear All Filters
-                </button>
-              </motion.div>
-            ) : (
-              /* Products Grid */
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: { transition: { staggerChildren: 0.06 } },
-                }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-              >
-                <AnimatePresence mode="popLayout">
-                  {products.map((product) => (
-                    <motion.div
-                      key={product.id}
-                      layout
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
-                    >
-                      <ProductCard product={product} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            )}
-
-            {/* Pagination */}
-            {renderPagination()}
-          </main>
-        </div>
-
-        {/* Mobile Filters Drawer */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 lg:hidden"
-            >
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-              <motion.div
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className="absolute left-0 top-0 h-full w-[85%] max-w-sm bg-[#0F172A] border-r border-[#1e293b] p-6 overflow-y-auto shadow-2xl"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="font-bold text-white flex items-center gap-2">
-                    <SlidersHorizontal size={16} className="text-orange-400" />
-                    Filters
-                  </h2>
-                  <button
-                    onClick={() => setShowFilters(false)}
-                    className="p-2 rounded-xl hover:bg-dark-800 text-dark-400 hover:text-white transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <ProductFilters
-                  filters={filters}
-                  onChange={(newFilters: any) => {
-                    handleFiltersChange(newFilters);
-                    setTimeout(() => setShowFilters(false), 300);
-                  }}
-                  onClose={() => setShowFilters(false)}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
+export default function ProductsListPage(){
+  const[query,setQuery]=useSearchParams(),[items,setItems]=useState<Product[]>([]),[filters,setFilters]=useState<FilterOptions>({categories:[],brands:[],shops:[]});
+  const[loading,setLoading]=useState(true),[error,setError]=useState(''),[meta,setMeta]=useState({page:1,pages:1,total:0}),[search,setSearch]=useState(query.get('q')??'');
+  const key=query.toString();
+  useEffect(()=>{api.get('/products/filters').then(r=>setFilters(r.data.data)).catch(()=>undefined);},[]);
+  useEffect(()=>{setSearch(query.get('q')??'');setLoading(true);api.get<ProductListResponse>('/products',{params:Object.fromEntries(query)})
+    .then(r=>{setItems(r.data.data);setMeta({page:r.data.pagination.page,pages:r.data.pagination.pages,total:r.data.pagination.total});setError('');})
+    .catch((e:any)=>{setItems([]);setError(e.response?.data?.message||'Không thể tải sản phẩm.');}).finally(()=>setLoading(false));},[key]);
+  const change=(name:string,value:string)=>{const next=new URLSearchParams(query);value?next.set(name,value):next.delete(name);if(name!=='page')next.set('page','1');setQuery(next);};
+  const submit=(e:FormEvent)=>{e.preventDefault();change('q',search.trim().replace(/\s+/g,' '));};
+  const page=(value:number)=>change('page',String(value));
+  return <main className="mx-auto max-w-7xl space-y-6 px-4 py-10">
+    <header><h1 className="text-3xl font-bold">Sản phẩm Marketplace</h1><p className="text-slate-400">Tìm kiếm sản phẩm từ các Shop đang hoạt động.</p></header>
+    <form onSubmit={submit} className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 md:grid-cols-4">
+      <input aria-label="Tìm sản phẩm" className="rounded bg-slate-900 p-2 md:col-span-3" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tên, thương hiệu, danh mục, Shop hoặc SKU"/>
+      <button className="rounded bg-orange-500 px-4 py-2 font-semibold text-white">Tìm kiếm</button>
+      <select aria-label="Danh mục" value={query.get('categoryId')??''} onChange={e=>change('categoryId',e.target.value)} className="rounded bg-slate-900 p-2"><option value="">Mọi danh mục</option>{filters.categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
+      <select aria-label="Thương hiệu" value={query.get('brandId')??''} onChange={e=>change('brandId',e.target.value)} className="rounded bg-slate-900 p-2"><option value="">Mọi thương hiệu</option>{filters.brands.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
+      <select aria-label="Shop" value={query.get('shopSlug')??''} onChange={e=>change('shopSlug',e.target.value)} className="rounded bg-slate-900 p-2"><option value="">Mọi Shop</option>{filters.shops.map(x=><option key={x.id} value={x.slug}>{x.name}{x.isVerified?' ✓':''}</option>)}</select>
+      <select aria-label="Sắp xếp" value={query.get('sort')??'newest'} onChange={e=>change('sort',e.target.value)} className="rounded bg-slate-900 p-2">{sorts.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
+      <input aria-label="Giá tối thiểu" type="number" min="0" value={query.get('minPrice')??''} onChange={e=>change('minPrice',e.target.value)} className="rounded bg-slate-900 p-2" placeholder="Giá tối thiểu"/>
+      <input aria-label="Giá tối đa" type="number" min="0" value={query.get('maxPrice')??''} onChange={e=>change('maxPrice',e.target.value)} className="rounded bg-slate-900 p-2" placeholder="Giá tối đa"/>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={query.get('inStock')==='true'} onChange={e=>change('inStock',e.target.checked?'true':'')}/> Còn hàng</label>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={query.get('verifiedShop')==='true'} onChange={e=>change('verifiedShop',e.target.checked?'true':'')}/> Shop đã xác minh</label>
+    </form>
+    {loading?<p>Đang tải…</p>:error?<p className="text-red-400">{error}</p>:<>
+      <p className="text-sm text-slate-400">{meta.total} sản phẩm</p>
+      {items.length?<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{items.map(p=><ProductCard key={p.id} product={p}/>)}</div>:<p>Không có sản phẩm phù hợp.</p>}
+      <nav className="flex items-center justify-center gap-4"><button disabled={meta.page<=1} onClick={()=>page(meta.page-1)}>Trước</button><span>Trang {meta.page}/{Math.max(1,meta.pages)}</span><button disabled={meta.page>=meta.pages} onClick={()=>page(meta.page+1)}>Sau</button></nav>
+    </>}
+  </main>;
 }

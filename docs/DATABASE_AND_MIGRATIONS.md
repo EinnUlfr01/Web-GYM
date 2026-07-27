@@ -81,3 +81,10 @@ PENDING request per normalized name.
 # SELLER-006 / Migration 0104
 
 `0104_admin_product_moderation.sql` adds nullable current-decision fields to Products and append-only `ProductModerationHistory`. Existing GymFit Official Products retain null `reviewed_at`, `published_at`, and `reviewed_by_user_id`; migration 0104 does not fabricate legacy history. The history table has Product/User foreign keys, lifecycle/reason checks, inbox/history indexes, and an UPDATE/DELETE rejection trigger.
+# SELLER-007 marketplace query decision
+
+No database migration required. SELLER-007 reuses existing additive indexes from catalog and SELLER-002 through SELLER-006: Shop status/verification, Product Shop/active/moderation, Product Variant product/default, Inventory Variant, Product image, Brand, and Category indexes. No `0105` placeholder or duplicate index is created.
+
+Public price is computed from active Variants as the lower valid sale price or regular price. Product cards expose the minimum and maximum of those effective prices. Public stock uses only computed `Inventory.available`; `reserved` remains internal. Marketplace count and pagination operate at Product granularity.
+
+Canonical expectation remains 11 applied migrations, 0 pending, and 0 checksum mismatch. Migrations 0100–0104 are unchanged.

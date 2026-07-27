@@ -4,6 +4,7 @@ import { validate } from '../../middleware/validate';
 import { UserRole } from '../../types';
 import { detailAdmin,getMine,getPublic,listAdmin,patchMine,statusAdmin,verificationAdmin } from './shops.controller';
 import { adminShopListSchema,sellerShopPatchSchema,shopIdSchema,shopSlugSchema,shopStatusSchema,shopVerificationSchema } from './shops.validation';
+import { shopProductQuerySchema } from '../products/products.validation';
 
 export const sellerShopRouter=Router();
 sellerShopRouter.use(authenticate,authorize(UserRole.SELLER));
@@ -11,7 +12,7 @@ sellerShopRouter.get('/',getMine);
 sellerShopRouter.patch('/',validate(sellerShopPatchSchema),patchMine);
 
 export const publicShopRouter=Router();
-publicShopRouter.get('/:shopSlug',validate(shopSlugSchema,'params'),getPublic);
+publicShopRouter.get('/:shopSlug',validate(shopSlugSchema,'params'),validate(shopProductQuerySchema,'query'),getPublic);
 
 export const adminShopRouter=Router();
 adminShopRouter.use(authenticate,authorize(UserRole.ADMIN));

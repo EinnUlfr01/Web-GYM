@@ -19,7 +19,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercent = hasDiscount ? Math.round((1 - variant.sale_price! / variant.price) * 100) : 0;
   const wishlisted = isInWishlist(product.id);
   const outOfStock = variant.available <= 0;
-  const isNew = product.is_on_sale === false && !hasDiscount && !product.is_featured;
 
   return (
     <motion.div
@@ -51,11 +50,6 @@ export default function ProductCard({ product }: ProductCardProps) {
               <Zap size={10} /> HOT
             </span>
           )}
-          {isNew && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold backdrop-blur-xl bg-gradient-to-r from-emerald-500/80 to-green-600/80 text-white border border-emerald-400/30 shadow-lg shadow-emerald-500/20">
-              NEW
-            </span>
-          )}
         </div>
 
         {outOfStock && (
@@ -81,6 +75,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-bold text-sm leading-tight text-white group-hover:text-orange-400 transition-colors duration-300 line-clamp-2">
             {name}
           </h3>
+        </Link>
+        <Link className="block text-xs text-slate-400 hover:text-emerald-400" to={`/shops/${product.shop.slug}`}>
+          {product.shop.name}{product.shop.isVerified?' · Đã xác minh':''}
         </Link>
 
         {/* Variant Chips */}
@@ -112,9 +109,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </span>
               </div>
             ) : (
-              <span className="text-lg font-extrabold text-white">
-                {formatCurrency(variant.effective_price)}
-              </span>
+              <span className="text-lg font-extrabold text-white">{product.minPrice===product.maxPrice?formatCurrency(product.minPrice):`${formatCurrency(product.minPrice)} – ${formatCurrency(product.maxPrice)}`}</span>
             )}
           </div>
           {product.rating && (

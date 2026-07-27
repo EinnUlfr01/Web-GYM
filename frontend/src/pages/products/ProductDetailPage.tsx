@@ -687,6 +687,9 @@ export default function ProductDetailPage() {
                   {p.brand}
                 </span>
               )}
+              <Link className="block text-sm text-emerald-400 hover:text-emerald-300" to={`/shops/${p.shop.slug}`}>
+                Bán bởi {p.shop.name}{p.shop.isVerified ? " · Shop đã xác minh" : ""}
+              </Link>
 
               {/* Product name */}
               <h1 className="text-3xl lg:text-4xl font-bold text-white leading-tight font-heading">

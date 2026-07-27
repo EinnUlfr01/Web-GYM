@@ -184,3 +184,11 @@ PENDING_REVIEW; no Seller endpoint can publish.
 - `POST /api/admin/product-moderation/:productId/republish` — `SUSPENDED → PUBLISHED`.
 - Seller Product DTOs add `reviewedAt`, `publishedAt`, and neutral moderation history. Seller has no moderation action endpoint.
 - Order creation revalidates Product/Shop/Variant publication eligibility and database price before any reservation.
+# SELLER-007 public marketplace
+
+- `GET /api/products` is public and accepts strict query parameters: `q`, `categoryId` (or legacy `category` slug), `brandId` (or legacy `brand` slug), `shopSlug`, `verifiedShop`, `minPrice`, `maxPrice`, `inStock`, `sort`, `page`, and `pageSize` (legacy `limit` remains accepted). Sort is one of `relevance`, `newest`, `price_asc`, `price_desc`, `name_asc`, or `name_desc`; existing curated `featured` and `sale` routes retain their internal sorts.
+- `GET /api/products/filters` returns public-safe Categories, Brands, and active Shops that have at least one visible Product.
+- `GET /api/products/:slugOrId` accepts Product ID `0` and returns only Products in the shared public visibility scope.
+- `GET /api/shops/:shopSlug` returns an active Shop profile plus the same filtered/paginated Product card DTO. It accepts the Product filters except `shopSlug`; the Shop is locked to the path.
+- Public Product visibility is `Products.is_active = 1`, `moderation_status = PUBLISHED`, and owning `Shops.status = ACTIVE`. Invalid or unknown query fields return 400. Non-public Product/Shop detail returns 404 without existence disclosure.
+- Public DTOs exclude moderation/reviewer fields, Shop ownership and pickup fields, system keys, reserved Inventory, and auth/session data. Admin and Seller management endpoints keep their independent authorization scopes.

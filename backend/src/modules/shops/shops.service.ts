@@ -1,6 +1,7 @@
 import { getPool, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import type { AdminShopFilters, SellerShopPatch, ShopStatus } from './shops.types';
+import { productsService,ProductListParams } from '../products/products.service';
 
 const columns = `s.id,s.owner_user_id ownerUserId,s.system_key systemKey,s.name,s.slug,
   s.logo_url logoUrl,s.banner_url bannerUrl,s.description,s.pickup_address pickupAddress,
@@ -74,23 +75,15 @@ export const shopsService = {
       await tx.commit(); begun=false; return this.getMine(userId);
     } catch(error) { if(begun) await tx.rollback(); if([2601,2627].includes((error as {number?:number}).number??0)) throw new AppError(409,'Shop slug is already in use'); throw error; }
   },
-  async publicDetail(slug:string,page:number,limit:number) {
+  async publicDetail(slug:string,filters:Omit<ProductListParams,'shopSlug'>) {
     const pool=await getPool(); const shop=await pool.request().input('slug',sql.NVarChar(200),slug)
       .query(`SELECT ${columns} FROM dbo.Shops s WHERE s.slug=@slug AND s.status=N'ACTIVE'`);
     if(!shop.recordset[0]) throw new AppError(404,'Shop not found');
-    const id=Number(shop.recordset[0].id);
-    const products=await pool.request().input('shopId',sql.Int,id).input('offset',sql.Int,(page-1)*limit).input('limit',sql.Int,limit)
-      .query(`SELECT p.id,p.product_name productName,p.slug,p.description,
-        v.price,v.sale_price salePrice,i.available stock,pi.image_url imageUrl,COUNT_BIG(*) OVER() total
-        FROM dbo.Products p
-        CROSS APPLY(SELECT TOP 1 id,price,sale_price FROM dbo.ProductVariants WHERE product_id=p.id AND is_active=1 ORDER BY is_default DESC,id) v
-        JOIN dbo.Inventory i ON i.variant_id=v.id
-        OUTER APPLY(SELECT TOP 1 image_url FROM dbo.ProductImages WHERE product_id=p.id ORDER BY is_primary DESC,sort_order,id) pi
-        WHERE p.shop_id=@shopId AND p.is_active=1 ORDER BY p.id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`);
+    const products=await productsService.list({...filters,shopSlug:slug});
     const s=map(shop.recordset[0]);
     return { shop:{name:s.name,slug:s.slug,logoUrl:s.logoUrl,bannerUrl:s.bannerUrl,description:s.description,isVerified:s.isVerified,
       averageRating:s.averageRating,reviewCount:s.reviewCount,completedOrderCount:s.completedOrderCount,soldCount:s.soldCount,createdAt:s.createdAt},
-      products:products.recordset,page,limit,total:Number(products.recordset[0]?.total??0) };
+       products:products.products,page:products.page,pageSize:products.pageSize,total:products.total };
   },
   async listAdmin(filters:AdminShopFilters) {
     const pool=await getPool(); const req=pool.request().input('offset',sql.Int,(filters.page-1)*filters.limit).input('limit',sql.Int,filters.limit);

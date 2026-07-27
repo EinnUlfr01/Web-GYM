@@ -49,6 +49,13 @@ export interface Product {
   brand_slug?: string | null;
   category?: string | null;
   category_slug?: string | null;
+  brand_id?: number | null;
+  category_id?: number | null;
+  shop: { id: number; name: string; slug: string; logoUrl?: string | null; isVerified: boolean };
+  minPrice: number;
+  maxPrice: number;
+  inStock: boolean;
+  availableQuantity: number;
   is_active?: boolean;
   is_featured?: boolean;
   is_on_sale?: boolean;
