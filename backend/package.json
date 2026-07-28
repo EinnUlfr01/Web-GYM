@@ -18,6 +18,7 @@
     "acceptance:seller-005": "tsx src/scripts/seller-005-acceptance.ts",
     "acceptance:seller-006": "tsx src/scripts/seller-006-acceptance.ts",
     "acceptance:seller-007": "tsx src/scripts/seller-007-acceptance.ts",
+    "acceptance:regression-02": "tsx src/scripts/regression-02-auth-acceptance.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",
     "images:restore": "tsx src/scripts/restore-product-images.ts",
     "images:finalize": "tsx src/scripts/finalize-product-images.ts"

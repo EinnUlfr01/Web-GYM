@@ -17,7 +17,11 @@ export const apiLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: config.nodeEnv === 'test' || config.db.database.startsWith('GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_') ? 1000 : 10,
+  max: () => {
+    const regressionLimit=process.env.REGRESSION02_ACCEPTANCE==='1'?Number(process.env.REGRESSION02_AUTH_LIMIT_MAX):NaN;
+    if(Number.isInteger(regressionLimit)&&regressionLimit>0&&regressionLimit<=1000)return regressionLimit;
+    return config.nodeEnv === 'test' || config.db.database.startsWith('GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_') || config.db.database.startsWith('GYMFIT_REGRESSION_02_') ? 1000 : 10;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,

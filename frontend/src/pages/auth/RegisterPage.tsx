@@ -94,7 +94,7 @@ export default function RegisterPage() {
     }
     
     if (!validatePassword(formData.password)) {
-      setError('Password must be at least 8 characters');
+      setError('Password must be 10–128 characters and include lowercase, uppercase, and a number');
       return;
     }
     
@@ -306,7 +306,7 @@ export default function RegisterPage() {
                 <span className={`text-xs ${passwordStrengthInfo.color}`}>{passwordStrengthInfo.text}</span>
               </div>
               {touched.password && !validatePassword(formData.password) && (
-                <p className="text-red-400 text-sm">Password must be at least 8 characters</p>
+                <p className="text-red-400 text-sm">Password must be 10–128 characters and include lowercase, uppercase, and a number</p>
               )}
             </div>
 
