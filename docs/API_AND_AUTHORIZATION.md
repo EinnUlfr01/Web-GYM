@@ -57,7 +57,7 @@ Applicant routes are backend role-protected. Only MEMBER may create, edit, submi
 | POST | `/api/admin/seller-applications/:applicationId/approve` | ADMIN | Approve PENDING and atomically promote/revoke sessions |
 | POST | `/api/admin/seller-applications/:applicationId/reject` | ADMIN | Reject PENDING with required reason |
 
-Approval does not create a Shop. Seller Product/Order APIs do not exist in SELLER-001.
+Approval atomically promotes the applicant to Seller, revokes existing sessions, and creates one ACTIVE, unverified Shop owned by that Seller.
 
 | Method | Path | Purpose |
 |---|---|---|

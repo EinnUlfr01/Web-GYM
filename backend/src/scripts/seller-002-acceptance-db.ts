@@ -4,10 +4,10 @@ import bcrypt from 'bcryptjs';
 import * as sql from 'mssql';
 import { config } from '../config/config';
 
-const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1',seller005=process.env.SELLER005_ACCEPTANCE==='1',seller006=process.env.SELLER006_ACCEPTANCE==='1',seller007=process.env.SELLER007_ACCEPTANCE==='1',regression01=process.env.REGRESSION01==='1',regression02=process.env.REGRESSION02_ACCEPTANCE==='1',regression03=process.env.REGRESSION03_ACCEPTANCE==='1';
-if(!seller002&&!seller003&&!seller004&&!seller005&&!seller006&&!seller007&&!regression02&&!regression03)throw new Error('A supported acceptance flag is required');
+const seller002=process.env.SELLER002_ACCEPTANCE==='1',seller003=process.env.SELLER003_ACCEPTANCE==='1',seller004=process.env.SELLER004_ACCEPTANCE==='1',seller005=process.env.SELLER005_ACCEPTANCE==='1',seller006=process.env.SELLER006_ACCEPTANCE==='1',seller007=process.env.SELLER007_ACCEPTANCE==='1',regression01=process.env.REGRESSION01==='1',regression02=process.env.REGRESSION02_ACCEPTANCE==='1',regression03=process.env.REGRESSION03_ACCEPTANCE==='1',regression04=process.env.REGRESSION04_ACCEPTANCE==='1';
+if(!seller002&&!seller003&&!seller004&&!seller005&&!seller006&&!seller007&&!regression02&&!regression03&&!regression04)throw new Error('A supported acceptance flag is required');
 const target=config.db.database;
-const safePrefix=regression01||regression02||regression03?'GYMFIT_REGRESSION_':seller007?'GYMFIT_DB_SELLER007_ACCEPTANCE_':seller006?'GYMFIT_DB_SELLER006_ACCEPTANCE_':seller005?'GYMFIT_DB_SELLER005_ACCEPTANCE_':seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
+const safePrefix=regression01||regression02||regression03||regression04?'GYMFIT_REGRESSION_':seller007?'GYMFIT_DB_SELLER007_ACCEPTANCE_':seller006?'GYMFIT_DB_SELLER006_ACCEPTANCE_':seller005?'GYMFIT_DB_SELLER005_ACCEPTANCE_':seller004?'GYMFIT_DB_SELLER004_ACCEPTANCE_':seller003?'GYMFIT_DB_SELLER003_ACCEPTANCE_':'GYMFIT_DB_SELLER002_ACCEPTANCE_';
 if(target==='GYMFIT_DB'||!target.startsWith(safePrefix)||!/^[A-Za-z0-9_]+$/.test(target))throw new Error('Unsafe acceptance database name');
 const action=process.argv[2];
 const masterConfig={...config.db,database:'master'};

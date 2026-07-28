@@ -7,7 +7,8 @@ import { closePool, query } from '../config/database';
 import { stopOrderExpirationRunner } from '../modules/orders/order-expiration.runner';
 
 if (process.env.SELLER001_ACCEPTANCE !== '1') throw new Error('SELLER001_ACCEPTANCE=1 is required');
-if (!config.db.database.startsWith('GYMFIT_DB_SELLER001_ACCEPTANCE_') || config.db.database === 'GYMFIT_DB') {
+const regression04=process.env.REGRESSION04_ACCEPTANCE==='1';
+if (!(regression04?config.db.database.startsWith('GYMFIT_REGRESSION_04_'):config.db.database.startsWith('GYMFIT_DB_SELLER001_ACCEPTANCE_')) || config.db.database === 'GYMFIT_DB') {
   throw new Error('Refusing mutation outside a disposable SELLER-001 acceptance database');
 }
 
@@ -25,8 +26,8 @@ type AcceptanceResource={
   user:{role:string};
   [key:string]:unknown;
 };
-const requestTimeoutMs=15_000;
-const suiteTimeoutMs=300_000;
+const requestTimeoutMs=regression04?5_000:15_000;
+const suiteTimeoutMs=regression04?60_000:300_000;
 const testPort=Number(process.env.ACCEPTANCE_PORT||5511);
 let base=`http://127.0.0.1:${testPort}/api`;
 let server:Server|undefined;
@@ -169,8 +170,8 @@ async function main(){
   const database=await query(`SELECT
     (SELECT COUNT(*) FROM dbo.SellerApplications) applications,
     (SELECT COUNT(*) FROM dbo.SellerApplicationStatusHistory) history,
-    (SELECT COUNT(*) FROM sys.tables WHERE name=N'Shops' AND schema_id=SCHEMA_ID(N'dbo')) shop_tables`);
-  check(Number(database.recordset[0].shop_tables)===0,'SELLER-001 does not create Shops');
+    (SELECT COUNT(*) FROM dbo.Shops WHERE owner_user_id=@userId AND status=N'ACTIVE' AND is_verified=0) approved_seller_shops`,{userId:accounts.memberA.id});
+  check(Number(database.recordset[0].approved_seller_shops)===1,'approval creates exactly one ACTIVE unverified owned Shop');
   const browserFixturePath=process.env.SELLER001_BROWSER_FIXTURE_PATH;
   if(browserFixturePath){
     await fs.writeFile(browserFixturePath,JSON.stringify({
@@ -195,6 +196,17 @@ async function startOwnedServer(){
     server?.once('error',onError);
   });
   base=`http://127.0.0.1:${testPort}/api`;
+  if(regression04){
+    let healthy=false,lastError='no response';
+    for(let attempt=1;attempt<=20&&!healthy;attempt++){
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2000);
+      try{const response=await fetch(`${base}/health`,{signal:controller.signal});healthy=response.ok;lastError=`HTTP ${response.status}`;}
+      catch(error){lastError=error instanceof Error?error.message:String(error);}
+      finally{clearTimeout(timer);}
+      if(!healthy)await new Promise(resolve=>setTimeout(resolve,250));
+    }
+    if(!healthy)throw new Error(`Runtime health failed after finite polling: ${lastError}`);
+  }
   console.log(`[SERVER READY] ${base} database=${config.db.database}`);
 }
 
