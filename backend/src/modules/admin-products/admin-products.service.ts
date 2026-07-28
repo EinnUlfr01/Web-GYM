@@ -38,7 +38,6 @@ function validate(input: AdminProductInput, partial = false) {
   if (input.sale_price != null && (!Number.isFinite(Number(input.sale_price)) || Number(input.sale_price) < 0 || (input.price !== undefined && Number(input.sale_price) >= Number(input.price)))) throw new AppError(400, 'sale_price must be non-negative and lower than price');
   if (input.stock !== undefined && (!Number.isSafeInteger(Number(input.stock)) || Number(input.stock) < 0)) throw new AppError(400, 'stock must be a non-negative integer');
   if (input.category_id !== undefined && (!Number.isSafeInteger(Number(input.category_id)) || Number(input.category_id) < 1)) throw new AppError(400, 'category_id is invalid');
-  if (input.brand_id === null) throw new AppError(400, 'brand_id must reference an active Brand');
 }
 
 async function uniqueSlug(request: sql.Request, name: string, excludeId?: number) {
@@ -69,8 +68,17 @@ async function removeLocalFile(imageUrl: string) {
   const relative = imageUrl.slice('/uploads/products/'.length).replace(/\//g, path.sep);
   const target = path.resolve(uploadRoot, relative);
   if (target !== uploadRoot && !target.startsWith(uploadRoot + path.sep)) throw new AppError(400, 'Unsafe image path');
-  try { await fs.unlink(target); } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.error('Unable to remove product image file', error);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try { await fs.unlink(target); return; } catch (error) {
+      const code=(error as NodeJS.ErrnoException).code;
+      if(code==='ENOENT')return;
+      if((code==='EBUSY'||code==='EPERM')&&attempt<3){
+        await new Promise(resolve=>setTimeout(resolve,25*(attempt+1)));
+        continue;
+      }
+      console.error('Unable to remove product image file', error);
+      return;
+    }
   }
 }
 

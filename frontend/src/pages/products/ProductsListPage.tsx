@@ -13,10 +13,10 @@ export default function ProductsListPage(){
   const[query,setQuery]=useSearchParams(),[items,setItems]=useState<Product[]>([]),[filters,setFilters]=useState<FilterOptions>({categories:[],brands:[],shops:[]});
   const[loading,setLoading]=useState(true),[error,setError]=useState(''),[meta,setMeta]=useState({page:1,pages:1,total:0}),[search,setSearch]=useState(query.get('q')??'');
   const key=query.toString();
-  useEffect(()=>{api.get('/products/filters').then(r=>setFilters(r.data.data)).catch(()=>undefined);},[]);
-  useEffect(()=>{setSearch(query.get('q')??'');setLoading(true);api.get<ProductListResponse>('/products',{params:Object.fromEntries(query)})
+  useEffect(()=>{const controller=new AbortController();api.get('/products/filters',{signal:controller.signal}).then(r=>setFilters(r.data.data)).catch(()=>undefined);return()=>controller.abort();},[]);
+  useEffect(()=>{const controller=new AbortController();setSearch(query.get('q')??'');setLoading(true);api.get<ProductListResponse>('/products',{params:Object.fromEntries(query),signal:controller.signal})
     .then(r=>{setItems(r.data.data);setMeta({page:r.data.pagination.page,pages:r.data.pagination.pages,total:r.data.pagination.total});setError('');})
-    .catch((e:any)=>{setItems([]);setError(e.response?.data?.message||'Không thể tải sản phẩm.');}).finally(()=>setLoading(false));},[key]);
+    .catch((e:any)=>{if(!controller.signal.aborted){setItems([]);setError(e.response?.data?.message||'Không thể tải sản phẩm.');}}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[key]);
   const change=(name:string,value:string)=>{const next=new URLSearchParams(query);value?next.set(name,value):next.delete(name);if(name!=='page')next.set('page','1');setQuery(next);};
   const submit=(e:FormEvent)=>{e.preventDefault();change('q',search.trim().replace(/\s+/g,' '));};
   const page=(value:number)=>change('page',String(value));
