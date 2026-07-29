@@ -41,11 +41,12 @@ import brandRequestRoutes from './modules/brand-requests/brand-requests.routes';
 import adminBrandRequestRoutes from './modules/brand-requests/admin-brand-requests.routes';
 import sellerProductRoutes from './modules/products/seller-products.routes';
 import sellerOrderRoutes from './modules/seller-orders/seller-orders.routes';
+import cartRoutes from './modules/cart/cart.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER008_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER008_ACCEPTANCE !== '1' && process.env.SELLER008A_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -106,6 +107,7 @@ app.use('/api/admin', adminInventoryRoutes);
 app.use('/api/admin/product-moderation', productModerationRoutes);
 app.use('/api/admin', adminOrderRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/cart',cartRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/seller-applications', sellerApplicationRoutes);
 app.use('/api/admin/seller-applications', adminSellerApplicationRoutes);

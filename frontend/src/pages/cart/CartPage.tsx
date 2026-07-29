@@ -23,6 +23,12 @@ export default function CartPage() {
   const {
     cartItems,
     cartWarning,
+    cartConflict,
+    mergeSummary,
+    mergeRetryAvailable,
+    retryGuestMerge,
+    isCartLoading,
+    isCartMutating,
     migratePersistedCart,
     updateCartQuantity,
     removeFromCart,
@@ -122,7 +128,7 @@ export default function CartPage() {
     navigate(isAuthenticated ? "/checkout" : "/login", {
       state: { from: { pathname: "/checkout" } },
     });
-  if (loading)
+  if (loading || isCartLoading)
     return (
       <main className="mx-auto max-w-6xl p-6 text-white">
         Đang tải giỏ hàng…
@@ -144,9 +150,18 @@ export default function CartPage() {
           </button>
         )}
       </div>
-      {(cartWarning || error) && (
+      {(cartWarning || error || cartConflict || mergeSummary) && (
         <p role="alert" className="rounded bg-amber-500/10 p-4 text-amber-300">
-          {cartWarning || error}
+          {cartConflict || mergeSummary || cartWarning || error}
+          {mergeRetryAvailable && (
+            <button
+              className="ml-3 underline"
+              disabled={isCartMutating}
+              onClick={() => void retryGuestMerge()}
+            >
+              Thử đồng bộ lại
+            </button>
+          )}
         </p>
       )}
       {resolved.length === 0 ? (

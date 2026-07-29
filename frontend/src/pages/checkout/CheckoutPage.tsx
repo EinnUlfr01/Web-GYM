@@ -35,7 +35,13 @@ const errorMessage = (error: unknown) =>
     : "Không thể tạo đơn hàng. Hãy tải lại giá và tồn kho.";
 
 export default function CheckoutPage() {
-  const { cartItems, clearCart, migratePersistedCart } = useProductsStore();
+  const {
+    cartItems,
+    serverCart,
+    completeCheckout,
+    migratePersistedCart,
+    isCartLoading,
+  } = useProductsStore();
   const navigate = useNavigate();
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<CheckoutFormErrors>({});
@@ -168,12 +174,9 @@ export default function CheckoutPage() {
         shippingState: form.state.trim() || undefined,
         shippingPostalCode: form.postalCode.trim() || undefined,
         shippingCountry: form.country.trim(),
-        items: items.map((item) => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
-        })),
+        cartVersion: serverCart?.version ?? 0,
       });
-      clearCart();
+      completeCheckout(response.data.data.cartVersion);
       navigate(`/orders/${response.data.data.id}`);
     } catch (caught: unknown) {
       setError(errorMessage(caught));
@@ -182,6 +185,8 @@ export default function CheckoutPage() {
     }
   };
 
+  if (isCartLoading)
+    return <main className="p-8">Đang tải giỏ hàng máy chủ…</main>;
   if (!cartItems.length)
     return (
       <main className="p-8">
@@ -235,7 +240,7 @@ export default function CheckoutPage() {
           )}
           <button
             className="btn-primary"
-            disabled={submitting || loadingItems || invalid}
+            disabled={submitting || loadingItems || invalid || !serverCart}
           >
             {submitting ? "Đang tạo đơn…" : "Đặt hàng"}
           </button>

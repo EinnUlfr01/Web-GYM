@@ -20,6 +20,15 @@ async function seedUser(role:string,key:string){
   return{id:Number(result.recordset[0].id),email,password,token:""};
 }
 async function login(user:{email:string;password:string;token:string}){const result=await call("/auth/login","POST",undefined,{email:user.email,password:user.password});if(result.status!==200)throw new Error(`Login failed: ${user.email}`);user.token=String(result.data.data.accessToken);}
+async function checkout(user:{id:number;token:string},body:any){
+  const cart=(await query<any>("IF NOT EXISTS(SELECT 1 FROM dbo.Carts WHERE buyer_id=@buyer) INSERT dbo.Carts(buyer_id,version) VALUES(@buyer,1); SELECT id,version FROM dbo.Carts WHERE buyer_id=@buyer",{buyer:user.id})).recordset[0];
+  await query("DELETE dbo.CartItems WHERE cart_id=@cart",{cart:cart.id});
+  for(const item of body.items)await query("INSERT dbo.CartItems(cart_id,product_id,variant_id,quantity) SELECT @cart,product_id,id,@quantity FROM dbo.ProductVariants WHERE id=@variant",{cart:cart.id,quantity:item.quantity,variant:item.variantId});
+  const version=Number(cart.version)+1;
+  await query("UPDATE dbo.Carts SET version=@version,updated_at=SYSUTCDATETIME() WHERE id=@cart",{cart:cart.id,version});
+  const address=Object.fromEntries(Object.entries(body).filter(([key])=>key!=="items"));
+  return call("/orders","POST",user.token,{...address,cartVersion:version});
+}
 async function seedProduct(shopId:number,key:string,price:number,onHand:number,refs:{brand:number;category:number}){
   const sku=`SELLER008-${key}-${stamp}`;
   const product=(await query<any>("INSERT dbo.Products(product_name,slug,description,sku,price,stock,brand_id,category_id,is_active,shop_id,moderation_status,created_at,updated_at) OUTPUT INSERTED.id VALUES(@name,@slug,N'SELLER008',@sku,@price,@stock,@brand,@category,1,@shop,N'PUBLISHED',SYSUTCDATETIME(),SYSUTCDATETIME())",{name:`SELLER008 ${key}`,slug:`seller008-${key.toLowerCase()}-${stamp}`,sku,price,stock:onHand,brand:refs.brand,category:refs.category,shop:shopId})).recordset[0];
@@ -63,7 +72,7 @@ async function main(){
   const refs=(await query<any>("SELECT (SELECT TOP 1 id FROM dbo.Brands WHERE is_active=1 ORDER BY id) brand,(SELECT TOP 1 id FROM dbo.Categories WHERE is_active=1 ORDER BY id) category")).recordset[0];
   const a1=await seedProduct(shopA,"A1",10000,10,refs),a2=await seedProduct(shopA,"A2",20000,10,refs),b1=await seedProduct(shopB,"B1",30000,2,refs);
   const body={customerName:"Buyer",customerPhone:"0900000000",shippingAddressLine1:"1 Test",shippingCity:"HCM",shippingCountry:"VN",items:[{variantId:a1.variantId,quantity:2},{variantId:a2.variantId,quantity:1},{variantId:b1.variantId,quantity:1}]};
-  let result=await call("/orders","POST",buyer.token,body);
+  let result=await checkout(buyer,body);
   verify(result.status===201,"multi-Shop checkout");
   const orderId=Number(result.data.data.id);
   verify(result.data.data.shopOrders.length===2,"response has two ShopOrders");
@@ -91,23 +100,23 @@ async function main(){
 
   const beforeRollback=(await query<any>("SELECT reserved FROM dbo.Inventory WHERE variant_id=@variant",{variant:a1.variantId})).recordset[0];
   const orderCount=(await query<any>("SELECT COUNT(*) count FROM dbo.Orders")).recordset[0];
-  result=await call("/orders","POST",buyer.token,{...body,items:[{variantId:a1.variantId,quantity:1},{variantId:b1.variantId,quantity:999}]});
+  result=await checkout(buyer,{...body,items:[{variantId:a1.variantId,quantity:1},{variantId:b1.variantId,quantity:3}]});
   verify(result.status===409,"insufficient inventory blocked");
   verify(Number((await query<any>("SELECT COUNT(*) count FROM dbo.Orders")).recordset[0].count)===Number(orderCount.count),"failed checkout leaves no Parent");
   verify(Number((await query<any>("SELECT reserved FROM dbo.Inventory WHERE variant_id=@variant",{variant:a1.variantId})).recordset[0].reserved)===Number(beforeRollback.reserved),"failed checkout leaves no reservation");
   await query("UPDATE dbo.Products SET is_active=0 WHERE id=@id",{id:a1.productId});
-  verify((await call("/orders","POST",buyer.token,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Product blocked");
+  verify((await checkout(buyer,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Product blocked");
   await query("UPDATE dbo.Products SET is_active=1 WHERE id=@id",{id:a1.productId});
   await query("UPDATE dbo.Shops SET status=N'SUSPENDED' WHERE id=@id",{id:shopA});
-  verify((await call("/orders","POST",buyer.token,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Shop blocked");
+  verify((await checkout(buyer,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Shop blocked");
   await query("UPDATE dbo.Shops SET status=N'ACTIVE' WHERE id=@id",{id:shopA});
   await query("UPDATE dbo.ProductVariants SET is_active=0 WHERE id=@id",{id:a1.variantId});
-  verify((await call("/orders","POST",buyer.token,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Variant blocked");
+  verify((await checkout(buyer,{...body,items:[{variantId:a1.variantId,quantity:1}]})).status===404,"inactive Variant blocked");
   await query("UPDATE dbo.ProductVariants SET is_active=1 WHERE id=@id",{id:a1.variantId});
 
   const zero=(await query<any>("SELECT TOP 1 v.id variantId FROM dbo.Products p JOIN dbo.ProductVariants v ON v.product_id=p.id JOIN dbo.Inventory i ON i.variant_id=v.id WHERE p.id=0 AND i.available>0")).recordset[0];
   verify(Boolean(zero),"Product 0 fixture available");
-  result=await call("/orders","POST",coach.token,{...body,items:[{variantId:Number(zero.variantId),quantity:1}]});
+  result=await checkout(coach,{...body,items:[{variantId:Number(zero.variantId),quantity:1}]});
   verify(result.status===201,"Coach buyer and Product 0 checkout");
   const historyOwnership=(await query<any>("SELECT (SELECT COUNT(*) FROM dbo.PaymentStatusHistory p LEFT JOIN dbo.Orders o ON o.id=p.order_id WHERE o.id IS NULL) paymentOrphans,(SELECT COUNT(*) FROM dbo.OrderStatusHistory h LEFT JOIN dbo.Orders o ON o.id=h.order_id WHERE o.id IS NULL) orderHistoryOrphans,(SELECT COUNT(*) FROM dbo.OrderItems WHERE shop_order_id IS NULL) itemOrphans,(SELECT COUNT(*) FROM dbo.ShopOrders so LEFT JOIN dbo.Orders o ON o.id=so.order_id LEFT JOIN dbo.Shops s ON s.id=so.shop_id WHERE o.id IS NULL OR s.id IS NULL) shopOrderOrphans")).recordset[0];
   verify(Number(historyOwnership.paymentOrphans)===0,"Payment history remains Parent-owned");

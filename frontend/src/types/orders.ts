@@ -10,9 +10,8 @@ export interface CustomerOrderDetail { id:number; orderNumber:string; userId:num
 export interface PaymentNotificationInput { paymentReference?:string }
 export type PaymentNotificationReason='PAYMENT_UPDATED'|'ALREADY_PENDING'|'MAIL_NOT_CONFIGURED'|'MAIL_DELIVERY_FAILED';
 export interface PaymentNotificationResult { orderId:number; orderNumber:string; paymentStatus:'PENDING'; paymentProvider:'BANK_TRANSFER'; paymentUpdated:boolean; notificationSkipped:boolean; reason:PaymentNotificationReason; emailConfigured:boolean; emailAttempted:boolean; emailSent:boolean }
-export interface CreateOrderItemInput { variantId:number; quantity:number }
-export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; items:CreateOrderItemInput[] }
-export interface CreateOrderResult { id:number; orderNumber:string; orderStatus:string; paymentStatus:string; paymentProvider:string; subtotal:number; totalAmount:number; currency:string; itemCount:number; createdAt:string; reservationExpiresAt:string;shopOrders:Array<{id:number;shop:{id:number;name:string;slug:string};status:'PENDING_PAYMENT';subtotal:number}> }
+export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; cartVersion:number }
+export interface CreateOrderResult { id:number; orderNumber:string; orderStatus:string; paymentStatus:string; paymentProvider:string; subtotal:number; totalAmount:number; currency:string; itemCount:number; createdAt:string; reservationExpiresAt:string;shopOrders:Array<{id:number;shop:{id:number;name:string;slug:string};status:'PENDING_PAYMENT';subtotal:number}>;cartVersion:number }
 export interface CustomerCancelOrderInput { note?:string }
 export interface CustomerCancelOrderResult { orderId:number; orderNumber:string; orderStatus:'CANCELLED'; releasedItems:number }
 export interface CheckoutFormValues { customerName:string; customerPhone:string; addressLine1:string; addressLine2:string; city:string; state:string; postalCode:string; country:string }

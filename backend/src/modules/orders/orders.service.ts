@@ -14,6 +14,7 @@ import type {
   AdminPaymentStatusInput,
   AdminPaymentStatusResult,
   CreateOrderInput,
+  CreateOrderItemInput,
   CreateOrderResult,
   CustomerCancelOrderInput,
   CustomerCancelOrderResult,
@@ -121,10 +122,30 @@ export const ordersService = {
           )
       ).recordset[0];
       if (!user) throw new AppError(404, "User not found");
+      const cart = (
+        await tx
+          .request()
+          .input("cartBuyerId", sql.Int, userId)
+          .query<{ id: number; version: number }>(
+            "SELECT id,version FROM dbo.Carts WITH (UPDLOCK,HOLDLOCK) WHERE buyer_id=@cartBuyerId",
+          )
+      ).recordset[0];
+      if (!cart) throw new AppError(409, "Server Cart is empty");
+      if (cart.version !== input.cartVersion)
+        throw new AppError(409, "CART_CONFLICT: Cart changed before checkout");
+      const checkoutItems = (
+        await tx
+          .request()
+          .input("checkoutCartId", sql.Int, cart.id)
+          .query<CreateOrderItemInput>(
+            "SELECT id AS cartItemId,variant_id AS variantId,quantity FROM dbo.CartItems WITH (UPDLOCK,HOLDLOCK) WHERE cart_id=@checkoutCartId ORDER BY variant_id",
+          )
+      ).recordset;
+      if (checkoutItems.length === 0) throw new AppError(409, "Server Cart is empty");
+      if (checkoutItems.length > 50)
+        throw new AppError(409, "Cart exceeds checkout item limit (50)");
       const rows: OrderCreationRow[] = [];
-      for (const item of [...input.items].sort(
-        (a, b) => a.variantId - b.variantId,
-      )) {
+      for (const item of checkoutItems) {
         const result = await tx
           .request()
           .input("variantId", sql.Int, item.variantId)
@@ -153,7 +174,7 @@ export const ordersService = {
           ),
         });
       }
-      const subtotalMinor = input.items.reduce((sum, item) => {
+      const subtotalMinor = checkoutItems.reduce((sum, item) => {
         const row = rows.find(
           (candidate) => candidate.variantId === item.variantId,
         );
@@ -202,7 +223,7 @@ export const ordersService = {
         shopSlug:string;
         subtotalMinor:number;
       }>();
-      for (const item of input.items) {
+      for (const item of checkoutItems) {
         const row = rows.find(candidate => candidate.variantId === item.variantId);
         if (!row) throw new AppError(409, "Order variant resolution failed");
         const existing = shopGroups.get(row.shopId);
@@ -247,7 +268,7 @@ export const ordersService = {
           subtotal: minorToMoney(group.subtotalMinor),
         });
       }
-      for (const item of input.items) {
+      for (const item of checkoutItems) {
         const row = rows.find(
           (candidate) => candidate.variantId === item.variantId,
         ) as OrderCreationRow;
@@ -286,6 +307,16 @@ export const ordersService = {
           );
         }
       }
+      const cartCleanup = await tx
+        .request()
+        .input("cleanupCartId", sql.Int, cart.id)
+        .input("cleanupVersion", sql.Int, cart.version)
+        .input("expectedItems", sql.Int, checkoutItems.length)
+        .query<{ version: number }>(
+          "DELETE dbo.CartItems WHERE cart_id=@cleanupCartId; IF @@ROWCOUNT<>@expectedItems THROW 50801,'Cart cleanup count mismatch.',1; UPDATE dbo.Carts SET version=version+1,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.version WHERE id=@cleanupCartId AND version=@cleanupVersion;",
+        );
+      if (cartCleanup.rowsAffected[1] !== 1 || !cartCleanup.recordset[0])
+        throw new AppError(409, "CART_CONFLICT: Cart changed during checkout");
       await tx.commit();
       started = false;
       return {
@@ -297,7 +328,7 @@ export const ordersService = {
         subtotal: pricing.subtotal,
         totalAmount: pricingTotal,
         currency: pricing.currency,
-        itemCount: input.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: checkoutItems.reduce((sum, item) => sum + item.quantity, 0),
         createdAt: order.created_at,
         shopOrders: [...createdShopOrders.values()].map(shopOrder => ({
           id: shopOrder.id,
@@ -309,6 +340,7 @@ export const ordersService = {
           status: "PENDING_PAYMENT",
           subtotal: shopOrder.subtotal,
         })),
+        cartVersion: cartCleanup.recordset[0].version,
       };
     } catch (error: unknown) {
       if (started) await tx.rollback();

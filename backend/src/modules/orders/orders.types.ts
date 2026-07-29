@@ -15,11 +15,11 @@ export interface CustomerShopOrder { id:number; shop:OrderShopSummary; status:Sh
 export type OrderReservationStatus='ACTIVE'|'RELEASED'|'EXPIRED';
 export type CancellationReason='AUTO_EXPIRED'|'CUSTOMER_CANCELLED'|'ADMIN_CANCELLED'|null;
 export interface CustomerOrderDetail { id:number; orderNumber:string; userId:number; orderStatus:string; paymentStatus:string; paymentProvider:string|null; paymentReference:string|null; reservationExpiresAt?:Date|null; cancellationReason?:CancellationReason; subtotal:number; discountAmount:number; shippingAmount:number; taxAmount:number; totalAmount:number; currency:string; createdAt:Date; updatedAt:Date; customerName:string; customerEmail:string; customerPhone:string|null; addressLine1:string|null; addressLine2:string|null; city:string|null; state:string|null; postalCode:string|null; country:string|null; items:CustomerOrderItem[]; shopOrders:CustomerShopOrder[]; bankTransfer?:BankTransferPublicConfig }
-export interface CreateOrderItemInput { variantId:number; quantity:number }
-export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; items:CreateOrderItemInput[] }
+export interface CreateOrderItemInput { cartItemId:number; variantId:number; quantity:number }
+export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; cartVersion:number }
 export interface OrderPricing { subtotal:number; discountAmount:number; shippingAmount:number; taxAmount:number; totalAmount:number; currency:string }
 export interface CreateOrderShopResult { id:number; shop:OrderShopSummary; status:'PENDING_PAYMENT'; subtotal:number }
-export interface CreateOrderResult { id:number; orderNumber:string; orderStatus:'PENDING'; paymentStatus:'UNPAID'; paymentProvider:'BANK_TRANSFER'; subtotal:number; totalAmount:number; currency:string; itemCount:number; createdAt:Date; reservationExpiresAt?:Date; shopOrders:CreateOrderShopResult[] }
+export interface CreateOrderResult { id:number; orderNumber:string; orderStatus:'PENDING'; paymentStatus:'UNPAID'; paymentProvider:'BANK_TRANSFER'; subtotal:number; totalAmount:number; currency:string; itemCount:number; createdAt:Date; reservationExpiresAt?:Date; shopOrders:CreateOrderShopResult[]; cartVersion:number }
 export interface OrderCreationRow { variantId:number; productId:number; shopId:number; shopName:string; shopSlug:string; productName:string; variantName:string; sku:string; price:number; salePrice:number|null; onHand:number; reserved:number }
 export interface CustomerCancelOrderInput { note?:string }
 export interface CustomerCancelOrderResult { orderId:number; orderNumber:string; orderStatus:'CANCELLED'; releasedItems:number }
