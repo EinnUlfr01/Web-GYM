@@ -1,14 +1,49 @@
 # GymFit Seller Marketplace — Roadmap triển khai đầy đủ
 
-**Trạng thái:** Roadmap được nhóm thống nhất để chuẩn bị viết Prompt cho Codex  
+**Phiên bản:** 2.0 — cập nhật ngày 29/07/2026  
+**Trạng thái:** SELLER-000 đến SELLER-007 đã hoàn thành theo log dự án; Task tiếp theo là SELLER-008  
 **Phạm vi:** Nhánh Seller/Marketplace Commerce  
 **Không thuộc phạm vi roadmap này:** Coach/Workout do thành viên khác phụ trách; AI/Chatbox/AI Review tiếp tục đóng băng  
 **Repository nguồn chính thức:** `https://github.com/EinnUlfr01/Web-GYM` — branch chuẩn `main`  
 **Thư mục log:** `D:\Log\Log Gymfit for seller`
 
+> Tài liệu này là nguồn định hướng nghiệp vụ và phạm vi Task chính thức cho ChatGPT, Codex và nhóm.  
+> Khi source thực tế khác với giả định, Codex phải dừng ở mức báo cáo trong log, không được âm thầm đổi business rule.
+
 ---
 
-## 1. Mục tiêu
+# 0. Trạng thái triển khai hiện tại
+
+| Task | Trạng thái | Kết quả nền tảng |
+|---|---|---|
+| SELLER-000 | COMPLETE | Discovery repository, database, RBAC, Product, Cart, Order, Payment, migration và conflict map |
+| SELLER-001 | COMPLETE | Seller Application, role `SELLER`, Admin duyệt/từ chối, rate limit và session handling |
+| SELLER-002 | COMPLETE | Shop foundation, một Seller–một Shop, GymFit Official và backfill Product cũ |
+| SELLER-003 | COMPLETE | BrandRequest và Admin moderation |
+| SELLER-004 | COMPLETE | Product ownership theo Shop, public/Seller/Admin scope và compatibility Product ID `0` |
+| SELLER-005 | COMPLETE | Seller Product/Variant/Image/Inventory và submit moderation |
+| SELLER-006 | COMPLETE | Admin Product moderation, suspend/republish và audit |
+| SELLER-007 | COMPLETE | Marketplace listing, search/filter/sort, Product Detail và public Shop page |
+| SELLER-008 | NEXT | Multi-Shop Order Architecture |
+| SELLER-008A | PLANNED | Persistent Server-side Cart |
+| SELLER-009 trở đi | PLANNED | Checkout/payment/refund, logistics, finance, complaint, review và final acceptance |
+
+## 0.1. Baseline bắt buộc trước mỗi Task
+
+Codex phải:
+
+1. Chạy Git guard.
+2. Ghi branch, HEAD, origin và `git status`.
+3. Không reset, restore, clean, stash, checkout hoặc ghi đè WIP không thuộc Task.
+4. Đọc log Task trước và log Task hiện tại nếu đã tồn tại.
+5. Xác nhận migration đã apply/pending/checksum trước khi tạo migration mới.
+6. Kiểm tra source thực tế trước khi chốt tên bảng, cột, enum, API hoặc route.
+7. Không tự bắt đầu Task kế tiếp.
+8. Không commit/push trừ khi Prompt của Task cho phép rõ ràng.
+
+---
+
+# 1. Mục tiêu
 
 Chuyển GymFit từ website B2C một cửa hàng thành:
 
@@ -30,19 +65,20 @@ Không hỗ trợ:
 
 ---
 
-## 2. Quy trình làm việc
+# 2. Quy trình làm việc
 
 ```text
 Nhóm thảo luận và chốt yêu cầu
-→ ChatGPT dựng roadmap và Prompt
-→ Codex kiểm tra repository
-→ Codex thực hiện code
+→ ChatGPT cập nhật Roadmap và viết Prompt
+→ Codex kiểm tra repository và baseline
+→ Codex thực hiện đúng một Task
 → Codex build/test khi cần và khi môi trường cho phép
 → Codex ghi log đầy đủ
-→ Nhóm review kết quả và quyết định Task tiếp theo
+→ Nhóm review kết quả
+→ Nhóm quyết định Task tiếp theo
 ```
 
-### 2.1. Quy tắc log
+## 2.1. Quy tắc log
 
 Mỗi Task có một file log riêng:
 
@@ -54,7 +90,8 @@ Ví dụ:
 
 ```text
 Log SELLER-000 Marketplace Repository Discovery.md
-Log SELLER-001 Seller Application and Shop Foundation.md
+Log SELLER-008 Multi Shop Cart and Order Architecture.md
+Log SELLER-008A Persistent Server Side Cart.md
 ```
 
 Nếu chạy lại cùng Task:
@@ -87,7 +124,7 @@ Không ghi:
 - Thông tin thanh toán nhạy cảm.
 - Kết quả test không thực sự chạy.
 
-### 2.2. Trạng thái Task hợp lệ
+## 2.2. Trạng thái Task hợp lệ
 
 ```text
 COMPLETE
@@ -100,7 +137,7 @@ Không được ghi `COMPLETE` nếu chưa có bằng chứng phù hợp.
 
 ---
 
-## 3. Các quyết định nghiệp vụ đã chốt
+# 3. Các quyết định nghiệp vụ đã chốt
 
 ## D01 — Seller Application
 
@@ -172,7 +209,7 @@ Không dùng:
 - Seller Listing/Offer.
 - Merge Product giữa các Shop.
 
-## D04 — Category, Brand và moderation
+## D04 — Category, Brand và Product moderation
 
 Category:
 
@@ -212,32 +249,80 @@ Parent Order
     └── OrderItem B1
 ```
 
+Quy tắc:
+
 - Member/Coach thanh toán một lần cho GymFit.
 - Payment gắn với Parent Order.
 - Fulfillment, commission, settlement và Seller ownership gắn với ShopOrder.
 - Seller chỉ xem ShopOrder của Shop mình.
+- Product giống nhau từ hai Shop vẫn tạo hai nhóm item riêng.
+- Backend là nguồn cuối cùng của giá, Product, Variant, Shop và Inventory tại checkout.
 
-## D06 — Thanh toán ngay, không chờ Seller duyệt trước
+### Cart tạm thời trong SELLER-008
+
+- Tiếp tục sử dụng Cart hiện tại trong `localStorage`.
+- Cart hiện tại là browser-persisted Cart, không phải database Cart.
+- Frontend nhóm item theo Shop.
+- Không tin giá hoặc tổng tiền do frontend gửi lên.
+- Không reserve hàng khi chỉ thêm vào Cart.
+
+### Cart ổn định sau SELLER-008
+
+- SELLER-008A tạo `Carts` và `CartItems`.
+- Buyer đăng nhập có persistent Cart trên backend.
+- Guest Cart vẫn dùng `localStorage`.
+- Merge Guest Cart vào Server Cart khi đăng nhập theo rule của Task.
+- SELLER-008A phải hoàn thành trước SELLER-009.
+
+## D06 — Thanh toán trước, Seller kiểm tra tồn kho vật lý sau
 
 Luồng chuẩn:
 
 ```text
-Checkout
-→ kiểm tra tồn kho
-→ reserve tồn kho
-→ tạo Parent Order + ShopOrder
+Buyer checkout
+→ backend kiểm tra Product/Variant/Shop/giá/Inventory
+→ reserve Inventory
+→ tạo Parent Order + ShopOrders
+→ ShopOrder = PENDING_PAYMENT
 → hiển thị QR
-→ buyer thanh toán
-→ Admin xác nhận Payment
-→ Seller chuẩn bị hàng
+→ Buyer thanh toán
+→ Admin xác nhận Payment = PAID
+→ ShopOrder = PENDING_STOCK_CHECK
+→ Seller kiểm tra hàng vật lý
 ```
 
-Nếu Seller không đủ hàng:
+Ý nghĩa:
+
+- Inventory Seller nhập là nguồn chính để Buyer quyết định mua.
+- Backend phải kiểm tra và reserve Inventory lúc checkout.
+- `PENDING_STOCK_CHECK` không phải bước Seller phê duyệt đơn trước thanh toán.
+- Đây là lần kiểm tra vật lý thứ hai để phát hiện lệch tồn kho, hàng hỏng, thất lạc hoặc dữ liệu chưa cập nhật.
+- Luồng thành công mặc định vẫn dựa trên Inventory Seller đã nhập.
+
+Seller đủ hàng:
+
+```text
+PENDING_STOCK_CHECK
+→ PREPARING
+→ READY_FOR_PICKUP
+```
+
+Seller không đủ hàng:
+
+```text
+PENDING_STOCK_CHECK
+→ UNABLE_TO_FULFILL
+→ CANCELLED
+```
+
+Khi Seller không đủ hàng:
 
 - Hủy toàn bộ ShopOrder của Seller đó.
 - Không chỉ hủy riêng item bị thiếu.
-- Release Inventory của toàn ShopOrder bị hủy.
-- Refund toàn bộ giá trị thuộc ShopOrder bị hủy.
+- Release Inventory đúng các OrderItem thuộc ShopOrder bị hủy.
+- Không release Inventory của ShopOrder khác.
+- Refund toàn bộ giá trị merchandise thuộc ShopOrder bị hủy.
+- Xử lý outbound shipping refund theo rule được chốt trước SELLER-009.
 - Gửi thông báo xin lỗi.
 - Gửi email nếu mail đã cấu hình.
 - Cấp voucher cho lần thanh toán sau.
@@ -245,13 +330,19 @@ Nếu Seller không đủ hàng:
 
 Voucher không thay thế refund.
 
-## D07 — Quyền xử lý Order
+## D07 — Quyền xử lý ShopOrder
+
+Không sử dụng:
+
+```text
+PENDING_ACKNOWLEDGEMENT
+ACKNOWLEDGED
+```
 
 Seller thao tác trên ShopOrder của mình:
 
 ```text
-PENDING_ACKNOWLEDGEMENT
-→ ACKNOWLEDGED
+PENDING_STOCK_CHECK
 → PREPARING
 → READY_FOR_PICKUP
 ```
@@ -259,75 +350,126 @@ PENDING_ACKNOWLEDGEMENT
 Ngoại lệ:
 
 ```text
-PENDING_ACKNOWLEDGEMENT
+PENDING_STOCK_CHECK
 → UNABLE_TO_FULFILL
 ```
+
+Phân quyền theo Task:
+
+- SELLER-008: Seller Order UI read-only.
+- SELLER-009: Payment transition, stock-check confirmation và `UNABLE_TO_FULFILL`.
+- SELLER-010: `PREPARING → READY_FOR_PICKUP` và fulfillment/logistics.
 
 Admin:
 
 - Xác nhận Payment.
-- Xử lý refund.
+- Xử lý cancel/refund.
 - Cấp voucher.
 - Điều phối lấy hàng.
 - Xác nhận hàng về hub.
+- Kiểm hàng tại hub.
 - Gom hàng.
-- Điều phối giao cho buyer.
+- Điều phối giao cho Buyer.
 - Đánh dấu SHIPPED/DELIVERED.
-- Can thiệp trạng thái có audit.
+- Can thiệp trạng thái có reason và audit.
 
-## D08 — Hoa hồng và đối soát
+## D08 — Hoa hồng, doanh thu và đối soát theo tuần
+
+Luồng tài chính:
 
 ```text
 Buyer thanh toán cho GymFit
-→ GymFit ghi nhận tiền theo ShopOrder
-→ ShopOrder hoàn thành
-→ GymFit giữ commission
-→ phần còn lại đối soát cho Seller
+→ GymFit ghi nhận tiền theo Parent Order và ShopOrder
+→ ShopOrder giao thành công
+→ ghi nhận doanh thu tuần của Seller
+→ chờ đủ 7 ngày
+→ không có khiếu nại đang mở
+→ Settlement = ELIGIBLE
+→ Admin đưa vào kỳ đối soát tuần
+→ Admin đánh dấu PAID
 ```
 
-Hoa hồng:
+### Hoa hồng
 
 - Có tỷ lệ mặc định toàn sàn.
 - Lưu trong cấu hình/database.
 - Có thể khởi tạo là 5%, nhưng không hardcode trong business logic.
 - ShopOrder lưu `commission_rate_snapshot`.
-- Không tính commission trên phí vận chuyển.
+- Commission tính trên merchandise subtotal của ShopOrder.
+- Không tính commission trên outbound shipping fee.
+- Thay đổi cấu hình không làm thay đổi commission của ShopOrder cũ.
 
-Settlement:
+### Doanh thu Seller
+
+- ShopOrder được ghi nhận vào doanh thu tuần khi `DELIVERED`.
+- Không gọi toàn bộ tiền bán hàng là “profit/lợi nhuận” vì GymFit không biết giá vốn và chi phí nội bộ của Seller.
+- Giao diện Seller nên phân biệt:
+  - Doanh thu tuần.
+  - Hoa hồng GymFit.
+  - Điều chỉnh.
+  - Đang chờ đối soát.
+  - Đủ điều kiện thanh toán.
+  - Đã thanh toán.
+  - Doanh thu ròng dự kiến.
+
+### Settlement
+
+```text
+PENDING
+→ HELD
+→ ELIGIBLE
+→ PAID
+```
+
+Hoặc khi không có vấn đề:
 
 ```text
 PENDING
 → ELIGIBLE
 → PAID
-hoặc HELD
 ```
 
-Không làm payout ngân hàng tự động trong MVP.
+Quy tắc:
+
+- `earned_at` được ghi khi ShopOrder `DELIVERED`.
+- `eligible_at = delivered_at + 7 ngày lịch`.
+- Khoảng chờ tính riêng cho từng ShopOrder.
+- Khi có khiếu nại hợp lệ đang mở, settlement chuyển `HELD`.
+- Xử lý xong thì settlement có thể trở lại `ELIGIBLE`.
+- Admin đối soát thủ công theo tuần.
+- Không hardcode một thứ cụ thể trong tuần nếu chưa có yêu cầu vận hành.
+- `PAID` chỉ có nghĩa Admin xác nhận GymFit đã thanh toán Seller bằng phương thức bên ngoài.
+- Không payout ngân hàng tự động trong MVP.
+- Không tự động thu hồi tiền Seller sau khi đã `PAID`; trường hợp muộn xử lý qua Ticket/manual support.
 
 ## D09 — Logistics qua điểm tập kết GymFit
 
 Luồng:
 
 ```text
-Seller chuẩn bị hàng
-→ GymFit điều phối lấy hàng tại Seller
-→ GymFit chịu phí Seller → hub
+Seller kiểm tra hàng
+→ Seller chuẩn bị hàng
+→ GymFit điều phối lấy hàng lần đầu tại Seller
+→ GymFit chịu phí Seller → hub lần đầu
 → hàng về hub GymFit
-→ GymFit kiểm tra và gom hàng
-→ GymFit giao một lần đến buyer
-→ buyer chịu một phí giao hàng đầu ra
+→ GymFit kiểm tra lần hai
+→ GymFit gom hàng
+→ GymFit giao một lần đến Buyer
+→ Buyer chịu một outbound shipping fee
 ```
 
 Quy tắc:
 
-- GymFit chịu inbound shipping từ Seller đến hub.
+- GymFit chịu inbound shipping từ Seller đến hub ở lượt lấy hàng đầu tiên.
 - Buyer trả một outbound shipping fee cho Parent Order.
-- Không cộng phí vận chuyển theo số ShopOrder cho buyer.
+- Không cộng phí vận chuyển theo số ShopOrder cho Buyer.
 - Commission không tính trên shipping fee.
-- Phí inbound ghi riêng theo ShopOrder.
 - Phí outbound ghi ở Parent Order.
+- Không theo dõi hoặc tự động tính inbound shipping cost trong MVP.
+- Không xây SLA acknowledge/preparation/hub arrival trong MVP.
+- Không tự động hủy ShopOrder vì trễ SLA.
 - MVP chưa tích hợp carrier API.
-- Admin nhập carrier, tracking và chi phí thủ công hoặc theo cấu hình đơn giản.
+- Carrier và tracking có thể nhập thủ công nếu source hiện tại hỗ trợ.
 
 ShopOrder logistics:
 
@@ -336,6 +478,8 @@ READY_FOR_PICKUP
 → PICKED_UP
 → IN_TRANSIT_TO_HUB
 → RECEIVED_AT_HUB
+→ HUB_CHECK_PASSED
+hoặc HUB_CHECK_FAILED
 ```
 
 Parent Order logistics:
@@ -348,43 +492,91 @@ WAITING_FOR_SHOPS
 → DELIVERED
 ```
 
-## D10 — Hủy và refund
+Quy tắc kiểm hàng tại hub:
 
-Trước khi Payment được xác nhận:
+- Seller phải tự kiểm tra đúng sản phẩm, số lượng, màu, kích thước và tình trạng trước khi bàn giao.
+- GymFit kiểm tra lại tại hub.
+- `HUB_CHECK_PASSED` không đồng nghĩa Settlement đã `PAID`.
+- Khi hàng đạt tại hub, GymFit chịu trách nhiệm logistics đầu ra theo policy.
+- Hàng lỗi tại hub được xử lý trước khi giao Buyer.
+
+## D10 — Hủy, refund, khiếu nại và thay thế tối thiểu
+
+### Trước khi Payment được xác nhận
 
 - Buyer có thể hủy toàn bộ Parent Order theo rule.
-- Release Inventory.
+- Release Inventory đúng một lần.
+- Không tạo refund tiền thật nếu Payment chưa `PAID`.
 
-Sau khi Payment = `PAID`:
+### Sau khi Payment = `PAID`
 
 - Buyer gửi yêu cầu hủy.
 - Admin xử lý toàn bộ Parent Order hoặc một ShopOrder.
 - Refund toàn phần hoặc một phần.
 - Không refund tự động qua ngân hàng trong MVP.
 
-Seller không đủ hàng:
+### Seller không đủ hàng
 
 ```text
-ShopOrder → UNABLE_TO_FULFILL
+ShopOrder = UNABLE_TO_FULFILL
 → CANCELLED
-→ release Inventory
+→ release Inventory theo ShopOrder
 → refund
 → apology notification/email
 → voucher
 ```
 
-Sau khi Parent Order đã rời hub để giao:
+### Sau khi Order đã rời hub
 
-- Không hủy trực tiếp.
+- Không hủy trực tiếp theo luồng trước giao.
 - Chuyển sang Ticket/khiếu nại.
-- Return/RMA/Exchange để sau.
+- Full Return/RMA/Exchange vẫn ngoài MVP.
+- MVP chỉ làm khiếu nại và thay thế tối thiểu để bảo vệ settlement.
+
+Fault party tối thiểu:
+
+```text
+SELLER_FAULT
+BUYER_FAULT
+GYMFIT_OR_CARRIER
+UNDETERMINED
+```
+
+#### Khi lỗi thuộc Seller
+
+- Seller phải cung cấp sản phẩm thay thế đúng phản hồi đã được Admin xác minh.
+- Sản phẩm thay thế không tạo Order mới.
+- Không tạo doanh thu mới.
+- Không tính commission lần thứ hai.
+- Seller chịu phí vận chuyển từ Seller đến hub cho lần thay thế.
+- GymFit không tự động tính hoặc theo dõi phí này trong MVP.
+- Khiếu nại đang mở làm settlement `HELD`.
+- Nếu thay thế thành công, giao dịch ban đầu tiếp tục và settlement được giải phóng theo rule.
+- Nếu Seller không thể hoặc từ chối thay thế, Admin có thể refund và điều chỉnh settlement.
+
+#### Khi lỗi thuộc Buyer
+
+- Admin từ chối yêu cầu với reason và bằng chứng.
+- Settlement tiếp tục theo lịch bình thường.
+- Không khấu trừ Seller.
+
+#### Khi lỗi thuộc GymFit hoặc carrier
+
+- Seller không bị khấu trừ chỉ vì lỗi logistics sau khi hub đã xác nhận hàng đạt.
+- GymFit chịu trách nhiệm xử lý với Buyer.
+- Carrier reimbursement không thuộc phạm vi đồ án.
+
+#### Khi chưa xác định lỗi
+
+- Settlement giữ `HELD`.
+- Admin phải ghi reason, evidence hoặc ghi chú trước khi kết luận.
 
 ## D11 — Product Review và Shop Review
 
 Product Review:
 
 - Gắn với OrderItem.
-- Chỉ buyer đã mua.
+- Chỉ Buyer đã mua.
 - OrderItem phải giao thành công.
 - Một OrderItem review một lần.
 
@@ -447,7 +639,7 @@ SEO và công thức ranking nâng cao để sau.
 
 ---
 
-## 4. Quyền sở hữu và bảo mật bắt buộc
+# 4. Quyền sở hữu và bảo mật bắt buộc
 
 Seller chỉ được thao tác dữ liệu thuộc Shop của mình.
 
@@ -456,55 +648,69 @@ Backend phải chặn:
 - Seller A sửa/xóa Product của Seller B.
 - Seller A xem hoặc chỉnh Inventory của Seller B.
 - Seller A xem ShopOrder/OrderItem của Seller B.
+- Seller A xem finance, settlement hoặc complaint riêng của Seller B.
 - Seller tự duyệt SellerApplication, BrandRequest hoặc Product.
 - Seller xác nhận Payment.
 - Seller sửa commission, refund hoặc settlement.
+- Seller tự xác định fault party cuối cùng.
 - Seller thay rating, sold count hoặc aggregate.
-- Seller truy cập dữ liệu buyer không cần thiết.
+- Seller truy cập dữ liệu Buyer không cần thiết.
 
-Admin có quyền toàn sàn, nhưng mọi hành động quan trọng phải có audit.
+Admin có quyền toàn sàn, nhưng mọi hành động quan trọng phải có audit:
+
+- Seller approval/rejection.
+- Product moderation.
+- Payment confirmation.
+- Cancel/refund.
+- Voucher.
+- Logistics override.
+- Hub check.
+- Complaint classification.
+- Settlement hold/release/paid.
 
 Frontend route guard chỉ phục vụ UX; ownership và authorization phải nằm ở backend.
 
 ---
 
-## 5. Các quyết định chưa chặn roadmap nhưng phải khóa trước Task tương ứng
+# 5. Decision Gate còn lại
 
-Những giá trị sau không nên hardcode và chưa cần chốt ngay:
+Các quyết định dưới đây không được hardcode trước khi đến Task tương ứng.
 
-| Quyết định | Thời điểm phải chốt |
-|---|---|
-| Tỷ lệ commission mặc định | Trước SELLER-010 |
-| Voucher theo số tiền hay phần trăm | Trước SELLER-009 |
-| Giá trị voucher mặc định | Trước SELLER-009 |
-| Thời hạn voucher | Trước SELLER-009 |
-| Thời hạn Seller acknowledge/prepare | Trước SELLER-008 |
-| Phí outbound mặc định | Trước SELLER-007 |
-| Cách ghi inbound shipping fee | Trước SELLER-008 |
-| SLA ShopOrder về hub | Trước SELLER-008 |
-| Refund outbound fee khi partial cancel | Trước SELLER-009 |
-| Thời điểm settlement trở thành ELIGIBLE | Trước SELLER-010 |
+| Quyết định | Trạng thái | Thời điểm phải chốt |
+|---|---|---|
+| Tỷ lệ commission mặc định | Chưa chốt giá trị cuối | Trước SELLER-011 |
+| Voucher theo số tiền hay phần trăm | Chưa chốt | Trước SELLER-009 |
+| Giá trị voucher mặc định | Chưa chốt | Trước SELLER-009 |
+| Thời hạn voucher | Chưa chốt | Trước SELLER-009 |
+| Refund outbound fee khi partial cancel | Chưa chốt | Trước SELLER-009 |
+| Refund status model | Chưa chốt chi tiết | Trước SELLER-009 |
+| Cart merge conflict policy | Chưa chốt chi tiết | Trước SELLER-008A |
+| Ngày chạy batch đối soát tuần | Không cần hardcode cho MVP | Quy trình vận hành |
+| Settlement waiting period | Đã chốt: 7 ngày lịch sau `DELIVERED` | SELLER-011 |
+| Seller acknowledge SLA | Loại khỏi MVP | Optional backlog |
+| Preparation/hub SLA | Loại khỏi MVP | Optional backlog |
+| Inbound shipping cost tracking | Loại khỏi MVP | Optional backlog |
+| Carrier API | Ngoài MVP | Sau đồ án nếu cần |
 
-### Quyết định kiến trúc còn bắt buộc trong Discovery
+## 5.1. Quyết định Discovery đã được xử lý
 
-1. Product hiện tại sẽ được gán vào Shop nào.  
-   Candidate đề xuất: `GymFit Official`.
-
-2. Dải migration Seller và Coach để tránh trùng số.
-
-3. Chiến lược chuyển Order hiện tại sang Parent Order + ShopOrder.
-
-4. Cách giữ tương thích API/UI Order cũ trong quá trình migration.
-
-5. Cách xử lý payment/order fixtures và dữ liệu acceptance hiện tại.
+- Product cũ đã được gán vào Shop `GymFit Official`.
+- Product ID cũ, bao gồm Product ID `0`, phải tiếp tục hoạt động.
+- Migration Seller phải dùng dải đã được xác nhận trong log hiện tại; trước mỗi migration mới Codex phải kiểm tra số thực tế.
+- `Orders` được ưu tiên giữ làm Parent Order để tương thích.
+- Payment và Payment History tiếp tục gắn Parent Order.
+- API/UI Order cũ phải được giữ tương thích trong giai đoạn migration.
+- Không được dùng routine release toàn Parent Order cho partial ShopOrder cancellation.
 
 ---
 
 # 6. Roadmap triển khai
 
-## PHASE 0 — Discovery và bảo vệ baseline
+# PHASE 0 — Discovery và bảo vệ baseline
 
 ## SELLER-000 — Marketplace Repository Discovery
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Audit source và database trước khi thay đổi kiến trúc.
 
@@ -549,9 +755,11 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 
 ---
 
-## PHASE 1 — Seller và Shop foundation
+# PHASE 1 — Seller và Shop foundation
 
 ## SELLER-001 — Seller Application và Role Foundation
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Tạo quy trình đăng ký Seller riêng và Admin xét duyệt.
 
@@ -567,14 +775,9 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 **Frontend:**
 
 - Kênh người bán.
-- Form application nhiều bước hoặc một trang rõ ràng.
+- Form application.
 - Trang theo dõi trạng thái.
 - Admin inbox xét duyệt.
-
-**Không làm:**
-
-- Chưa cho Seller tạo Product.
-- Chưa tạo Order Seller.
 
 **Acceptance:**
 
@@ -588,7 +791,9 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 
 ---
 
-## SELLER-002 — Shop Foundation và GymFit Official Decision
+## SELLER-002 — Shop Foundation và GymFit Official
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Tạo Shop và quan hệ một Seller–một Shop.
 
@@ -600,12 +805,13 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 - verified/suspended state.
 - Shop aggregate placeholders.
 - Unique ownership rules.
-- Tạo Shop khi Seller được duyệt hoặc qua bước hoàn tất onboarding.
+- Tạo Shop khi Seller được duyệt hoặc qua onboarding.
 
 **Migration dữ liệu:**
 
-- Thực hiện quyết định cho Product cũ.
-- Nếu chốt `GymFit Official`, tạo Shop hệ thống và gán Product hiện tại.
+- Tạo Shop hệ thống `GymFit Official`.
+- Gán Product cũ vào GymFit Official.
+- Không làm mất Product ID cũ hoặc Product ID `0`.
 
 **Frontend:**
 
@@ -624,6 +830,8 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 ---
 
 ## SELLER-003 — Brand Request
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Cho Seller đề xuất Brand mới có kiểm duyệt.
 
@@ -656,6 +864,8 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 
 ## SELLER-004 — Product Ownership Migration
 
+**Trạng thái:** COMPLETE
+
 **Mục tiêu:** Gắn Product với Shop mà không phá Catalog hiện tại.
 
 **Backend/database:**
@@ -671,7 +881,7 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 
 - Giữ Product ID cũ.
 - Giữ Product images/variants/inventory.
-- Giữ Product ID 0 nếu database hiện có.
+- Giữ Product ID `0`.
 - Không mất Product public hiện tại.
 
 **Acceptance:**
@@ -685,6 +895,8 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 ---
 
 ## SELLER-005 — Seller Product, Variant, Image và Inventory
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Seller quản lý hàng hóa của Shop mình.
 
@@ -709,7 +921,7 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 **Acceptance:**
 
 - CRUD hợp lệ cho Shop owner.
-- Cross-shop IDOR bị chặn.
+- Cross-Shop IDOR bị chặn.
 - Upload limits/fallback tiếp tục hoạt động.
 - Inventory invariant không bị phá.
 - Log: `Log SELLER-005 Seller Product Variant Image Inventory.md`.
@@ -718,14 +930,16 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 
 ## SELLER-006 — Admin Product Moderation
 
+**Trạng thái:** COMPLETE
+
 **Mục tiêu:** Admin xét duyệt Product Seller trước khi xuất bản.
 
 **Backend/database:**
 
 - Approval status.
-- review reason.
-- submitted/reviewed/published timestamps.
-- moderation history/audit.
+- Review reason.
+- Submitted/reviewed/published timestamps.
+- Moderation history/audit.
 - Suspend/re-publish.
 
 **Frontend:**
@@ -748,6 +962,8 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 # PHASE 3 — Marketplace storefront
 
 ## SELLER-007 — Marketplace Product Listing, Search và Shop Page
+
+**Trạng thái:** COMPLETE
 
 **Mục tiêu:** Chuyển storefront thành listing đa Shop.
 
@@ -788,92 +1004,290 @@ Những giá trị sau không nên hardcode và chưa cần chốt ngay:
 - Search trả đúng Shop/Brand.
 - Inactive Shop/Product không public.
 - Existing Catalog regression.
+- Product ID `0` và GymFit Official tiếp tục hoạt động.
 - Log: `Log SELLER-007 Marketplace Storefront Search and Shop Page.md`.
 
 ---
 
 # PHASE 4 — Multi-Shop Commerce core
 
-## SELLER-008 — Multi-Shop Cart và Order Architecture
+## SELLER-008 — Multi-Shop Order Architecture
 
-**Mục tiêu:** Chuyển Cart/Order sang Parent Order + ShopOrder.
+**Trạng thái:** NEXT
 
-**Database/domain:**
+**Mục tiêu:** Chuyển Order sang Parent Order + ShopOrder mà không phá Cart/checkout/payment hiện tại.
 
-- `Orders` là Parent Order hoặc tạo domain parent tương thích.
-- `ShopOrders`.
-- `OrderItems.shop_order_id`.
-- Shop subtotal.
-- Shop shipping/inbound cost fields.
-- Seller acknowledgement/fulfillment states.
-- Commission/refund/settlement placeholders.
-- Histories phù hợp.
+### Database/domain
 
-**Cart:**
+- Giữ `Orders` làm Parent Order nếu source thực tế cho phép.
+- Tạo `ShopOrders`.
+- Mỗi ShopOrder thuộc đúng một Parent Order và một Shop.
+- Thêm `OrderItems.shop_order_id`.
+- Giữ `OrderItems.order_id` trong giai đoạn compatibility nếu source hiện tại cần.
+- Lưu Shop subtotal.
+- Tạo ShopOrder history hoặc mở rộng history hiện tại theo kiến trúc phù hợp.
+- Định nghĩa trạng thái ban đầu:
+  - `PENDING_PAYMENT`.
+  - `PENDING_STOCK_CHECK`.
+  - `PREPARING`.
+  - `READY_FOR_PICKUP`.
+  - `UNABLE_TO_FULFILL`.
+  - `CANCELLED`.
+- SELLER-008 không triển khai transition fulfillment; chỉ dựng domain tương thích.
+- Không tạo SLA fields.
+- Không tạo inbound shipping cost fields.
+- Không tính commission/refund/settlement.
+- Không tạo payout logic.
 
-- Nhóm item theo Shop.
-- Checkout một lần.
-- Tổng tiền theo Shop và toàn Order.
+### Checkout compatibility
 
-**Migration:**
+- Một checkout tạo atomically:
+  - một Parent Order;
+  - một ShopOrder cho mỗi Shop;
+  - các OrderItem gắn đúng ShopOrder.
+- Giữ payment và payment history ở Parent Order.
+- Giữ reservation behavior hiện tại, không rewrite partial release trong Task này.
+- Backend tải lại Product, Variant, Shop, giá và Inventory.
+- Không tin Shop hoặc tổng tiền từ frontend.
+
+### Cart tạm thời
+
+- Giữ `localStorage` Cart hiện tại.
+- Nhóm item theo Shop trên Cart và Checkout UI.
+- Hiển thị Shop subtotal và Parent subtotal/total.
+- Không tạo `Carts` hoặc `CartItems`.
+- Không làm guest/server Cart merge.
+
+### Quy tắc tiền
+
+```text
+ShopOrder.subtotal
+= tổng OrderItem.line_total thuộc ShopOrder
+
+Parent.subtotal
+= tổng ShopOrder.subtotal
+
+Parent.total
+= Parent.subtotal
+- Parent.discount
++ Parent.tax
++ Parent.outbound_shipping_fee
+```
+
+- Discount, tax và outbound shipping ở Parent.
+- Không phân bổ outbound shipping xuống ShopOrder trong SELLER-008.
+- Không tính commission hoặc Seller net.
+
+### Migration
 
 - Existing Order phải có ShopOrder tương ứng.
-- Không mất Order history/payment history.
+- Existing Order một cửa hàng được backfill vào ShopOrder của GymFit Official hoặc Shop được suy ra hợp lệ.
+- Không mất Order history/payment history/reservation history.
+- Migration phải chạy được khi database có hoặc không có Order lịch sử.
+- Không đổi migration đã apply.
+- Không làm mất Product ID `0`.
 
-**Acceptance:**
+### API/read model
 
-- Cart nhiều Shop.
-- Một checkout tạo đúng ShopOrder.
-- Tổng tiền không lệch.
+- Buyer xem Parent Order và `shopOrders`.
+- Admin xem toàn bộ Parent + child.
+- Seller xem ShopOrder thuộc Shop mình.
+- Seller Order UI read-only.
+- Seller không thấy dữ liệu Buyer ngoài mức cần thiết để fulfillment sau này.
+- DTO có thể giữ `items` phẳng tạm thời để UI cũ không vỡ.
+- API cũ phải được giữ tương thích hoặc có migration path rõ ràng.
+
+### Không làm trong SELLER-008
+
+- Server-side Cart.
+- Payment workflow mới.
+- Payment → `PENDING_STOCK_CHECK` transition hoàn chỉnh nếu thuộc SELLER-009.
+- Seller stock-check action.
+- Partial ShopOrder cancel/refund.
+- ShopOrder-scoped reservation release.
+- Voucher/apology.
+- Seller fulfillment action.
+- Hub logistics.
+- SLA.
+- Inbound cost tracking.
+- Commission/settlement.
+- Complaint/replacement.
+- Không tự bắt đầu SELLER-008A.
+
+### Acceptance
+
+- Cart nhiều Shop hiển thị đúng nhóm.
+- Một checkout tạo đúng số ShopOrder.
+- Mọi OrderItem thuộc đúng ShopOrder.
+- Tổng tiền Parent và Shop không lệch.
 - Existing Orders đọc được.
-- Cross-shop access bị chặn.
+- Payment history vẫn thuộc Parent.
+- Buyer/Admin/Seller read model đúng quyền.
+- Cross-Shop IDOR bị chặn.
+- Seller UI chỉ read-only.
+- Existing Catalog/Auth/Product regression không bị phá nghiêm trọng.
+- Migration status/checksum hợp lệ.
+- Backend/frontend build/typecheck và API verification khi môi trường cho phép.
 - Log: `Log SELLER-008 Multi Shop Cart and Order Architecture.md`.
+
+---
+
+## SELLER-008A — Persistent Server-side Cart
+
+**Trạng thái:** PLANNED
+
+**Mục tiêu:** Chuyển Cart của Buyer đăng nhập từ browser-only sang persistent Cart trên backend trước khi mở rộng checkout/payment.
+
+### Database/domain
+
+- `Carts`.
+- `CartItems`.
+- Cart thuộc `MEMBER` hoặc `COACH`.
+- Một Buyer có tối đa một active Cart.
+- CartItem định danh Product + Variant theo invariant source thực tế.
+- Hỗ trợ Product ID `0`.
+- Không lưu giá frontend làm giá checkout.
+- Không reserve Inventory khi thêm vào Cart.
+
+### API
+
+- Get active Cart.
+- Add item.
+- Update quantity.
+- Remove item.
+- Clear Cart.
+- Resolve Product/Variant/Shop/availability từ backend.
+- Chặn Product/Variant/Shop không còn đủ điều kiện public/purchase.
+
+### Guest Cart và merge
+
+- Guest Cart tiếp tục dùng `localStorage`.
+- Khi đăng nhập, merge Guest Cart vào Server Cart.
+- Dedupe theo Product/Variant.
+- Quantity sau merge phải tuân theo validation và giới hạn Inventory.
+- Merge phải idempotent.
+- Không tạo item thuộc Shop không còn active.
+- Conflict policy cuối cùng phải được chốt trước Prompt SELLER-008A.
+
+### Frontend
+
+- Cart UI tiếp tục nhóm theo Shop.
+- Đồng bộ add/update/remove với backend khi Buyer đăng nhập.
+- Loading/empty/error/retry state.
+- Không hiển thị giá localStorage như nguồn cuối cùng.
+- Sau checkout thành công, xóa đúng CartItem đã mua.
+
+### Không làm
+
+- Reserve Inventory trong Cart.
+- Saved-for-later.
+- Multiple named carts.
+- Cart sharing.
+- Cross-account Cart.
+- Dynamic pricing engine.
+
+### Acceptance
+
+- Cart tồn tại sau logout/login và đổi trình duyệt.
+- Guest Cart merge không tạo duplicate.
+- Product ID `0` hoạt động.
+- Giá/tồn kho được backend resolve.
+- Cross-user Cart access bị chặn.
+- Cart nhiều Shop vẫn checkout được.
+- Existing checkout regression pass.
+- Log: `Log SELLER-008A Persistent Server Side Cart.md`.
 
 ---
 
 ## SELLER-009 — Checkout, Payment, Reservation và Partial Cancellation
 
-**Mục tiêu:** Tái sử dụng QR/payment hiện tại trong mô hình nhiều Shop.
+**Trạng thái:** PLANNED
 
-**Luồng:**
+**Mục tiêu:** Hoàn thiện QR/payment hiện tại trong mô hình nhiều Shop và xử lý thất bại theo ShopOrder.
+
+### Luồng
 
 ```text
 Checkout
 → validate price/availability
 → reserve Inventory theo OrderItem
 → create Parent Order + ShopOrders
+→ ShopOrders = PENDING_PAYMENT
 → show QR
-→ buyer payment notification
+→ Buyer payment notification
 → Admin PAID/FAILED
 ```
 
-**Failure theo Shop:**
+Khi Admin xác nhận Parent Payment = `PAID`:
+
+```text
+ShopOrder PENDING_PAYMENT
+→ PENDING_STOCK_CHECK
+```
+
+Seller kiểm tra hàng:
+
+```text
+PENDING_STOCK_CHECK
+→ PREPARING
+```
+
+Hoặc:
+
+```text
+PENDING_STOCK_CHECK
+→ UNABLE_TO_FULFILL
+```
+
+### Reservation
+
+- Reserve theo OrderItem.
+- Không double reserve.
+- Release theo ShopOrder hoặc danh sách OrderItem cụ thể.
+- Không gọi routine release toàn Parent khi chỉ hủy một ShopOrder.
+- Mọi thao tác reserve/release phải transaction-safe và idempotent.
+
+### Failure theo Shop
 
 - ShopOrder `UNABLE_TO_FULFILL`.
 - Hủy toàn bộ ShopOrder.
 - Release Inventory của ShopOrder.
 - Parent Order tiếp tục nếu còn ShopOrder hợp lệ.
-- Refund record toàn phần hoặc một phần.
+- Tạo refund record toàn phần hoặc một phần.
+- Không ảnh hưởng payment history của ShopOrder khác.
 
-**Voucher/apology:**
+### Voucher/apology
 
 - Notification in-app.
 - Email nếu cấu hình.
 - Voucher bồi thường.
 - Reason/audit.
+- Voucher không thay refund.
 
-**Decision gate trước implementation:**
+### Decision gate trước implementation
 
 - Voucher amount/type/expiry.
 - Partial refund của outbound shipping fee.
 - Refund status model.
 
-**Acceptance:**
+### Không làm
+
+- Hub logistics.
+- Commission.
+- Settlement.
+- Full complaint/RMA.
+- Automated bank refund.
+
+### Acceptance
 
 - Không double reserve/release.
+- Payment confirmation chuyển đúng ShopOrder sang `PENDING_STOCK_CHECK`.
+- Seller đủ hàng chuyển `PREPARING`.
+- Seller thiếu hàng chuyển `UNABLE_TO_FULFILL`.
 - Partial cancel không hủy ShopOrder khác.
 - Refund amount chính xác.
-- Payment history vẫn đúng.
+- Payment history vẫn đúng ở Parent.
+- Audit đầy đủ.
 - Log: `Log SELLER-009 Checkout Payment Refund and Compensation.md`.
 
 ---
@@ -882,27 +1296,33 @@ Checkout
 
 ## SELLER-010 — Seller Fulfillment và Hub Logistics
 
+**Trạng thái:** PLANNED
+
 **Mục tiêu:** Seller chuẩn bị hàng, GymFit lấy hàng và gom tại hub.
 
-**Seller:**
+### Seller
 
 ```text
-PENDING_ACKNOWLEDGEMENT
-→ ACKNOWLEDGED
-→ PREPARING
+PREPARING
 → READY_FOR_PICKUP
 ```
 
-**Inbound:**
+- Seller chỉ cập nhật ShopOrder của Shop mình.
+- Seller không được bỏ qua stock-check/payment gate.
+- Seller không tự đánh dấu picked up, received at hub, shipped hoặc delivered.
+
+### Inbound logistics
 
 ```text
 READY_FOR_PICKUP
 → PICKED_UP
 → IN_TRANSIT_TO_HUB
 → RECEIVED_AT_HUB
+→ HUB_CHECK_PASSED
+hoặc HUB_CHECK_FAILED
 ```
 
-**Parent Order:**
+### Parent Order
 
 ```text
 WAITING_FOR_SHOPS
@@ -912,78 +1332,191 @@ WAITING_FOR_SHOPS
 → DELIVERED
 ```
 
-**Admin:**
+### Admin
 
-- Pickup scheduling fields.
-- Carrier/tracking manual.
-- Inbound shipping fee per ShopOrder.
+- Pickup scheduling fields tối thiểu nếu source hỗ trợ.
+- Carrier/tracking thủ công nếu cần.
 - Hub receipt.
+- Hub check result và reason.
 - Consolidation.
 - Outbound carrier/tracking.
 - Delivery completion.
+- Audit mọi override quan trọng.
 
-**Decision gate:**
+### Bỏ khỏi MVP
 
-- Seller acknowledge/preparation SLA.
+- Seller acknowledge SLA.
+- Preparation SLA.
 - Hub arrival SLA.
-- Cách xử lý Shop giao trễ.
-- Fixed/manual inbound fee.
-- Outbound fee mặc định.
+- Tự động phát hiện giao trễ.
+- Tự động hủy vì trễ.
+- Inbound shipping fee per ShopOrder.
+- Fixed/manual inbound cost.
+- Carrier API.
+- Dynamic shipping.
 
-**Acceptance:**
+### Acceptance
 
 - Seller chỉ cập nhật ShopOrder của mình.
 - Admin điều phối toàn bộ.
+- Hub check pass/fail có reason.
 - Buyer theo dõi được từng Shop và trạng thái tổng.
-- Order chỉ DELIVERED khi quy tắc hoàn thành thỏa mãn.
+- Parent chỉ `DELIVERED` khi quy tắc hoàn thành thỏa mãn.
+- Không tính settlement `PAID` chỉ vì hub check pass.
 - Log: `Log SELLER-010 Seller Fulfillment and Hub Logistics.md`.
 
 ---
 
 # PHASE 6 — Commission, settlement và Seller finance
 
-## SELLER-011 — Commission và Settlement
+## SELLER-011 — Commission, Weekly Settlement và Seller Revenue
 
-**Mục tiêu:** Tính doanh thu nền tảng và khoản phải trả Seller.
+**Trạng thái:** PLANNED
 
-**Database/domain:**
+**Mục tiêu:** Tính doanh thu nền tảng, khoản phải trả Seller và đối soát thủ công theo tuần.
+
+### Database/domain
 
 - Marketplace settings.
 - Default commission rate.
-- Commission snapshot.
+- `commission_rate_snapshot`.
 - Commission base/amount.
 - Seller net amount.
-- Inbound logistics cost.
-- Estimated platform margin.
+- `earned_at`.
+- `eligible_at`.
 - Settlement status/history.
+- Settlement hold reason.
+- Manual adjustment amount/reason nếu cần cho refund hoặc vận hành.
+- Không cần inbound logistics cost.
+- Không cần estimated platform margin dựa trên inbound cost.
 
-**Rule:**
+### Rule
 
 - Commission theo ShopOrder.
-- Không tính trên shipping.
+- Không tính commission trên shipping.
 - Hủy/refund điều chỉnh commission.
-- ELIGIBLE theo rule sau giao hàng.
-- Admin đánh dấu PAID/HELD.
+- ShopOrder `DELIVERED` ghi nhận doanh thu Seller.
+- `eligible_at = delivered_at + 7 ngày lịch`.
+- Open complaint làm settlement `HELD`.
+- Không có complaint thì đến `eligible_at` chuyển `ELIGIBLE`.
+- Admin đánh dấu `PAID` thủ công.
+- Thay đổi config không sửa snapshot Order cũ.
+- Không payout ngân hàng tự động.
 
-**Decision gate:**
+### Frontend
+
+Seller revenue page:
+
+- Doanh thu tuần.
+- Commission.
+- Điều chỉnh.
+- Pending.
+- Held.
+- Eligible.
+- Paid.
+- Net estimated.
+
+Admin settlement inbox:
+
+- Filter theo Shop/status/date.
+- Weekly batch selection.
+- Hold/release.
+- Mark paid.
+- Reason/audit.
+
+### Decision gate
 
 - Default commission rate.
-- Settlement waiting period.
-- Cách xử lý partial refund sau DELIVERED nếu có.
+- Cách xử lý refund sau `DELIVERED` nhưng trước `PAID`.
+- Cách xử lý yêu cầu phát sinh sau `PAID` ở mức manual support.
 
-**Frontend:**
+### Acceptance
 
-- Seller revenue page.
-- Admin settlement inbox.
-- Commission breakdown.
-
-**Acceptance:**
-
-- Thay đổi config không sửa Order cũ.
+- ShopOrder chỉ `ELIGIBLE` sau đủ 7 ngày và không có complaint mở.
+- `HELD` chặn batch payment.
+- Admin manual `PAID` có audit.
 - Seller chỉ thấy finance của mình.
-- Admin audit đầy đủ.
 - Không tuyên bố payout tự động.
 - Log: `Log SELLER-011 Commission Settlement and Seller Revenue.md`.
+
+---
+
+## SELLER-011A — Lightweight Complaint, Fault Decision và Replacement
+
+**Trạng thái:** PLANNED
+
+**Mục tiêu:** Hỗ trợ khiếu nại tối thiểu trong khoảng chờ đối soát mà không xây full Return/RMA/Exchange.
+
+### Complaint
+
+- Buyer chỉ tạo complaint cho OrderItem/ShopOrder đã giao thành công.
+- Complaint phải thuộc Order của Buyer.
+- Thời gian complaint ảnh hưởng settlement: trong 7 ngày từ `delivered_at`.
+- Complaint sau khi settlement `PAID` chuyển Ticket/manual support, không tự động thu hồi tiền.
+
+### Status tối thiểu
+
+```text
+OPEN
+→ UNDER_REVIEW
+→ REPLACEMENT_REQUIRED
+→ RESOLVED
+hoặc REJECTED
+```
+
+Có thể thêm `CANCELLED` nếu source cần.
+
+### Fault party
+
+```text
+SELLER_FAULT
+BUYER_FAULT
+GYMFIT_OR_CARRIER
+UNDETERMINED
+```
+
+Admin là bên kết luận cuối cùng và phải ghi reason.
+
+### Settlement integration
+
+- Complaint hợp lệ đang mở chuyển settlement `HELD`.
+- Complaint rejected do Buyer fault thì release settlement.
+- Seller fault yêu cầu replacement hoặc refund.
+- GymFit/carrier fault không khấu trừ Seller.
+- Unresolved complaint tiếp tục `HELD`.
+
+### Replacement tối thiểu
+
+- Seller cung cấp hàng thay thế cho giao dịch gốc.
+- Không tạo Order mới.
+- Không tạo doanh thu mới.
+- Không tính commission lần thứ hai.
+- Seller chịu phí Seller → hub của lần thay thế.
+- Không tự động tính hoặc thu phí replacement shipping trong hệ thống MVP.
+- GymFit kiểm tra lại và giao lại.
+- Khi resolved, settlement quay lại luồng eligibility phù hợp.
+- Nếu replacement thất bại, Admin có thể refund/adjust settlement.
+
+### Không làm
+
+- Full RMA.
+- Return warehouse.
+- Automated return labels.
+- Carrier API.
+- Automated evidence scoring.
+- Advanced dispute arbitration.
+- Automated clawback sau `PAID`.
+
+### Acceptance
+
+- Buyer không khiếu nại Order người khác.
+- Complaint hợp lệ giữ settlement.
+- Admin fault decision có audit.
+- Seller replacement không tạo doanh thu/commission mới.
+- Buyer fault không khấu trừ Seller.
+- GymFit/carrier fault không khấu trừ Seller.
+- Full RMA vẫn ngoài phạm vi.
+- Log: `Log SELLER-011A Lightweight Complaint and Replacement.md`.
 
 ---
 
@@ -991,9 +1524,11 @@ WAITING_FOR_SHOPS
 
 ## SELLER-012 — Product Review và Shop Review
 
+**Trạng thái:** PLANNED
+
 **Mục tiêu:** Tạo review thật, không dùng random/static.
 
-**Product Review:**
+### Product Review
 
 - Verified purchase.
 - Gắn OrderItem.
@@ -1001,13 +1536,13 @@ WAITING_FOR_SHOPS
 - Comment optional.
 - Một review/OrderItem.
 
-**Shop Review:**
+### Shop Review
 
 - Gắn ShopOrder.
 - Một review/ShopOrder.
 - Chỉ sau giao thành công.
 
-**Moderation:**
+### Moderation
 
 ```text
 PENDING
@@ -1016,7 +1551,7 @@ hoặc HIDDEN
 hoặc REJECTED
 ```
 
-**Aggregate:**
+### Aggregate
 
 - Product average rating.
 - Product review count.
@@ -1025,14 +1560,14 @@ hoặc REJECTED
 - Shop rating/review count.
 - Shop completed order count.
 
-**Không làm:**
+### Không làm
 
 - AI draft/reply.
 - Auto moderation.
 - Seller reply.
 - Coach expert recommendation.
 
-**Acceptance:**
+### Acceptance
 
 - Chưa mua không review được.
 - Review Shop khác/Order khác bị chặn.
@@ -1046,34 +1581,43 @@ hoặc REJECTED
 
 ## SELLER-013 — Security, Regression và Final Acceptance
 
-**Mục tiêu:** Chứng minh Marketplace không phá phần Commerce cũ và không rò quyền Seller.
+**Trạng thái:** PLANNED
 
-**Security:**
+**Mục tiêu:** Chứng minh Marketplace không phá Commerce cũ và không rò quyền Seller.
+
+### Security
 
 - RBAC.
 - IDOR cross-Seller.
-- Admin-only moderation/payment/refund/settlement.
+- Cross-Buyer Cart/Order/Complaint.
+- Admin-only moderation/payment/refund/settlement/fault decision.
 - Session revoke/role update.
 - Rate limit SellerApplication/BrandRequest.
 - Upload validation.
 - Audit.
 
-**Regression:**
+### Regression
 
 - Auth Member/Coach/Admin/Seller.
 - Product list/detail.
 - Variant/inventory.
+- Browser Cart và Server Cart.
+- Cart merge.
 - Cart nhiều Shop.
 - Checkout.
 - Reservation.
 - Payment.
+- Stock check.
 - Partial cancel/refund.
 - Hub fulfillment.
-- Commission/settlement.
+- Commission/weekly settlement.
+- Settlement hold/release.
+- Lightweight complaint/replacement.
 - Product/Shop reviews.
-- Existing GymFit Official Product/Order nếu có.
+- Existing GymFit Official Product/Order.
+- Product ID `0`.
 
-**Build/test:**
+### Build/test
 
 - Backend build/lint.
 - Frontend typecheck/build.
@@ -1082,7 +1626,7 @@ hoặc REJECTED
 - Migration status/checksum.
 - Git status.
 
-**Docs:**
+### Docs
 
 - Feature status.
 - API/database map.
@@ -1090,14 +1634,15 @@ hoặc REJECTED
 - Known issues.
 - Handover.
 - Không ghi tính năng chưa có là COMPLETE.
+- Cập nhật Roadmap và Team Summary theo trạng thái thực tế.
 
-**Log:**
+### Log
 
 `Log SELLER-013 Security Regression and Final Acceptance.md`
 
 ---
 
-## 7. Thứ tự phụ thuộc
+# 7. Thứ tự phụ thuộc
 
 ```text
 SELLER-000
@@ -1109,9 +1654,11 @@ SELLER-000
 → SELLER-006
 → SELLER-007
 → SELLER-008
+→ SELLER-008A
 → SELLER-009
 → SELLER-010
 → SELLER-011
+→ SELLER-011A
 → SELLER-012
 → SELLER-013
 ```
@@ -1127,13 +1674,15 @@ một phần SELLER-002 Shop UI
 Không nên chạy song song:
 
 - SELLER-008 với thay đổi Order khác.
-- SELLER-009 với SELLER-010 khi schema chưa ổn định.
-- Seller migration với Coach migration nếu chưa chia dải số.
+- SELLER-008A với checkout rewrite chưa ổn định.
+- SELLER-009 với SELLER-010 khi ShopOrder state machine chưa ổn định.
+- SELLER-011 với SELLER-011A khi settlement hold contract chưa chốt.
+- Seller migration với Coach migration nếu chưa kiểm tra dải số.
 - Hai Task cùng sửa RBAC/App routes/sidebar mà không có baseline commit.
 
 ---
 
-## 8. Definition of Marketplace MVP
+# 8. Definition of Marketplace MVP
 
 Marketplace MVP chỉ được xem là hoàn thành khi:
 
@@ -1145,25 +1694,38 @@ Marketplace MVP chỉ được xem là hoàn thành khi:
 - Admin duyệt Product.
 - Marketplace hiển thị Product theo Shop.
 - Có Store Page.
-- Multi-Shop Cart hoạt động.
-- Checkout tạo Parent Order + ShopOrder.
+- Browser Cart nhiều Shop hoạt động trong SELLER-008.
+- Persistent Server-side Cart hoạt động cho Buyer đăng nhập.
+- Guest Cart merge hoạt động.
+- Checkout tạo Parent Order + ShopOrders.
 - Buyer thanh toán một lần cho GymFit.
-- Seller chuẩn bị hàng.
-- GymFit lấy hàng về hub.
-- GymFit chịu inbound shipping.
-- Buyer chịu một outbound shipping fee.
+- Payment confirmation chuyển ShopOrder sang `PENDING_STOCK_CHECK`.
+- Seller kiểm tra tồn kho vật lý lần hai.
+- Seller đủ hàng chuyển `PREPARING`.
+- Seller thiếu hàng chuyển `UNABLE_TO_FULFILL`.
 - Partial ShopOrder cancellation/refund hoạt động.
 - Apology + voucher hoạt động.
-- Commission và settlement hoạt động ở mức nội bộ.
+- Seller chuẩn bị hàng.
+- GymFit lấy hàng về hub lần đầu.
+- GymFit chịu inbound shipping lần đầu theo policy.
+- GymFit kiểm hàng tại hub.
+- Buyer chịu một outbound shipping fee.
+- Commission hoạt động theo ShopOrder.
+- ShopOrder `DELIVERED` ghi nhận doanh thu tuần.
+- Settlement chờ 7 ngày.
+- Weekly manual settlement hoạt động.
+- Complaint hợp lệ có thể `HELD` settlement.
+- Lightweight fault decision và replacement hoạt động.
 - Product Review và Shop Review hoạt động.
-- Cross-Seller IDOR bị chặn.
+- Cross-Seller/Cross-Buyer IDOR bị chặn.
 - Commerce cũ không regression nghiêm trọng.
+- Product ID `0` và GymFit Official tiếp tục hoạt động.
 - Build và acceptance có bằng chứng phù hợp.
 - Log đầy đủ cho từng Task.
 
 ---
 
-## 9. Ngoài phạm vi Seller MVP
+# 9. Ngoài phạm vi Seller MVP
 
 - C2C.
 - Nhiều Shop cho một Seller.
@@ -1173,11 +1735,18 @@ Marketplace MVP chỉ được xem là hoàn thành khi:
 - Payment gateway marketplace.
 - Split payment tự động.
 - Payout ngân hàng tự động.
+- Automated clawback.
+- Escrow ngân hàng thật.
 - COD.
 - Carrier API.
 - Dynamic shipping theo khoảng cách/trọng lượng.
-- Return/RMA/Exchange đầy đủ.
+- Inbound shipping cost tracking.
+- Seller preparation/hub SLA.
+- Automated late-order cancellation.
+- Full Return/RMA/Exchange.
+- Return warehouse.
 - Advanced disputes.
+- Automated fault detection.
 - Seller reply review.
 - AI/Chatbox/AI Review.
 - Advanced ranking.
@@ -1187,7 +1756,7 @@ Marketplace MVP chỉ được xem là hoàn thành khi:
 
 ---
 
-## 10. Nguyên tắc thay đổi roadmap
+# 10. Nguyên tắc thay đổi Roadmap
 
 Nếu nhóm thay đổi quyết định:
 
@@ -1198,3 +1767,49 @@ Nếu nhóm thay đổi quyết định:
 5. Không âm thầm thay đổi business rule trong Codex Prompt.
 6. Cập nhật cả Roadmap và Team Summary.
 7. Ghi thay đổi vào log của Task liên quan.
+8. Không dùng nội dung hội thoại mới để vượt qua Roadmap nếu Roadmap chưa được cập nhật.
+9. Nếu source buộc phải khác Roadmap, Codex phải báo `BLOCKED` hoặc `PARTIALLY COMPLETE` kèm bằng chứng, không tự thiết kế nghiệp vụ mới.
+
+---
+
+# 11. Lịch sử thay đổi chính thức
+
+## Version 2.0 — 29/07/2026
+
+### Quyết định cũ
+
+- ShopOrder dùng `PENDING_ACKNOWLEDGEMENT → ACKNOWLEDGED`.
+- SELLER-008 bao gồm Seller acknowledgement states và inbound cost placeholders.
+- Cart backend chưa có Task riêng.
+- Settlement chưa chốt khoảng chờ.
+- Logistics yêu cầu SLA và inbound cost tracking.
+- Khiếu nại/đổi hàng chỉ được nhắc chung, chưa gắn với settlement.
+
+### Quyết định mới
+
+- Loại bỏ `PENDING_ACKNOWLEDGEMENT` và `ACKNOWLEDGED`.
+- Dùng `PENDING_PAYMENT → PENDING_STOCK_CHECK`.
+- Inventory Seller nhập vẫn là nguồn chính; stock check là lớp kiểm tra vật lý lần hai sau Payment.
+- SELLER-008 chỉ dựng Parent Order + ShopOrder và giữ browser Cart.
+- Thêm SELLER-008A để tạo persistent Server-side Cart.
+- Loại SLA và inbound cost tracking khỏi MVP chính.
+- Settlement `eligible_at = delivered_at + 7 ngày`.
+- Đối soát thủ công theo tuần.
+- Complaint mở có thể chuyển settlement `HELD`.
+- Thêm SELLER-011A cho complaint/fault/replacement tối thiểu.
+- Seller fault phải thay hàng; lần thay thế không tạo doanh thu hoặc commission mới.
+- Seller chịu phí Seller → hub của lần thay thế theo policy, nhưng hệ thống MVP không tự động tính phí.
+- Buyer fault bị từ chối.
+- GymFit/carrier fault không khấu trừ Seller.
+
+### Task bị ảnh hưởng
+
+- SELLER-008.
+- SELLER-008A mới.
+- SELLER-009.
+- SELLER-010.
+- SELLER-011.
+- SELLER-011A mới.
+- SELLER-013.
+- Definition of Marketplace MVP.
+- Outside-scope list.
