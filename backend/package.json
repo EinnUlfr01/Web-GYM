@@ -18,6 +18,8 @@
     "acceptance:seller-005": "tsx src/scripts/seller-005-acceptance.ts",
     "acceptance:seller-006": "tsx src/scripts/seller-006-acceptance.ts",
     "acceptance:seller-007": "tsx src/scripts/seller-007-acceptance.ts",
+    "verification:seller-007": "tsx src/scripts/seller-007-verification.ts",
+    "integrity:seller-007": "tsx src/scripts/seller-007-integrity.ts",
     "acceptance:regression-02": "tsx src/scripts/regression-02-auth-acceptance.ts",
     "acceptance:regression-03": "tsx src/scripts/regression-03-product-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",

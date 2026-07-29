@@ -1,9 +1,10 @@
 import { FormEvent,useEffect,useState } from 'react';
 import { useParams,useSearchParams } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import api from '../../api/axios';
 import ProductCard from '../../components/products/ProductCard';
 import type { Product } from '../../types/product';
-import type { Shop } from '../../services/shopsApi';
+import type { PublicShopResponse,Shop } from '../../services/shopsApi';
 
 type Option={id:number;name:string};
 const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
@@ -11,10 +12,11 @@ export default function PublicShopPage(){
   const{shopSlug=''}=useParams(),[query,setQuery]=useSearchParams(),[shop,setShop]=useState<Shop|null>(null),[products,setProducts]=useState<Product[]>([]);
   const[options,setOptions]=useState<{categories:Option[];brands:Option[]}>({categories:[],brands:[]}),[search,setSearch]=useState(query.get('q')??''),[meta,setMeta]=useState({page:1,pages:1,total:0}),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const key=query.toString();
-  useEffect(()=>{api.get('/products/filters').then(r=>setOptions(r.data.data)).catch(()=>undefined);},[]);
-  useEffect(()=>{setSearch(query.get('q')??'');setLoading(true);api.get(`/shops/${encodeURIComponent(shopSlug)}`,{params:Object.fromEntries(query)})
+  useEffect(()=>{const controller=new AbortController();api.get('/products/filters',{signal:controller.signal}).then(r=>setOptions(r.data.data)).catch(()=>undefined);return()=>controller.abort();},[]);
+  useEffect(()=>{const controller=new AbortController();setSearch(query.get('q')??'');setLoading(true);api.get<PublicShopResponse>(`/shops/${encodeURIComponent(shopSlug)}`,{params:Object.fromEntries(query),signal:controller.signal})
     .then(r=>{setShop(r.data.data);setProducts(r.data.products);setMeta({page:r.data.pagination.page,pages:r.data.pagination.pages,total:r.data.pagination.total});setError('');})
-    .catch((e:any)=>{setShop(null);setProducts([]);setError(e.response?.status===404?'Shop không khả dụng.':'Không thể tải Shop.');}).finally(()=>setLoading(false));},[shopSlug,key]);
+    .catch((error:unknown)=>{if(!controller.signal.aborted){const status=error instanceof AxiosError?error.response?.status:undefined;setShop(null);setProducts([]);setError(status===404?'Shop không khả dụng.':'Không thể tải Shop.');}})
+    .finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[shopSlug,key]);
   const change=(name:string,value:string)=>{const next=new URLSearchParams(query);value?next.set(name,value):next.delete(name);if(name!=='page')next.set('page','1');setQuery(next);};
   const submit=(e:FormEvent)=>{e.preventDefault();change('q',search.trim().replace(/\s+/g,' '));};
   if(loading)return <p className="p-8">Đang tải…</p>;if(error||!shop)return <p className="p-8 text-red-400">{error}</p>;
