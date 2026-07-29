@@ -2,17 +2,44 @@ import type { Transaction } from 'mssql';
 import { sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 
-export async function releaseOrderReservation(transaction:Transaction,orderId:number):Promise<number>{
-  const items=await transaction.request().input('releaseOrderId',sql.Int,orderId).query<{variantId:number;quantity:number}>('SELECT variant_id AS variantId,SUM(quantity) AS quantity FROM dbo.OrderItems WHERE order_id=@releaseOrderId GROUP BY variant_id ORDER BY variant_id ASC');
-  if(items.recordset.length===0)throw new AppError(404,'Order items not found');
+async function releaseItems(
+  transaction:Transaction,
+  whereSql:string,
+  idName:string,
+  id:number,
+  changedBy:number|null,
+  reason:string,
+):Promise<number>{
+  const items=await transaction.request()
+    .input(idName,sql.Int,id)
+    .query<{id:number;variantId:number;quantity:number}>(
+      `SELECT oi.id,oi.variant_id AS variantId,oi.quantity
+       FROM dbo.OrderItems oi WITH (UPDLOCK,HOLDLOCK)
+       WHERE ${whereSql} AND oi.reservation_released_at IS NULL
+       ORDER BY oi.variant_id,oi.id`,
+    );
+  if(items.recordset.length===0)return 0;
   for(const item of items.recordset){
     const inventory=await transaction.request().input('releaseVariantId',sql.Int,item.variantId).query<{id:number;reserved:number}>('SELECT id,reserved FROM dbo.Inventory WITH (UPDLOCK,HOLDLOCK) WHERE variant_id=@releaseVariantId');
     const row=inventory.recordset[0];
     if(!row)throw new AppError(404,'Inventory not found');
-    if(row.reserved<item.quantity)throw new AppError(409,'Inventory reservation is already released or inconsistent');
+    if(row.reserved<item.quantity)throw new AppError(409,'Inventory reservation is inconsistent');
     await transaction.request().input('releaseInventoryId',sql.Int,row.id).input('releaseQuantity',sql.Int,item.quantity).query('UPDATE dbo.Inventory SET reserved=reserved-@releaseQuantity,updated_at=SYSUTCDATETIME() WHERE id=@releaseInventoryId');
+    await transaction.request()
+      .input('releasedItemId',sql.Int,item.id)
+      .input('releasedBy',sql.Int,changedBy)
+      .input('releaseReason',sql.NVarChar(100),reason)
+      .query("UPDATE dbo.OrderItems SET reservation_released_at=SYSUTCDATETIME(),reservation_released_by=@releasedBy,reservation_release_reason=@releaseReason WHERE id=@releasedItemId AND reservation_released_at IS NULL; IF @@ROWCOUNT<>1 THROW 50701,'Concurrent reservation release detected.',1;");
   }
   return items.recordset.length;
+}
+
+export async function releaseOrderReservation(transaction:Transaction,orderId:number,changedBy:number|null=null,reason='PARENT_CANCELLED'):Promise<number>{
+  return releaseItems(transaction,'oi.order_id=@releaseOrderId','releaseOrderId',orderId,changedBy,reason);
+}
+
+export async function releaseReservationForShopOrder(transaction:Transaction,shopOrderId:number,changedBy:number|null,reason:string):Promise<number>{
+  return releaseItems(transaction,'oi.shop_order_id=@releaseShopOrderId','releaseShopOrderId',shopOrderId,changedBy,reason);
 }
 
 export async function insertOrderStatusHistory(transaction:Transaction,input:{orderId:number;previousStatus:string;newStatus:string;changedBy:number|null;note:string}):Promise<void>{

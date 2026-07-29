@@ -302,10 +302,10 @@ export const adminOrdersService = {
         const orderItems = await transaction
           .request()
           .input("itemsOrderId", sql.Int, orderId)
-          .query<{ variantId: number; quantity: number }>(
-            "SELECT variant_id AS variantId, quantity FROM dbo.OrderItems WHERE order_id=@itemsOrderId ORDER BY variant_id ASC",
+          .query<{ itemId:number;variantId: number; quantity: number }>(
+            "SELECT id AS itemId,variant_id AS variantId,quantity FROM dbo.OrderItems WITH (UPDLOCK,HOLDLOCK) WHERE order_id=@itemsOrderId AND reservation_released_at IS NULL ORDER BY variant_id ASC,id ASC",
           );
-        if (!orderItems.recordset.length)
+        if (!orderItems.recordset.length && input.status==="DELIVERED")
           throw new AppError(404, "Order items not found");
         const adjustmentRows: Array<{
           variantId: number;
@@ -342,6 +342,11 @@ export const adminOrdersService = {
             .query(
               "UPDATE dbo.Inventory SET on_hand=@newOnHand,reserved=reserved-@quantity,updated_at=SYSUTCDATETIME() WHERE id=@inventoryId",
             );
+          await transaction.request()
+            .input("releasedItemId",sql.Int,item.itemId)
+            .input("releasedBy",sql.Int,adminId)
+            .input("releaseReason",sql.NVarChar(100),input.status==="DELIVERED"?"ORDER_DELIVERED":"ADMIN_PARENT_CANCELLED")
+            .query("UPDATE dbo.OrderItems SET reservation_released_at=SYSUTCDATETIME(),reservation_released_by=@releasedBy,reservation_release_reason=@releaseReason WHERE id=@releasedItemId AND reservation_released_at IS NULL");
           if (input.status === "DELIVERED")
             adjustmentRows.push({
               variantId: item.variantId,

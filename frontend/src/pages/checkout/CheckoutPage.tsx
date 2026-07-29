@@ -49,9 +49,12 @@ export default function CheckoutPage() {
   const [loadingItems, setLoadingItems] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [voucherCode,setVoucherCode]=useState("");
+  const [vouchers,setVouchers]=useState<Array<{code:string;amount:number;minimumOrderAmount:number;expiresAt:string;status:string}>>([]);
 
   useEffect(() => {
     void migratePersistedCart();
+    void api.get<{data:Array<{code:string;amount:number;minimumOrderAmount:number;expiresAt:string;status:string}>}>("/marketplace/vouchers").then(response=>setVouchers(response.data.data.filter(voucher=>voucher.status==="AVAILABLE"))).catch(()=>setVouchers([]));
   }, [migratePersistedCart]);
   useEffect(() => {
     let active = true;
@@ -175,6 +178,7 @@ export default function CheckoutPage() {
         shippingPostalCode: form.postalCode.trim() || undefined,
         shippingCountry: form.country.trim(),
         cartVersion: serverCart?.version ?? 0,
+        voucherCode:voucherCode||undefined,
       });
       completeCheckout(response.data.data.cartVersion);
       navigate(`/orders/${response.data.data.id}`);
@@ -238,6 +242,13 @@ export default function CheckoutPage() {
               </Link>
             </p>
           )}
+          <label className="block">Voucher bồi thường
+            <select className="input-field mt-1 w-full" value={voucherCode} onChange={event=>setVoucherCode(event.target.value)}>
+              <option value="">Không dùng voucher</option>
+              {vouchers.map(voucher=><option key={voucher.code} value={voucher.code}>{voucher.code} · {voucher.amount.toLocaleString()} VND · tối thiểu {voucher.minimumOrderAmount.toLocaleString()} VND</option>)}
+            </select>
+            <span className="text-xs text-white/60">Chỉ trừ tiền hàng, không trừ phí vận chuyển và không cộng dồn voucher.</span>
+          </label>
           <button
             className="btn-primary"
             disabled={submitting || loadingItems || invalid || !serverCart}

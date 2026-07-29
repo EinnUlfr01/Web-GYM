@@ -8,3 +8,10 @@ export const sellerShopOrderList=z.object({
   status:status.optional(),
   sortOrder:z.enum(["asc","desc"]).default("desc"),
 }).strict();
+export const sellerStockCheck=z.object({
+  action:z.enum(["SUFFICIENT","UNABLE_TO_FULFILL"]),
+  reason:z.string().trim().min(5).max(500).optional(),
+}).strict().superRefine((value,context)=>{
+  if(value.action==="UNABLE_TO_FULFILL"&&!value.reason)
+    context.addIssue({code:z.ZodIssueCode.custom,path:["reason"],message:"Reason is required when stock is unavailable"});
+});

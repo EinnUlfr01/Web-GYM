@@ -254,6 +254,8 @@ export default function CustomerOrderDetailPage() {
                 </li>
               ))}
             </ul>
+            {shopOrder.refund&&<div className="mt-3 rounded bg-amber-500/10 p-3 text-sm text-amber-200"><p>Hoàn hàng hóa: {money(shopOrder.refund.merchandiseAmount,order.currency)}</p><p>Hoàn vận chuyển: {money(shopOrder.refund.shippingAmount,order.currency)}</p><p>Trạng thái hoàn tiền: {shopOrder.refund.status}</p></div>}
+            {shopOrder.compensationVoucher&&<div className="mt-3 rounded bg-emerald-500/10 p-3 text-sm text-emerald-200"><p>Voucher: {shopOrder.compensationVoucher.code} · {money(shopOrder.compensationVoucher.amount,order.currency)}</p><p>Đơn hàng hóa tối thiểu: {money(shopOrder.compensationVoucher.minimumOrderAmount,order.currency)}</p><p>Hạn dùng: {new Date(shopOrder.compensationVoucher.expiresAt).toLocaleString()} · Không áp dụng phí vận chuyển, không cộng dồn.</p></div>}
           </article>
         ))}
       </section>

@@ -45,6 +45,7 @@ import AdminInventoryPage from './pages/admin/AdminInventoryPage';
 import AdminProductVariantsPage from './pages/admin/AdminProductVariantsPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage';
+import AdminRefundsPage from './pages/admin/AdminRefundsPage';
 import CustomerOrderDetailPage from './pages/orders/CustomerOrderDetailPage';
 import CheckoutPage from './pages/checkout/CheckoutPage';
 import CartPage from './pages/cart/CartPage';
@@ -145,6 +146,7 @@ export default function App() {
           <Route path="/admin/product-moderation/:productId" element={<AccessRoute path="/admin"><AdminProductModerationDetailPage /></AccessRoute>} />
           <Route path="/admin/orders" element={<AccessRoute path="/admin"><AdminOrdersPage /></AccessRoute>} />
           <Route path="/admin/orders/:orderId" element={<AccessRoute path="/admin"><AdminOrderDetailPage /></AccessRoute>} />
+          <Route path="/admin/refunds" element={<AccessRoute path="/admin"><AdminRefundsPage /></AccessRoute>} />
           <Route path="/admin/seller-applications" element={<AccessRoute path="/admin"><AdminSellerApplicationsPage /></AccessRoute>} />
           <Route path="/admin/seller-applications/:applicationId" element={<AccessRoute path="/admin"><AdminSellerApplicationDetailPage /></AccessRoute>} />
           <Route path="/admin/shops" element={<AccessRoute path="/admin"><AdminShopsPage /></AccessRoute>} />

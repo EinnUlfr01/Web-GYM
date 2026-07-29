@@ -25,6 +25,8 @@ export interface SellerShopOrderSummary {
 }
 
 export interface SellerShopOrderDetail extends SellerShopOrderSummary {
+  refund?:{id:number;merchandiseAmount:number;shippingAmount:number;totalAmount:number;status:"PENDING"|"COMPLETED"|"FAILED"}|null;
+  compensationVoucher?:{id:number;code:string;amount:number;minimumOrderAmount:number;expiresAt:Date;status:string}|null;
   shipping:{
     name:string;
     phone:string|null;
@@ -36,6 +38,11 @@ export interface SellerShopOrderDetail extends SellerShopOrderSummary {
     country:string|null;
   };
   items:SellerShopOrderItem[];
+}
+
+export interface SellerStockCheckInput {
+  action:"SUFFICIENT"|"UNABLE_TO_FULFILL";
+  reason?:string;
 }
 
 export interface SellerShopOrderFilters {

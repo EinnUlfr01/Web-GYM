@@ -20,6 +20,8 @@
     "acceptance:seller-007": "tsx src/scripts/seller-007-acceptance.ts",
     "acceptance:seller-008": "tsx src/scripts/seller-008-acceptance.ts",
     "acceptance:seller-008a": "tsx src/scripts/seller-008a-acceptance.ts",
+    "acceptance:seller-009": "tsx src/scripts/seller-009-acceptance.ts",
+    "integrity:seller-009": "tsx src/scripts/seller-009-integrity.ts",
     "integrity:seller-008a": "tsx src/scripts/seller-008a-integrity.ts",
     "verification:seller-007": "tsx src/scripts/seller-007-verification.ts",
     "integrity:seller-007": "tsx src/scripts/seller-007-integrity.ts",

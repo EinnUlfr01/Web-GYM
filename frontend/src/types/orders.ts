@@ -2,7 +2,7 @@ export type PaymentStatus='UNPAID'|'PENDING'|'PAID'|'FAILED'|'PARTIALLY_REFUNDED
 export type OrderStatus='PENDING'|'CONFIRMED'|'PROCESSING'|'SHIPPED'|'DELIVERED'|'CANCELLED';
 export interface CustomerOrderItem { id:number; productId:number; variantId:number; productName:string; variantName:string; sku:string; quantity:number; unitPrice:number; lineTotal:number }
 export type ShopOrderStatus='PENDING_PAYMENT'|'PENDING_STOCK_CHECK'|'PREPARING'|'READY_FOR_PICKUP'|'UNABLE_TO_FULFILL'|'CANCELLED';
-export interface CustomerShopOrder { id:number;shop:{id:number;name:string;slug:string};status:ShopOrderStatus;subtotal:number;createdAt:string;updatedAt:string;items:CustomerOrderItem[] }
+export interface CustomerShopOrder { id:number;shop:{id:number;name:string;slug:string};status:ShopOrderStatus;subtotal:number;createdAt:string;updatedAt:string;refund?:{id:number;merchandiseAmount:number;shippingAmount:number;totalAmount:number;status:string;reason:string}|null;compensationVoucher?:{id:number;code:string;amount:number;minimumOrderAmount:number;expiresAt:string;status:string}|null;items:CustomerOrderItem[] }
 export type BankTransferConfigurationField='BANK_NAME'|'BANK_ACCOUNT_NAME'|'BANK_ACCOUNT_NUMBER'|'BANK_QR_IMAGE_URL';
 export interface BankTransferPublicConfig { ready:boolean; missingFields:BankTransferConfigurationField[]; bankName:string|null; accountName:string|null; accountNumber:string|null; qrImageUrl:string|null; transferContent:string }
 export type CancellationReason='AUTO_EXPIRED'|'CUSTOMER_CANCELLED'|'ADMIN_CANCELLED'|null;
@@ -10,7 +10,7 @@ export interface CustomerOrderDetail { id:number; orderNumber:string; userId:num
 export interface PaymentNotificationInput { paymentReference?:string }
 export type PaymentNotificationReason='PAYMENT_UPDATED'|'ALREADY_PENDING'|'MAIL_NOT_CONFIGURED'|'MAIL_DELIVERY_FAILED';
 export interface PaymentNotificationResult { orderId:number; orderNumber:string; paymentStatus:'PENDING'; paymentProvider:'BANK_TRANSFER'; paymentUpdated:boolean; notificationSkipped:boolean; reason:PaymentNotificationReason; emailConfigured:boolean; emailAttempted:boolean; emailSent:boolean }
-export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; cartVersion:number }
+export interface CreateOrderInput { customerName:string; customerPhone:string; shippingAddressLine1:string; shippingAddressLine2?:string; shippingCity:string; shippingState?:string; shippingPostalCode?:string; shippingCountry:string; cartVersion:number;voucherCode?:string }
 export interface CreateOrderResult { id:number; orderNumber:string; orderStatus:string; paymentStatus:string; paymentProvider:string; subtotal:number; totalAmount:number; currency:string; itemCount:number; createdAt:string; reservationExpiresAt:string;shopOrders:Array<{id:number;shop:{id:number;name:string;slug:string};status:'PENDING_PAYMENT';subtotal:number}>;cartVersion:number }
 export interface CustomerCancelOrderInput { note?:string }
 export interface CustomerCancelOrderResult { orderId:number; orderNumber:string; orderStatus:'CANCELLED'; releasedItems:number }
