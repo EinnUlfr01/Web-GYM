@@ -1,12 +1,306 @@
-import { FormEvent,useEffect,useMemo,useState } from 'react';
-import { Link,useNavigate } from 'react-router-dom';
-import { AxiosError } from 'axios';
-import api from '../../api/axios';
-import { useProductsStore } from '../../stores/productsStore';
-import type { ProductDetailResponse,ProductVariant } from '../../types/product';
-import type { CheckoutFormErrors,CheckoutFormValues } from '../../types/orders';
-import { ordersApi } from '../../services/ordersApi';
-const initial:CheckoutFormValues={customerName:'',customerPhone:'',addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',country:'Vietnam'};
-interface Resolved {productId:number;variantId:number;quantity:number;name:string;variant:ProductVariant|null}
-const errorMessage=(error:unknown)=>error instanceof AxiosError&&typeof error.response?.data?.message==='string'?error.response.data.message:'Unable to create order.';
-export default function CheckoutPage(){const {cartItems,clearCart,migratePersistedCart}=useProductsStore(),navigate=useNavigate();const [form,setForm]=useState(initial),[errors,setErrors]=useState<CheckoutFormErrors>({}),[items,setItems]=useState<Resolved[]>([]),[loadingItems,setLoadingItems]=useState(true),[submitting,setSubmitting]=useState(false),[error,setError]=useState('');useEffect(()=>{void migratePersistedCart();},[migratePersistedCart]);useEffect(()=>{let active=true;(async()=>{setLoadingItems(true);setError('');try{const products=new Map<number,ProductDetailResponse['data']>();await Promise.all([...new Set(cartItems.map(item=>item.productId))].map(async id=>{const response=await api.get<ProductDetailResponse>(`/products/${id}`);products.set(id,response.data.data);}));const resolved=cartItems.map(item=>{const product=products.get(item.productId);return {productId:item.productId,variantId:item.variantId,quantity:item.quantity,name:product?.product_name||'Không còn khả dụng',variant:product?.variants?.find(variant=>variant.id===item.variantId)??null};});if(active)setItems(resolved);}catch{if(active)setError('Không thể tải giá và tồn kho hiện tại.');}finally{if(active)setLoadingItems(false);}})();return()=>{active=false};},[cartItems]);const invalid=items.some(item=>!item.variant||!Number.isSafeInteger(item.productId)||item.productId<=0||!Number.isSafeInteger(item.variantId)||item.variantId<=0||!Number.isSafeInteger(item.quantity)||item.quantity<=0||item.quantity>item.variant.available)||new Set(items.map(item=>`${item.productId}:${item.variantId}`)).size!==items.length;const total=useMemo(()=>items.reduce((sum,item)=>sum+(item.variant?.effective_price??0)*item.quantity,0),[items]);const update=(key:keyof CheckoutFormValues,value:string)=>setForm(current=>({...current,[key]:value}));const validate=()=>{const next:CheckoutFormErrors={};if(!form.customerName.trim())next.customerName='Name is required.';if(!form.customerPhone.trim())next.customerPhone='Phone is required.';if(!form.addressLine1.trim())next.addressLine1='Address is required.';if(!form.city.trim())next.city='City is required.';if(!form.country.trim())next.country='Country is required.';if(!items.length)next.items='Your cart is empty.';else if(invalid)next.items='Giỏ hàng có Variant không khả dụng hoặc số lượng vượt tồn kho.';setErrors(next);return Object.keys(next).length===0;};const submit=async(event:FormEvent)=>{event.preventDefault();if(submitting||!validate())return;setSubmitting(true);setError('');try{const response=await ordersApi.createOrder({customerName:form.customerName.trim(),customerPhone:form.customerPhone.trim(),shippingAddressLine1:form.addressLine1.trim(),shippingAddressLine2:form.addressLine2.trim()||undefined,shippingCity:form.city.trim(),shippingState:form.state.trim()||undefined,shippingPostalCode:form.postalCode.trim()||undefined,shippingCountry:form.country.trim(),items:items.map(item=>({variantId:item.variantId,quantity:item.quantity}))});clearCart();navigate(`/orders/${response.data.data.id}`);}catch(error:unknown){setError(errorMessage(error));}finally{setSubmitting(false);}};if(!cartItems.length)return <main className="p-8"><h1 className="text-2xl font-bold">Checkout</h1><p>Giỏ hàng đang trống.</p><Link className="text-emerald-400" to="/cart">Quay lại giỏ hàng</Link></main>;const fields:[keyof CheckoutFormValues,string][]=[['customerName','Name'],['customerPhone','Phone'],['addressLine1','Address'],['addressLine2','Address line 2'],['city','City'],['state','State'],['postalCode','Postal code'],['country','Country']];return <main className="mx-auto max-w-6xl p-6"><h1 className="mb-6 text-3xl font-bold">Checkout</h1>{error&&<p role="alert" className="mb-4 rounded bg-red-500/15 p-3 text-red-300">{error}</p>}<div className="grid gap-8 lg:grid-cols-2"><form onSubmit={submit} className="space-y-4">{fields.map(([key,label])=><label key={key} className="block">{label}<input value={form[key]} onChange={event=>update(key,event.target.value)} className="input-field mt-1 w-full"/>{errors[key]&&<span className="text-red-300">{errors[key]}</span>}</label>)}{errors.items&&<p className="text-red-300">{errors.items} <Link className="underline" to="/cart">Sửa giỏ hàng</Link></p>}<button className="btn-primary" disabled={submitting||loadingItems||invalid}>{submitting?'Đang tạo đơn…':'Đặt hàng'}</button></form><section><h2 className="text-xl font-semibold">Tóm tắt đơn hàng</h2>{loadingItems?<p>Đang tải…</p>:items.map(item=><div key={`${item.productId}-${item.variantId}`} className="border-b border-white/10 py-3"><div className="flex justify-between"><div><p>{item.name}</p><p className="text-sm text-white/60">{item.variant?.variant_name||'Không còn khả dụng'} · {item.variant?.options.map(option=>option.value).join(' / ')||'—'} · {item.variant?.sku||'—'} × {item.quantity}</p></div><span>{((item.variant?.effective_price??0)*item.quantity).toLocaleString()} VND</span></div></div>)}<p className="mt-5 text-xl font-bold">Subtotal: {total.toLocaleString()} VND</p><p className="mt-3 text-sm text-white/60">Giá và tồn kho sẽ được backend xác nhận lần cuối khi tạo đơn hàng.</p></section></div></main>}
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AxiosError } from "axios";
+import api from "../../api/axios";
+import { useProductsStore } from "../../stores/productsStore";
+import type {
+  ProductDetailResponse,
+  ProductVariant,
+} from "../../types/product";
+import type { CheckoutFormErrors, CheckoutFormValues } from "../../types/orders";
+import { ordersApi } from "../../services/ordersApi";
+
+const initial: CheckoutFormValues = {
+  customerName: "",
+  customerPhone: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "Vietnam",
+};
+interface Resolved {
+  productId: number;
+  variantId: number;
+  quantity: number;
+  name: string;
+  shop: { id: number; name: string; slug: string } | null;
+  variant: ProductVariant | null;
+}
+const errorMessage = (error: unknown) =>
+  error instanceof AxiosError &&
+  typeof error.response?.data?.message === "string"
+    ? error.response.data.message
+    : "Không thể tạo đơn hàng. Hãy tải lại giá và tồn kho.";
+
+export default function CheckoutPage() {
+  const { cartItems, clearCart, migratePersistedCart } = useProductsStore();
+  const navigate = useNavigate();
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState<CheckoutFormErrors>({});
+  const [items, setItems] = useState<Resolved[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void migratePersistedCart();
+  }, [migratePersistedCart]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      setLoadingItems(true);
+      setError("");
+      try {
+        const products = new Map<number, ProductDetailResponse["data"]>();
+        await Promise.all(
+          [...new Set(cartItems.map((item) => item.productId))].map(
+            async (id) => {
+              const response = await api.get<ProductDetailResponse>(
+                `/products/${id}`,
+              );
+              products.set(id, response.data.data);
+            },
+          ),
+        );
+        const resolved = cartItems.map((item) => {
+          const product = products.get(item.productId);
+          return {
+            ...item,
+            name: product?.product_name || "Không còn khả dụng",
+            shop: product?.shop ?? null,
+            variant:
+              product?.variants?.find(
+                (variant) => variant.id === item.variantId,
+              ) ?? null,
+          };
+        });
+        if (active) setItems(resolved);
+      } catch {
+        if (active)
+          setError("Không thể tải giá, Shop và tồn kho hiện tại.");
+      } finally {
+        if (active) setLoadingItems(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [cartItems]);
+
+  const invalid =
+    items.some(
+      (item) =>
+        !item.shop ||
+        !item.variant ||
+        !Number.isSafeInteger(item.productId) ||
+        item.productId < 0 ||
+        !Number.isSafeInteger(item.variantId) ||
+        item.variantId <= 0 ||
+        !Number.isSafeInteger(item.quantity) ||
+        item.quantity <= 0 ||
+        item.quantity > item.variant.available,
+    ) ||
+    new Set(items.map((item) => `${item.productId}:${item.variantId}`)).size !==
+      items.length;
+  const total = useMemo(
+    () =>
+      items.reduce(
+        (sum, item) =>
+          sum + (item.variant?.effective_price ?? 0) * item.quantity,
+        0,
+      ),
+    [items],
+  );
+  const groups = useMemo(() => {
+    const grouped = new Map<number, {
+      shop: NonNullable<Resolved["shop"]>;
+      items: Resolved[];
+      subtotal: number;
+    }>();
+    for (const item of items) {
+      if (!item.shop) continue;
+      const existing = grouped.get(item.shop.id);
+      const lineTotal =
+        (item.variant?.effective_price ?? 0) * item.quantity;
+      if (existing) {
+        existing.items.push(item);
+        existing.subtotal += lineTotal;
+      } else
+        grouped.set(item.shop.id, {
+          shop: item.shop,
+          items: [item],
+          subtotal: lineTotal,
+        });
+    }
+    return [...grouped.values()];
+  }, [items]);
+
+  const update = (key: keyof CheckoutFormValues, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const validate = () => {
+    const next: CheckoutFormErrors = {};
+    if (!form.customerName.trim()) next.customerName = "Name is required.";
+    if (!form.customerPhone.trim()) next.customerPhone = "Phone is required.";
+    if (!form.addressLine1.trim()) next.addressLine1 = "Address is required.";
+    if (!form.city.trim()) next.city = "City is required.";
+    if (!form.country.trim()) next.country = "Country is required.";
+    if (!items.length) next.items = "Your cart is empty.";
+    else if (invalid)
+      next.items =
+        "Giỏ hàng có Product, Variant, Shop hoặc số lượng không còn khả dụng.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (submitting || !validate()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const response = await ordersApi.createOrder({
+        customerName: form.customerName.trim(),
+        customerPhone: form.customerPhone.trim(),
+        shippingAddressLine1: form.addressLine1.trim(),
+        shippingAddressLine2: form.addressLine2.trim() || undefined,
+        shippingCity: form.city.trim(),
+        shippingState: form.state.trim() || undefined,
+        shippingPostalCode: form.postalCode.trim() || undefined,
+        shippingCountry: form.country.trim(),
+        items: items.map((item) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+        })),
+      });
+      clearCart();
+      navigate(`/orders/${response.data.data.id}`);
+    } catch (caught: unknown) {
+      setError(errorMessage(caught));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!cartItems.length)
+    return (
+      <main className="p-8">
+        <h1 className="text-2xl font-bold">Checkout</h1>
+        <p>Giỏ hàng đang trống.</p>
+        <Link className="text-emerald-400" to="/cart">
+          Quay lại giỏ hàng
+        </Link>
+      </main>
+    );
+  const fields: [keyof CheckoutFormValues, string][] = [
+    ["customerName", "Name"],
+    ["customerPhone", "Phone"],
+    ["addressLine1", "Address"],
+    ["addressLine2", "Address line 2"],
+    ["city", "City"],
+    ["state", "State"],
+    ["postalCode", "Postal code"],
+    ["country", "Country"],
+  ];
+  return (
+    <main className="mx-auto max-w-6xl p-6">
+      <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
+      {error && (
+        <p role="alert" className="mb-4 rounded bg-red-500/15 p-3 text-red-300">
+          {error}
+        </p>
+      )}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <form onSubmit={submit} className="space-y-4">
+          {fields.map(([key, label]) => (
+            <label key={key} className="block">
+              {label}
+              <input
+                value={form[key]}
+                onChange={(event) => update(key, event.target.value)}
+                className="input-field mt-1 w-full"
+              />
+              {errors[key] && (
+                <span className="text-red-300">{errors[key]}</span>
+              )}
+            </label>
+          ))}
+          {errors.items && (
+            <p className="text-red-300">
+              {errors.items}{" "}
+              <Link className="underline" to="/cart">
+                Sửa giỏ hàng
+              </Link>
+            </p>
+          )}
+          <button
+            className="btn-primary"
+            disabled={submitting || loadingItems || invalid}
+          >
+            {submitting ? "Đang tạo đơn…" : "Đặt hàng"}
+          </button>
+        </form>
+        <section>
+          <h2 className="text-xl font-semibold">Tóm tắt đơn hàng</h2>
+          {loadingItems ? (
+            <p>Đang tải…</p>
+          ) : (
+            groups.map((group) => (
+              <section
+                key={group.shop.id}
+                className="mt-4 rounded-xl border border-emerald-400/20 p-4"
+              >
+                <div className="flex justify-between gap-3">
+                  <Link
+                    className="font-semibold text-emerald-400"
+                    to={`/shops/${group.shop.slug}`}
+                  >
+                    {group.shop.name}
+                  </Link>
+                  <strong>
+                    Shop subtotal: {group.subtotal.toLocaleString()} VND
+                  </strong>
+                </div>
+                {group.items.map((item) => (
+                  <div
+                    key={`${item.productId}-${item.variantId}`}
+                    className="border-b border-white/10 py-3"
+                  >
+                    <div className="flex justify-between gap-3">
+                      <div>
+                        <p>{item.name}</p>
+                        <p className="text-sm text-white/60">
+                          {item.variant?.variant_name || "Không còn khả dụng"} ·{" "}
+                          {item.variant?.sku || "—"} × {item.quantity}
+                        </p>
+                      </div>
+                      <span>
+                        {(
+                          (item.variant?.effective_price ?? 0) * item.quantity
+                        ).toLocaleString()}{" "}
+                        VND
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ))
+          )}
+          <p className="mt-5 text-xl font-bold">
+            Parent subtotal: {total.toLocaleString()} VND
+          </p>
+          <p className="text-sm text-white/60">
+            Discount: 0 VND · Tax: 0 VND · Outbound shipping: 0 VND
+          </p>
+          <p className="text-xl font-bold">
+            Parent total: {total.toLocaleString()} VND
+          </p>
+          <p className="mt-3 text-sm text-white/60">
+            Backend sẽ xác nhận lại Product, Variant, Shop, giá và tồn kho. Kết
+            quả server là kết quả chính thức.
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}

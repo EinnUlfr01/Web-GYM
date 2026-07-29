@@ -62,6 +62,8 @@ import AdminBrandRequestsPage from './pages/admin/AdminBrandRequestsPage';
 import SellerProductsPage from './pages/seller/SellerProductsPage';
 import SellerProductDetailPage from './pages/seller/SellerProductDetailPage';
 import SellerProductFormPage from './pages/seller/SellerProductFormPage';
+import SellerOrdersPage from './pages/seller/SellerOrdersPage';
+import SellerOrderDetailPage from './pages/seller/SellerOrderDetailPage';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -127,6 +129,8 @@ export default function App() {
           <Route path="/seller/products/new" element={<AccessRoute path="/seller/products"><SellerProductFormPage /></AccessRoute>} />
           <Route path="/seller/products/:id/edit" element={<AccessRoute path="/seller/products"><SellerProductFormPage /></AccessRoute>} />
           <Route path="/seller/products/:id" element={<AccessRoute path="/seller/products"><SellerProductDetailPage /></AccessRoute>} />
+          <Route path="/seller/orders" element={<AccessRoute path="/seller/orders"><SellerOrdersPage /></AccessRoute>} />
+          <Route path="/seller/orders/:shopOrderId" element={<AccessRoute path="/seller/orders"><SellerOrderDetailPage /></AccessRoute>} />
           <Route path="/orders/:orderId" element={<AccessRoute path="/orders"><CustomerOrderDetailPage /></AccessRoute>} />
           <Route path="/orders" element={<AccessRoute path="/orders"><CustomerOrdersPage /></AccessRoute>} />
           <Route path="/checkout" element={<AccessRoute path="/checkout"><CheckoutPage /></AccessRoute>} />

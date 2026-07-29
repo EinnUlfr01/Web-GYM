@@ -59,13 +59,15 @@ const write = (key: string, value: unknown): void =>
   localStorage.setItem(key, JSON.stringify(value));
 const validId = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) > 0;
+const validProductId = (value: unknown): value is number =>
+  Number.isSafeInteger(value) && Number(value) >= 0;
 const validQuantity = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) > 0;
 const initialCart = (): VariantAwareCartItem[] => {
   const raw = readUnknown(CART_KEY);
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((item: LegacyCartItem) =>
-    validId(item.productId) &&
+    validProductId(item.productId) &&
     validId(item.variantId) &&
     validQuantity(item.quantity)
       ? [
@@ -134,7 +136,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     const migrated: VariantAwareCartItem[] = [];
     let removed = false;
     for (const item of raw as LegacyCartItem[]) {
-      if (!validId(item.productId) || !validQuantity(item.quantity)) {
+      if (!validProductId(item.productId) || !validQuantity(item.quantity)) {
         removed = true;
         continue;
       }
@@ -181,7 +183,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     });
   },
   addToCart: (productId, variantId, quantity) => {
-    if (!validId(productId) || !validId(variantId) || !validQuantity(quantity))
+    if (!validProductId(productId) || !validId(variantId) || !validQuantity(quantity))
       return;
     const current = get().cartItems,
       existing = current.find(

@@ -59,6 +59,8 @@ export interface AdminOrderItem {
   lineTotal: number;
   createdAt: string;
 }
+export type ShopOrderStatus="PENDING_PAYMENT"|"PENDING_STOCK_CHECK"|"PREPARING"|"READY_FOR_PICKUP"|"UNABLE_TO_FULFILL"|"CANCELLED";
+export interface AdminShopOrder {id:number;shop:{id:number;name:string;slug:string};status:ShopOrderStatus;subtotal:number;createdAt:string;updatedAt:string;items:AdminOrderItem[]}
 export interface OrderStatusHistoryItem {
   id: number;
   previousStatus: OrderStatus | null;
@@ -130,6 +132,7 @@ export interface AdminOrderDetail {
     reference: string | null;
   };
   items: AdminOrderItem[];
+  shopOrders: AdminShopOrder[];
   statusHistory: OrderStatusHistoryItem[];
   paymentHistory: PaymentStatusHistoryItem[];
 }

@@ -40,11 +40,12 @@ import { adminShopRouter, publicShopRouter, sellerShopRouter } from './modules/s
 import brandRequestRoutes from './modules/brand-requests/brand-requests.routes';
 import adminBrandRequestRoutes from './modules/brand-requests/admin-brand-requests.routes';
 import sellerProductRoutes from './modules/products/seller-products.routes';
+import sellerOrderRoutes from './modules/seller-orders/seller-orders.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER008_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -114,6 +115,7 @@ app.use('/api/admin/shops', adminShopRouter);
 app.use('/api/seller/brand-requests',brandRequestRoutes);
 app.use('/api/admin/brand-requests',adminBrandRequestRoutes);
 app.use('/api/seller/products',sellerProductRoutes);
+app.use('/api/seller/orders',sellerOrderRoutes);
 app.use('/api/media', mediaRoutes);
 
 app.use(notFoundHandler);

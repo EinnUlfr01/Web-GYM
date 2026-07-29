@@ -236,6 +236,27 @@ export default function CustomerOrderDetailPage() {
           <p>{order.country || "—"}</p>
         </section>
       </div>
+      <section className="space-y-4 rounded-xl border border-emerald-400/20 p-5">
+        <h2 className="text-lg font-semibold">Shop orders</h2>
+        {order.shopOrders.map((shopOrder) => (
+          <article key={shopOrder.id} className="rounded-lg border border-white/10 p-4">
+            <div className="flex flex-wrap justify-between gap-3">
+              <Link className="text-emerald-400" to={`/shops/${shopOrder.shop.slug}`}>
+                {shopOrder.shop.name}
+              </Link>
+              <span>{shopOrder.status}</span>
+              <strong>{money(shopOrder.subtotal, order.currency)}</strong>
+            </div>
+            <ul className="mt-3 space-y-1 text-sm text-white/70">
+              {shopOrder.items.map((item) => (
+                <li key={item.id}>
+                  {item.productName} · {item.variantName} × {item.quantity}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </section>
       <section className="overflow-x-auto rounded-xl border border-slate-800">
         <h2 className="p-5 text-lg font-semibold">Items</h2>
         <table className="w-full min-w-[800px] text-sm">

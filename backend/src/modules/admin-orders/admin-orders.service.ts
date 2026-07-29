@@ -4,6 +4,7 @@ import type {
   AdminOrderDetail,
   AdminOrderFilters,
   AdminOrderItem,
+  AdminShopOrder,
   AdminOrderListItem,
   OrderStatus,
   OrderStatusHistoryItem,
@@ -11,6 +12,7 @@ import type {
   PaymentStatusHistoryItem,
   UpdateOrderStatusInput,
 } from "./admin-orders.types";
+import { cancelParentShopOrders } from "../orders/order-reservation.service";
 
 type CountedOrder = AdminOrderListItem & { total_count: number };
 type OrderDetailRow = {
@@ -125,13 +127,38 @@ export const adminOrdersService = {
       );
     const order = orderResult.recordset[0];
     if (!order) throw new AppError(404, "Order not found");
-    const [itemsResult, historyResult, paymentHistoryResult] =
+    const [itemsResult, shopOrderResult, historyResult, paymentHistoryResult] =
       await Promise.all([
         pool
           .request()
           .input("orderId", sql.Int, orderId)
           .query<AdminOrderItem>(
             "SELECT id AS id,product_id AS productId,variant_id AS variantId,product_name AS productName,variant_name AS variantName,sku AS sku,quantity AS quantity,unit_price AS unitPrice,line_total AS lineTotal,created_at AS createdAt FROM dbo.OrderItems WHERE order_id=@orderId ORDER BY id ASC",
+          ),
+        pool
+          .request()
+          .input("shopOrderParentId", sql.Int, orderId)
+          .query<{
+            shopOrderId:number;
+            shopOrderStatus:AdminShopOrder["status"];
+            shopOrderSubtotal:number;
+            shopOrderCreatedAt:Date;
+            shopOrderUpdatedAt:Date;
+            shopId:number;
+            shopName:string;
+            shopSlug:string;
+            itemId:number;
+            productId:number;
+            variantId:number;
+            productName:string;
+            variantName:string;
+            sku:string;
+            quantity:number;
+            unitPrice:number;
+            lineTotal:number;
+            itemCreatedAt:Date;
+          }>(
+            "SELECT so.id AS shopOrderId,so.status AS shopOrderStatus,so.subtotal AS shopOrderSubtotal,so.created_at AS shopOrderCreatedAt,so.updated_at AS shopOrderUpdatedAt,s.id AS shopId,s.name AS shopName,s.slug AS shopSlug,oi.id AS itemId,oi.product_id AS productId,oi.variant_id AS variantId,oi.product_name AS productName,oi.variant_name AS variantName,oi.sku,oi.quantity,oi.unit_price AS unitPrice,oi.line_total AS lineTotal,oi.created_at AS itemCreatedAt FROM dbo.ShopOrders so JOIN dbo.Shops s ON s.id=so.shop_id JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id WHERE so.order_id=@shopOrderParentId ORDER BY so.id,oi.id",
           ),
         pool
           .request()
@@ -146,6 +173,31 @@ export const adminOrdersService = {
             "SELECT h.id AS id,h.order_id AS orderId,h.previous_status AS previousStatus,h.new_status AS newStatus,h.changed_by AS changedBy,u.name AS changedByName,u.email AS changedByEmail,h.actor_type AS actorType,h.note AS note,h.payment_reference AS paymentReference,h.created_at AS createdAt FROM dbo.PaymentStatusHistory h LEFT JOIN dbo.Users u ON u.id=h.changed_by WHERE h.order_id=@orderId ORDER BY h.created_at DESC,h.id DESC",
           ),
       ]);
+    const shopOrders:AdminShopOrder[] = [...new Set(shopOrderResult.recordset.map(row=>row.shopOrderId))]
+      .map(shopOrderId=>{
+        const rows=shopOrderResult.recordset.filter(row=>row.shopOrderId===shopOrderId);
+        const first=rows[0];
+        return {
+          id:shopOrderId,
+          shop:{id:first.shopId,name:first.shopName,slug:first.shopSlug},
+          status:first.shopOrderStatus,
+          subtotal:first.shopOrderSubtotal,
+          createdAt:first.shopOrderCreatedAt,
+          updatedAt:first.shopOrderUpdatedAt,
+          items:rows.map(row=>({
+            id:row.itemId,
+            productId:row.productId,
+            variantId:row.variantId,
+            productName:row.productName,
+            variantName:row.variantName,
+            sku:row.sku,
+            quantity:row.quantity,
+            unitPrice:row.unitPrice,
+            lineTotal:row.lineTotal,
+            createdAt:row.itemCreatedAt,
+          })),
+        };
+      });
     return {
       id: order.id,
       orderNumber: order.orderNumber,
@@ -178,6 +230,7 @@ export const adminOrdersService = {
         reference: order.paymentReference,
       },
       items: itemsResult.recordset,
+      shopOrders,
       statusHistory: historyResult.recordset,
       paymentHistory: paymentHistoryResult.recordset,
     };
@@ -345,6 +398,13 @@ export const adminOrdersService = {
         .input("note", sql.NVarChar(500), input.note ?? null)
         .query(
           "INSERT dbo.OrderStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@orderId,@previousStatus,@newStatus,@changedBy,@note,SYSUTCDATETIME())",
+        );
+      if (input.status === "CANCELLED")
+        await cancelParentShopOrders(
+          transaction,
+          orderId,
+          adminId,
+          input.note?.trim() || "ADMIN_CANCELLED",
         );
       await transaction.commit();
       started = false;

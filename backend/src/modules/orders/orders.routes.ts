@@ -23,7 +23,7 @@ const wrap =
   (req: Request, res: Response, next: NextFunction): void => {
     void handler(req, res, next).catch(next);
   };
-router.use(authenticate, authorize(UserRole.MEMBER));
+router.use(authenticate, authorize(UserRole.MEMBER, UserRole.COACH));
 router.post(
   "/",
   validate(createOrder),
