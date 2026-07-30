@@ -211,6 +211,9 @@ export default function CustomerOrderDetailPage() {
             Order status: <strong>{order.orderStatus}</strong>
           </p>
           <p>
+            Logistics: <strong>{order.logisticsStatus || "Đơn đã hủy"}</strong>
+          </p>
+          <p>
             Payment status: <strong>{labels[status]}</strong>
           </p>
           <p>Created: {new Date(order.createdAt).toLocaleString()}</p>
@@ -246,6 +249,14 @@ export default function CustomerOrderDetailPage() {
               </Link>
               <span>{shopOrder.status}</span>
               <strong>{money(shopOrder.subtotal, order.currency)}</strong>
+            </div>
+            {shopOrder.hubCheckFailed&&<p className="mt-3 rounded bg-amber-500/10 p-3 text-amber-200">Kiện hàng đang được GymFit xử lý thêm tại hub. Đơn tổng vẫn đang chờ các ShopOrder hoàn tất.</p>}
+            <div className="mt-3 grid gap-1 text-sm text-white/60 sm:grid-cols-2">
+              {shopOrder.pickedUpAt&&<span>Đã lấy: {new Date(shopOrder.pickedUpAt).toLocaleString()}</span>}
+              {shopOrder.inTransitToHubAt&&<span>Đang về hub: {new Date(shopOrder.inTransitToHubAt).toLocaleString()}</span>}
+              {shopOrder.receivedAtHubAt&&<span>Hub đã nhận: {new Date(shopOrder.receivedAtHubAt).toLocaleString()}</span>}
+              {shopOrder.hubCheckedAt&&<span>Đã kiểm tra hub: {new Date(shopOrder.hubCheckedAt).toLocaleString()}</span>}
+              {shopOrder.deliveredAt&&<span>Đã giao: {new Date(shopOrder.deliveredAt).toLocaleString()}</span>}
             </div>
             <ul className="mt-3 space-y-1 text-sm text-white/70">
               {shopOrder.items.map((item) => (

@@ -45,4 +45,8 @@ export const adminOrdersApi = {
     api.get<AdminApiResponse<AdminPaymentConfigurationStatus>>(
       "/admin/payment-configuration",
     ),
+  transitionShopOrder:(shopOrderId:number,payload:{action:"PICKED_UP"|"IN_TRANSIT_TO_HUB"|"RECEIVED_AT_HUB"|"HUB_CHECK_PASSED"|"HUB_CHECK_FAILED";reason?:string})=>
+    api.post<AdminApiResponse<AdminOrderDetail>>(`/admin/shop-orders/${shopOrderId}/logistics`,payload),
+  transitionParent:(orderId:number,payload:{action:"READY_TO_SHIP"|"SHIPPED"|"DELIVERED";note?:string})=>
+    api.post<AdminApiResponse<AdminOrderDetail>>(`/admin/orders/${orderId}/logistics`,payload),
 };

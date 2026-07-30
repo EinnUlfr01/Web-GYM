@@ -35,7 +35,7 @@ export const sellerOrdersService={
     }
     const direction=filters.sortOrder==="asc"?"ASC":"DESC";
     const result=await request.query<SellerShopOrderSummary&{totalCount:number}>(
-      `SELECT so.id,o.id AS parentOrderId,o.order_number AS parentOrderNumber,so.status,so.subtotal,o.currency,COUNT(oi.id) AS itemCount,so.created_at AS createdAt,so.updated_at AS updatedAt,COUNT_BIG(*) OVER() AS totalCount FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id LEFT JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id WHERE ${clauses.join(" AND ")} GROUP BY so.id,o.id,o.order_number,so.status,so.subtotal,o.currency,so.created_at,so.updated_at ORDER BY so.created_at ${direction},so.id ${direction} OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
+      `SELECT so.id,o.id AS parentOrderId,o.order_number AS parentOrderNumber,so.status,so.subtotal,o.currency,COUNT(oi.id) AS itemCount,so.ready_for_pickup_at AS readyForPickupAt,so.picked_up_at AS pickedUpAt,so.in_transit_to_hub_at AS inTransitToHubAt,so.received_at_hub_at AS receivedAtHubAt,so.hub_checked_at AS hubCheckedAt,so.delivered_at AS deliveredAt,so.created_at AS createdAt,so.updated_at AS updatedAt,COUNT_BIG(*) OVER() AS totalCount FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id LEFT JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id WHERE ${clauses.join(" AND ")} GROUP BY so.id,o.id,o.order_number,so.status,so.subtotal,o.currency,so.ready_for_pickup_at,so.picked_up_at,so.in_transit_to_hub_at,so.received_at_hub_at,so.hub_checked_at,so.delivered_at,so.created_at,so.updated_at ORDER BY so.created_at ${direction},so.id ${direction} OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
     );
     const total=Number(result.recordset[0]?.totalCount??0);
     return {
@@ -63,7 +63,7 @@ export const sellerOrdersService={
         postalCode:string|null;
         country:string|null;
       }>(
-        "SELECT so.id,o.id AS parentOrderId,o.order_number AS parentOrderNumber,so.status,so.subtotal,o.currency,(SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.shop_order_id=so.id) AS itemCount,so.created_at AS createdAt,so.updated_at AS updatedAt,o.customer_name AS customerName,o.customer_phone AS customerPhone,o.shipping_address_line1 AS addressLine1,o.shipping_address_line2 AS addressLine2,o.shipping_city AS city,o.shipping_state AS state,o.shipping_postal_code AS postalCode,o.shipping_country AS country FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id WHERE so.id=@shopOrderId AND so.shop_id=@shopId",
+        "SELECT so.id,o.id AS parentOrderId,o.order_number AS parentOrderNumber,so.status,so.subtotal,o.currency,(SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.shop_order_id=so.id) AS itemCount,so.ready_for_pickup_at AS readyForPickupAt,so.picked_up_at AS pickedUpAt,so.in_transit_to_hub_at AS inTransitToHubAt,so.received_at_hub_at AS receivedAtHubAt,so.hub_checked_at AS hubCheckedAt,so.delivered_at AS deliveredAt,so.created_at AS createdAt,so.updated_at AS updatedAt,o.customer_name AS customerName,o.customer_phone AS customerPhone,o.shipping_address_line1 AS addressLine1,o.shipping_address_line2 AS addressLine2,o.shipping_city AS city,o.shipping_state AS state,o.shipping_postal_code AS postalCode,o.shipping_country AS country FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id WHERE so.id=@shopOrderId AND so.shop_id=@shopId",
       );
     const row=result.recordset[0];
     if(!row) throw new AppError(404,"ShopOrder not found");
@@ -88,6 +88,12 @@ export const sellerOrdersService={
       itemCount:row.itemCount,
       createdAt:row.createdAt,
       updatedAt:row.updatedAt,
+      readyForPickupAt:row.readyForPickupAt,
+      pickedUpAt:row.pickedUpAt,
+      inTransitToHubAt:row.inTransitToHubAt,
+      receivedAtHubAt:row.receivedAtHubAt,
+      hubCheckedAt:row.hubCheckedAt,
+      deliveredAt:row.deliveredAt,
       refund:finance?.refundId?{id:finance.refundId,merchandiseAmount:Number(finance.merchandiseAmount),shippingAmount:Number(finance.shippingAmount),totalAmount:Number(finance.totalAmount),status:finance.refundStatus as "PENDING"|"COMPLETED"|"FAILED"}:null,
       compensationVoucher:finance?.voucherId?{id:finance.voucherId,code:String(finance.voucherCode),amount:Number(finance.voucherAmount),minimumOrderAmount:Number(finance.minimumOrderAmount),expiresAt:finance.voucherExpiresAt as Date,status:String(finance.voucherStatus)}:null,
       shipping:{
@@ -102,6 +108,28 @@ export const sellerOrdersService={
       },
       items:items.recordset,
     };
+  },
+
+  async readyForPickup(userId:number,shopOrderId:number){
+    const shopId=await ownShopId(userId);
+    const pool=await getPool(),tx=pool.transaction();let started=false;
+    try{
+      await tx.begin();started=true;
+      const row=(await tx.request().input("readyShopOrderId",sql.Int,shopOrderId).input("readyShopId",sql.Int,shopId).query<{status:string;paymentStatus:string}>(
+        "SELECT so.status,o.payment_status AS paymentStatus FROM dbo.ShopOrders so WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Orders o WITH (UPDLOCK,HOLDLOCK) ON o.id=so.order_id WHERE so.id=@readyShopOrderId AND so.shop_id=@readyShopId",
+      )).recordset[0];
+      if(!row)throw new AppError(404,"ShopOrder not found");
+      if(row.paymentStatus!=="PAID")throw new AppError(409,"Parent payment must be PAID");
+      if(row.status==="READY_FOR_PICKUP"){await tx.commit();started=false;return this.detail(userId,shopOrderId);}
+      if(row.status!=="PREPARING")throw new AppError(409,"ShopOrder is not PREPARING");
+      await tx.request().input("readyUpdateId",sql.Int,shopOrderId).query(
+        "UPDATE dbo.ShopOrders SET status=N'READY_FOR_PICKUP',ready_for_pickup_at=COALESCE(ready_for_pickup_at,SYSUTCDATETIME()),updated_at=SYSUTCDATETIME() WHERE id=@readyUpdateId",
+      );
+      await tx.request().input("readyHistoryId",sql.Int,shopOrderId).input("readyActor",sql.Int,userId).query(
+        "INSERT dbo.ShopOrderStatusHistory(shop_order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@readyHistoryId,N'PREPARING',N'READY_FOR_PICKUP',@readyActor,N'SELLER_READY_FOR_PICKUP',SYSUTCDATETIME())",
+      );
+      await tx.commit();started=false;return this.detail(userId,shopOrderId);
+    }catch(error){if(started)await tx.rollback();throw error;}
   },
 
   async stockCheck(userId:number,shopOrderId:number,input:SellerStockCheckInput){
@@ -142,7 +170,7 @@ export const sellerOrdersService={
       await tx.request().input("shopOrderId",sql.Int,shopOrderId).input("changedBy",sql.Int,userId).input("reason",sql.NVarChar(500),reason).query("UPDATE dbo.ShopOrders SET status=N'CANCELLED',updated_at=SYSUTCDATETIME() WHERE id=@shopOrderId; INSERT dbo.ShopOrderStatusHistory(shop_order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@shopOrderId,N'UNABLE_TO_FULFILL',N'CANCELLED',@changedBy,@reason,SYSUTCDATETIME())");
       if(Number(remaining.recordset[0]?.count??0)===0){
         if(order.parentOrderStatus!=="CANCELLED")
-          await tx.request().input("orderId",sql.Int,order.orderId).input("changedBy",sql.Int,userId).input("previousStatus",sql.NVarChar(30),order.parentOrderStatus).query("UPDATE dbo.Orders SET order_status=N'CANCELLED',updated_at=SYSUTCDATETIME() WHERE id=@orderId; INSERT dbo.OrderStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@orderId,@previousStatus,N'CANCELLED',@changedBy,N'ALL_SHOP_ORDERS_CANCELLED',SYSUTCDATETIME())");
+          await tx.request().input("orderId",sql.Int,order.orderId).input("changedBy",sql.Int,userId).input("previousStatus",sql.NVarChar(30),order.parentOrderStatus).query("UPDATE dbo.Orders SET order_status=N'CANCELLED',logistics_status=NULL,updated_at=SYSUTCDATETIME() WHERE id=@orderId; INSERT dbo.OrderStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@orderId,@previousStatus,N'CANCELLED',@changedBy,N'ALL_SHOP_ORDERS_CANCELLED',SYSUTCDATETIME())");
       }
       email={to:order.customerEmail,orderNumber:order.orderNumber,shopName:order.shopName,refund:Number(order.subtotal)+shippingRefund,voucher:voucher.amount};
       await tx.commit();started=false;

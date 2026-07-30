@@ -22,6 +22,12 @@ export interface SellerShopOrderSummary {
   itemCount:number;
   createdAt:Date;
   updatedAt:Date;
+  readyForPickupAt?:Date|null;
+  pickedUpAt?:Date|null;
+  inTransitToHubAt?:Date|null;
+  receivedAtHubAt?:Date|null;
+  hubCheckedAt?:Date|null;
+  deliveredAt?:Date|null;
 }
 
 export interface SellerShopOrderDetail extends SellerShopOrderSummary {

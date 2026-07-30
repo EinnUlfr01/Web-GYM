@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const status=z.enum(["PENDING_PAYMENT","PENDING_STOCK_CHECK","PREPARING","READY_FOR_PICKUP","UNABLE_TO_FULFILL","CANCELLED"]);
+const status=z.enum(["PENDING_PAYMENT","PENDING_STOCK_CHECK","PREPARING","READY_FOR_PICKUP","PICKED_UP","IN_TRANSIT_TO_HUB","RECEIVED_AT_HUB","HUB_CHECK_PASSED","HUB_CHECK_FAILED","UNABLE_TO_FULFILL","CANCELLED"]);
 export const sellerShopOrderId=z.object({shopOrderId:z.coerce.number().int().safe().positive()}).strict();
 export const sellerShopOrderList=z.object({
   page:z.coerce.number().int().positive().default(1),

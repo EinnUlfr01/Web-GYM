@@ -65,7 +65,9 @@ export interface AdminOrderItem {
   lineTotal: number;
   createdAt: Date;
 }
-export type ShopOrderStatus="PENDING_PAYMENT"|"PENDING_STOCK_CHECK"|"PREPARING"|"READY_FOR_PICKUP"|"UNABLE_TO_FULFILL"|"CANCELLED";
+export type ShopOrderStatus="PENDING_PAYMENT"|"PENDING_STOCK_CHECK"|"PREPARING"|"READY_FOR_PICKUP"|"PICKED_UP"|"IN_TRANSIT_TO_HUB"|"RECEIVED_AT_HUB"|"HUB_CHECK_PASSED"|"HUB_CHECK_FAILED"|"UNABLE_TO_FULFILL"|"CANCELLED";
+export type ParentLogisticsStatus="WAITING_FOR_SHOPS"|"READY_TO_SHIP"|"SHIPPED"|"DELIVERED";
+export interface LogisticsHistoryItem{id:number;previousStatus:string|null;newStatus:string;changedBy:number|null;changedByName:string|null;note:string|null;createdAt:Date}
 export interface AdminShopOrder {
   id:number;
   shop:{id:number;name:string;slug:string};
@@ -73,6 +75,14 @@ export interface AdminShopOrder {
   subtotal:number;
   createdAt:Date;
   updatedAt:Date;
+  readyForPickupAt:Date|null;
+  pickedUpAt:Date|null;
+  inTransitToHubAt:Date|null;
+  receivedAtHubAt:Date|null;
+  hubCheckedAt:Date|null;
+  deliveredAt:Date|null;
+  hubCheckReason:string|null;
+  statusHistory:LogisticsHistoryItem[];
   items:AdminOrderItem[];
 }
 export interface OrderStatusHistoryItem {
@@ -123,6 +133,10 @@ export interface AdminOrderDetail {
   orderNumber: string;
   userId: number;
   orderStatus: OrderStatus;
+  logisticsStatus:ParentLogisticsStatus|null;
+  readyToShipAt:Date|null;
+  shippedAt:Date|null;
+  deliveredAt:Date|null;
   paymentStatus: PaymentStatus;
   subtotal: number;
   discountAmount: number;
@@ -149,6 +163,10 @@ export interface AdminOrderDetail {
   shopOrders: AdminShopOrder[];
   statusHistory: OrderStatusHistoryItem[];
   paymentHistory: PaymentStatusHistoryItem[];
+  logisticsHistory:LogisticsHistoryItem[];
+  activeShopOrderCount:number;
+  cancelledShopOrderCount:number;
+  blockingShopOrders:Array<{id:number;status:ShopOrderStatus}>;
 }
 export interface UpdateOrderStatusInput {
   status: OrderStatus;

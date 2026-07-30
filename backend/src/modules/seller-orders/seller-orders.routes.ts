@@ -26,5 +26,10 @@ router.post("/:shopOrderId/stock-check",validate(sellerShopOrderId,"params"),val
   const data=await sellerOrdersService.stockCheck(req.user.userId,Number(req.params.shopOrderId),req.body as SellerStockCheckInput);
   res.json({success:true,data});
 }));
+router.post("/:shopOrderId/ready-for-pickup",validate(sellerShopOrderId,"params"),wrap(async(req,res)=>{
+  if(!req.user){res.status(401).json({success:false,message:"Authentication required"});return;}
+  const data=await sellerOrdersService.readyForPickup(req.user.userId,Number(req.params.shopOrderId));
+  res.json({success:true,data});
+}));
 
 export default router;

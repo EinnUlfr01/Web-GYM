@@ -229,6 +229,9 @@ export const ordersService = {
           "DECLARE @InsertedOrder TABLE(id INT,order_number NVARCHAR(50),created_at DATETIME2); INSERT dbo.Orders(order_number,user_id,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,order_status,payment_status,payment_provider,reservation_expires_at,created_at,updated_at) OUTPUT INSERTED.id,INSERTED.order_number,INSERTED.created_at INTO @InsertedOrder VALUES(@orderNumber,@userId,@customerName,@customerEmail,@customerPhone,@line1,@line2,@city,@state,@postal,@country,@subtotal,@discount,@shipping,@tax,@total,@currency,N'PENDING',N'UNPAID',N'BANK_TRANSFER',DATEADD(MINUTE,@reservationMinutes,SYSUTCDATETIME()),SYSUTCDATETIME(),SYSUTCDATETIME()); SELECT id,order_number,created_at FROM @InsertedOrder;",
         );
       const order = inserted.recordset[0];
+      await tx.request().input("logisticsHistoryOrderId",sql.Int,order.id).query(
+        "INSERT dbo.OrderLogisticsStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@logisticsHistoryOrderId,NULL,N'WAITING_FOR_SHOPS',NULL,N'CREATED_AT_CHECKOUT',SYSUTCDATETIME())",
+      );
       if(voucher){
         await tx.request().input("usedVoucherId",sql.BigInt,voucher.id).input("usedOrderId",sql.Int,order.id).query(
           "UPDATE dbo.CompensationVouchers SET status=N'USED',used_at=SYSUTCDATETIME(),used_order_id=@usedOrderId WHERE id=@usedVoucherId AND status=N'AVAILABLE' AND expires_at>SYSUTCDATETIME(); IF @@ROWCOUNT<>1 THROW 50702,'Voucher is no longer available.',1; UPDATE dbo.Orders SET compensation_voucher_id=@usedVoucherId WHERE id=@usedOrderId",
@@ -394,11 +397,15 @@ export const ordersService = {
           total_amount: number;
           order_status: string;
           payment_status: string;
+          logistics_status:CustomerOrderDetail["logisticsStatus"];
+          ready_to_ship_at:Date|null;
+          shipped_at:Date|null;
+          delivered_at:Date|null;
           created_at: Date;
           updated_at: Date;
         }
       >(
-        "SELECT id,order_number,user_id,order_status,payment_status,payment_provider,payment_reference,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,created_at,updated_at,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country FROM dbo.Orders WHERE id=@orderId",
+        "SELECT id,order_number,user_id,order_status,logistics_status,ready_to_ship_at,shipped_at,delivered_at,payment_status,payment_provider,payment_reference,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,created_at,updated_at,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country FROM dbo.Orders WHERE id=@orderId",
       );
     const row = result.recordset[0];
     if (!row) throw new AppError(404, "Order not found");
@@ -422,6 +429,12 @@ export const ordersService = {
         shopOrderSubtotal:number;
         shopOrderCreatedAt:Date;
         shopOrderUpdatedAt:Date;
+        readyForPickupAt:Date|null;
+        pickedUpAt:Date|null;
+        inTransitToHubAt:Date|null;
+        receivedAtHubAt:Date|null;
+        hubCheckedAt:Date|null;
+        shopDeliveredAt:Date|null;
         itemId:number;
         refundId:number|null;
         merchandiseRefund:number|null;
@@ -436,7 +449,7 @@ export const ordersService = {
         voucherExpiresAt:Date|null;
         voucherStatus:string|null;
       }>(
-        "SELECT so.id AS shopOrderId,so.status AS shopOrderStatus,so.subtotal AS shopOrderSubtotal,so.created_at AS shopOrderCreatedAt,so.updated_at AS shopOrderUpdatedAt,s.id AS shopId,s.name AS shopName,s.slug AS shopSlug,oi.id AS itemId,oi.product_id AS productId,oi.variant_id AS variantId,oi.product_name AS productName,oi.variant_name AS variantName,oi.sku,oi.quantity,oi.unit_price AS unitPrice,oi.line_total AS lineTotal,r.id AS refundId,r.merchandise_amount AS merchandiseRefund,r.shipping_amount AS shippingRefund,r.total_amount AS totalRefund,r.status AS refundStatus,r.reason AS refundReason,v.id AS voucherId,v.code AS voucherCode,v.amount AS voucherAmount,v.minimum_order_amount AS voucherMinimum,v.expires_at AS voucherExpiresAt,v.status AS voucherStatus FROM dbo.ShopOrders so JOIN dbo.Shops s ON s.id=so.shop_id JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id LEFT JOIN dbo.Refunds r ON r.shop_order_id=so.id LEFT JOIN dbo.CompensationVouchers v ON v.source_order_id=so.order_id WHERE so.order_id=@shopOrderParentId ORDER BY so.id,oi.id",
+        "SELECT so.id AS shopOrderId,so.status AS shopOrderStatus,so.subtotal AS shopOrderSubtotal,so.ready_for_pickup_at AS readyForPickupAt,so.picked_up_at AS pickedUpAt,so.in_transit_to_hub_at AS inTransitToHubAt,so.received_at_hub_at AS receivedAtHubAt,so.hub_checked_at AS hubCheckedAt,so.delivered_at AS shopDeliveredAt,so.created_at AS shopOrderCreatedAt,so.updated_at AS shopOrderUpdatedAt,s.id AS shopId,s.name AS shopName,s.slug AS shopSlug,oi.id AS itemId,oi.product_id AS productId,oi.variant_id AS variantId,oi.product_name AS productName,oi.variant_name AS variantName,oi.sku,oi.quantity,oi.unit_price AS unitPrice,oi.line_total AS lineTotal,r.id AS refundId,r.merchandise_amount AS merchandiseRefund,r.shipping_amount AS shippingRefund,r.total_amount AS totalRefund,r.status AS refundStatus,r.reason AS refundReason,v.id AS voucherId,v.code AS voucherCode,v.amount AS voucherAmount,v.minimum_order_amount AS voucherMinimum,v.expires_at AS voucherExpiresAt,v.status AS voucherStatus FROM dbo.ShopOrders so JOIN dbo.Shops s ON s.id=so.shop_id JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id LEFT JOIN dbo.Refunds r ON r.shop_order_id=so.id LEFT JOIN dbo.CompensationVouchers v ON v.source_order_id=so.order_id WHERE so.order_id=@shopOrderParentId ORDER BY so.id,oi.id",
       );
     const shopOrders = [...new Set(shopOrderRows.recordset.map(item=>item.shopOrderId))]
       .map(shopOrderId => {
@@ -449,6 +462,13 @@ export const ordersService = {
           subtotal:first.shopOrderSubtotal,
           createdAt:first.shopOrderCreatedAt,
           updatedAt:first.shopOrderUpdatedAt,
+          readyForPickupAt:first.readyForPickupAt,
+          pickedUpAt:first.pickedUpAt,
+          inTransitToHubAt:first.inTransitToHubAt,
+          receivedAtHubAt:first.receivedAtHubAt,
+          hubCheckedAt:first.hubCheckedAt,
+          deliveredAt:first.shopDeliveredAt,
+          hubCheckFailed:first.shopOrderStatus==="HUB_CHECK_FAILED",
           refund:first.refundId?{id:first.refundId,merchandiseAmount:Number(first.merchandiseRefund),shippingAmount:Number(first.shippingRefund),totalAmount:Number(first.totalRefund),status:String(first.refundStatus),reason:String(first.refundReason)}:null,
           compensationVoucher:first.voucherId?{id:first.voucherId,code:String(first.voucherCode),amount:Number(first.voucherAmount),minimumOrderAmount:Number(first.voucherMinimum),expiresAt:first.voucherExpiresAt as Date,status:String(first.voucherStatus)}:null,
           items:rows.map(item=>({
@@ -470,6 +490,10 @@ export const ordersService = {
       orderNumber: row.order_number,
       userId: row.user_id,
       orderStatus: row.order_status,
+      logisticsStatus:row.logistics_status,
+      readyToShipAt:row.ready_to_ship_at,
+      shippedAt:row.shipped_at,
+      deliveredAt:row.delivered_at,
       paymentStatus: row.payment_status,
       paymentProvider: row.payment_provider,
       paymentReference: row.payment_reference,
@@ -677,7 +701,7 @@ export const ordersService = {
         await releaseOrderReservation(tx,orderId,adminId,"PAYMENT_FAILED");
         await cancelParentShopOrders(tx,orderId,adminId,note||"PAYMENT_FAILED");
         if(order.order_status!=="CANCELLED"){
-          await tx.request().input("failedOrderId",sql.Int,orderId).query("UPDATE dbo.Orders SET order_status=N'CANCELLED',reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@failedOrderId");
+          await tx.request().input("failedOrderId",sql.Int,orderId).query("UPDATE dbo.Orders SET order_status=N'CANCELLED',logistics_status=NULL,reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@failedOrderId");
           await insertOrderStatusHistory(tx,{orderId,previousStatus:order.order_status,newStatus:"CANCELLED",changedBy:adminId,note:note||"PAYMENT_FAILED"});
         }
       }
@@ -756,7 +780,7 @@ export const ordersService = {
         .request()
         .input("orderId", sql.Int, orderId)
         .query(
-          "UPDATE dbo.Orders SET order_status=N'CANCELLED',reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
+          "UPDATE dbo.Orders SET order_status=N'CANCELLED',logistics_status=NULL,reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
         );
       await insertOrderStatusHistory(tx, {
         orderId,

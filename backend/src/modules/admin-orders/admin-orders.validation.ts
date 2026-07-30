@@ -18,3 +18,15 @@ export const orderListQuery = z.object({
   limit: z.coerce.number().int().refine(value => [10, 20, 50, 100].includes(value), 'limit must be 10, 20, 50, or 100').default(20),
 }).superRefine((value, context) => { if (value.dateFrom && value.dateTo && value.dateFrom > value.dateTo) context.addIssue({ code: z.ZodIssueCode.custom, path: ['dateTo'], message: 'dateTo must be on or after dateFrom' }); });
 export const updateOrderStatus = z.object({ status: z.enum(orderStatuses), note: z.string().trim().min(1).max(500).optional() }).strict();
+export const shopOrderIdParam=z.object({shopOrderId:positiveId}).strict();
+export const shopOrderLogisticsAction=z.object({
+  action:z.enum(["PICKED_UP","IN_TRANSIT_TO_HUB","RECEIVED_AT_HUB","HUB_CHECK_PASSED","HUB_CHECK_FAILED"]),
+  reason:z.string().trim().min(3).max(500).optional(),
+}).strict().superRefine((value,context)=>{
+  if(value.action==="HUB_CHECK_FAILED"&&!value.reason)
+    context.addIssue({code:z.ZodIssueCode.custom,path:["reason"],message:"Hub check failure reason is required"});
+});
+export const parentLogisticsAction=z.object({
+  action:z.enum(["READY_TO_SHIP","SHIPPED","DELIVERED"]),
+  note:z.string().trim().min(1).max(500).optional(),
+}).strict();
