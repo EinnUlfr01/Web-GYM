@@ -10,6 +10,7 @@ import {
 } from "./order-reservation.service";
 import { getBankTransferPublicConfig } from "./payment-configuration";
 import { orderReservationConfig } from "./order-reservation.config";
+import {loadCommissionConfiguration} from "../marketplace-finance/marketplace-finance.service";
 import type {
   AdminPaymentStatusInput,
   AdminPaymentStatusResult,
@@ -243,6 +244,7 @@ export const ordersService = {
         shopSlug:string;
         subtotalMinor:number;
       }>();
+      const {rateBps:commissionRateBps}=await loadCommissionConfiguration(tx);
       for (const item of checkoutItems) {
         const row = rows.find(candidate => candidate.variantId === item.variantId);
         if (!row) throw new AppError(409, "Order variant resolution failed");
@@ -269,8 +271,9 @@ export const ordersService = {
           .input("orderId", sql.Int, order.id)
           .input("shopId", sql.Int, group.shopId)
           .input("subtotal", sql.Decimal(18,2), minorToMoney(group.subtotalMinor))
+          .input("commissionRate",sql.Int,commissionRateBps)
           .query<{id:number}>(
-            "INSERT dbo.ShopOrders(order_id,shop_id,status,subtotal,created_at,updated_at) OUTPUT INSERTED.id VALUES(@orderId,@shopId,N'PENDING_PAYMENT',@subtotal,SYSUTCDATETIME(),SYSUTCDATETIME())",
+            "DECLARE @commission DECIMAL(18,2)=ROUND(@subtotal*@commissionRate/10000.0,2); INSERT dbo.ShopOrders(order_id,shop_id,status,subtotal,commission_rate_snapshot,commission_base_amount,commission_amount,seller_net_before_adjustment,commission_snapshotted_at,created_at,updated_at) OUTPUT INSERTED.id VALUES(@orderId,@shopId,N'PENDING_PAYMENT',@subtotal,@commissionRate,@subtotal,@commission,@subtotal-@commission,SYSUTCDATETIME(),SYSUTCDATETIME(),SYSUTCDATETIME())",
           );
         const shopOrderId = shopOrderResult.recordset[0]?.id;
         if (!shopOrderId) throw new AppError(409, "ShopOrder creation failed");

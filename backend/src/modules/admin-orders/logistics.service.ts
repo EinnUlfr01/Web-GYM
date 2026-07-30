@@ -1,6 +1,7 @@
 import { getPool,sql } from "../../config/database";
 import { AppError } from "../../middleware/errorHandler";
 import type { Transaction } from "mssql";
+import {createSettlementsForDeliveredOrder} from "../marketplace-finance/marketplace-finance.service";
 
 export type ShopOrderLogisticsAction =
   "PICKED_UP"|"IN_TRANSIT_TO_HUB"|"RECEIVED_AT_HUB"|"HUB_CHECK_PASSED"|"HUB_CHECK_FAILED";
@@ -106,6 +107,7 @@ export const logisticsService={
       if(action==="DELIVERED")await tx.request().input("deliveredShopParentId",sql.Int,orderId).query(
         "UPDATE dbo.ShopOrders SET delivered_at=COALESCE(delivered_at,SYSUTCDATETIME()),updated_at=SYSUTCDATETIME() WHERE order_id=@deliveredShopParentId AND status=N'HUB_CHECK_PASSED'",
       );
+      if(action==="DELIVERED")await createSettlementsForDeliveredOrder(tx,orderId);
       await tx.request().input("historyOrderId",sql.Int,orderId).input("historyPrevious",sql.NVarChar(30),order.logisticsStatus)
         .input("historyNew",sql.NVarChar(30),action).input("historyAdmin",sql.Int,adminId)
         .input("historyNote",sql.NVarChar(500),note?.trim()||null).query(
