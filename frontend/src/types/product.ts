@@ -73,7 +73,11 @@ export interface Product {
   main_image?: string | null;
   additional_images?: string | null;
 
-  rating?: number;
+  averageRating: number | null;
+  reviewCount: number;
+  commentCount: number;
+  soldCount: number;
+  rating?: number | null;
   review_count?: number;
   features?: string[];
 }

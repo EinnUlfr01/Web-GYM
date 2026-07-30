@@ -3,7 +3,7 @@ import { productScopes } from './product-ownership.service';
 
 export type MarketplaceSort =
   | 'relevance' | 'newest' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc'
-  | 'featured' | 'sale';
+  | 'featured' | 'sale' | 'rating' | 'best_selling';
 
 export interface ProductListParams {
   q?: string;
@@ -15,6 +15,7 @@ export interface ProductListParams {
   verifiedShop?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   inStock?: boolean;
   featured?: boolean;
   saleOnly?: boolean;
@@ -65,7 +66,21 @@ OUTER APPLY (
   SELECT TOP (1) pi.id,pi.image_url,pi.is_primary,pi.sort_order
   FROM dbo.ProductImages pi WHERE pi.product_id=p.id
   ORDER BY pi.is_primary DESC,pi.sort_order,pi.id
-) primary_image`;
+) primary_image
+OUTER APPLY (
+  SELECT CAST(AVG(CAST(r.rating AS DECIMAL(10,4))) AS DECIMAL(4,2)) average_rating,
+    COUNT_BIG(*) review_count,
+    SUM(CASE WHEN r.comment IS NOT NULL THEN CAST(1 AS BIGINT) ELSE CAST(0 AS BIGINT) END) comment_count
+  FROM dbo.ProductReviews r WHERE r.product_id=p.id AND r.status=N'PUBLISHED'
+) review_stats
+OUTER APPLY (
+  SELECT COALESCE(SUM(CAST(oi.quantity AS BIGINT)),0) sold_count
+  FROM dbo.OrderItems oi JOIN dbo.ShopOrders so ON so.id=oi.shop_order_id
+  JOIN dbo.Orders delivered_order ON delivered_order.id=oi.order_id
+  WHERE oi.product_id=p.id AND so.delivered_at IS NOT NULL
+    AND so.status NOT IN(N'CANCELLED',N'UNABLE_TO_FULFILL')
+    AND delivered_order.logistics_status=N'DELIVERED'
+) sold_stats`;
 
 function bind(request: sql.Request, params: ProductListParams) {
   if (params.q) {
@@ -81,6 +96,7 @@ function bind(request: sql.Request, params: ProductListParams) {
   if (params.verifiedShop !== undefined) request.input('verifiedShop', sql.Bit, params.verifiedShop);
   if (params.minPrice !== undefined) request.input('minPrice', sql.Decimal(18, 2), params.minPrice);
   if (params.maxPrice !== undefined) request.input('maxPrice', sql.Decimal(18, 2), params.maxPrice);
+  if (params.minRating !== undefined) request.input('minRating', sql.Decimal(3, 2), params.minRating);
 }
 
 function where(params: ProductListParams) {
@@ -105,6 +121,7 @@ function where(params: ProductListParams) {
   if (params.inStock !== undefined) clauses.push(params.inStock ? 'stats.in_stock=1' : 'stats.in_stock=0');
   if (params.featured) clauses.push('p.is_featured=1');
   if (params.saleOnly) clauses.push('EXISTS(SELECT 1 FROM dbo.ProductVariants sv WHERE sv.product_id=p.id AND sv.is_active=1 AND sv.sale_price IS NOT NULL AND sv.sale_price<sv.price)');
+  if (params.minRating !== undefined) clauses.push('review_stats.average_rating>=@minRating');
   return `WHERE ${clauses.join(' AND ')}`;
 }
 
@@ -116,6 +133,8 @@ function order(params: ProductListParams) {
     case 'name_desc': return 'ORDER BY p.product_name DESC,p.id DESC';
     case 'featured': return 'ORDER BY p.is_featured DESC,p.created_at DESC,p.id DESC';
     case 'sale': return 'ORDER BY CASE WHEN dv.sale_price IS NOT NULL AND dv.sale_price<dv.price THEN 0 ELSE 1 END,stats.min_price,p.id';
+    case 'rating': return 'ORDER BY review_stats.average_rating DESC,review_stats.review_count DESC,p.id DESC';
+    case 'best_selling': return 'ORDER BY sold_stats.sold_count DESC,p.id DESC';
     case 'relevance':
       if (params.q) return `ORDER BY CASE
         WHEN p.product_name=@q THEN 0 WHEN p.product_name LIKE @qPrefix THEN 1
@@ -136,7 +155,8 @@ const select = `SELECT p.id,p.product_name,p.slug,p.description,p.description sh
   dv.sale_price variant_sale_price,dv.effective_price,dv.weight variant_weight,dv.is_active variant_is_active,
   dv.is_default variant_is_default,dv.available variant_available,
   primary_image.id image_id,primary_image.image_url,primary_image.is_primary image_is_primary,
-  primary_image.sort_order image_sort_order
+  primary_image.sort_order image_sort_order,review_stats.average_rating,review_stats.review_count,
+  review_stats.comment_count,sold_stats.sold_count
 FROM dbo.Products p ${joins}`;
 
 function mapProduct(row: any) {
@@ -163,6 +183,9 @@ function mapProduct(row: any) {
     availableQuantity:Number(row.available_quantity),display_variant:displayVariant,primary_image:primaryImage,images:primaryImage?[primaryImage]:[],
     price:displayVariant.price,sale_price:displayVariant.sale_price,stock:displayVariant.available,sku:displayVariant.sku,
     main_image:row.image_url??null,additional_images:null
+    ,averageRating:row.average_rating==null?null:Number(row.average_rating),reviewCount:Number(row.review_count??0),
+    commentCount:Number(row.comment_count??0),soldCount:Number(row.sold_count??0),
+    rating:row.average_rating==null?null:Number(row.average_rating),review_count:Number(row.review_count??0)
   };
 }
 

@@ -11,7 +11,7 @@ const columns = `s.id,s.owner_user_id ownerUserId,s.system_key systemKey,s.name,
 
 function map(row: Record<string, unknown>): any {
   return { ...row, id:Number(row.id), ownerUserId:row.ownerUserId==null?null:Number(row.ownerUserId),
-    isVerified:Boolean(row.isVerified),isSystem:Boolean(row.isSystem),averageRating:Number(row.averageRating),
+    isVerified:Boolean(row.isVerified),isSystem:Boolean(row.isSystem),averageRating:row.averageRating==null?null:Number(row.averageRating),
     reviewCount:Number(row.reviewCount),completedOrderCount:Number(row.completedOrderCount),soldCount:Number(row.soldCount) };
 }
 
@@ -52,9 +52,16 @@ export async function createSellerShopInTransaction(tx: sql.Transaction, applica
 export const shopsService = {
   async getMine(userId:number) {
     const pool=await getPool();
-    const result=await pool.request().input('owner',sql.Int,userId).query(`SELECT ${columns} FROM dbo.Shops s WHERE s.owner_user_id=@owner`);
+    const result=await pool.request().input('owner',sql.Int,userId).query(`SELECT ${columns},
+      review_stats.averageRating liveAverageRating,review_stats.reviewCount liveReviewCount,
+      completed.completedOrderCount liveCompletedOrderCount,sold.soldCount liveSoldCount
+      FROM dbo.Shops s
+      OUTER APPLY(SELECT CAST(AVG(CAST(r.rating AS DECIMAL(10,4))) AS DECIMAL(4,2)) averageRating,COUNT_BIG(*) reviewCount FROM dbo.ShopReviews r WHERE r.shop_id=s.id AND r.status=N'PUBLISHED') review_stats
+      OUTER APPLY(SELECT COUNT_BIG(*) completedOrderCount FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id WHERE so.shop_id=s.id AND so.delivered_at IS NOT NULL AND so.status NOT IN(N'CANCELLED',N'UNABLE_TO_FULFILL') AND o.logistics_status=N'DELIVERED') completed
+      OUTER APPLY(SELECT COALESCE(SUM(CAST(oi.quantity AS BIGINT)),0) soldCount FROM dbo.OrderItems oi JOIN dbo.ShopOrders so ON so.id=oi.shop_order_id JOIN dbo.Orders o ON o.id=oi.order_id WHERE so.shop_id=s.id AND so.delivered_at IS NOT NULL AND so.status NOT IN(N'CANCELLED',N'UNABLE_TO_FULFILL') AND o.logistics_status=N'DELIVERED') sold
+      WHERE s.owner_user_id=@owner`);
     if(!result.recordset[0]) throw new AppError(409,'Seller account has no shop; contact an administrator');
-    return map(result.recordset[0]);
+    const resultMap=map(result.recordset[0]);return{...resultMap,averageRating:resultMap.liveAverageRating==null?null:Number(resultMap.liveAverageRating),reviewCount:Number(resultMap.liveReviewCount),completedOrderCount:Number(resultMap.liveCompletedOrderCount),soldCount:Number(resultMap.liveSoldCount)};
   },
   async updateMine(userId:number,input:SellerShopPatch) {
     const pool=await getPool(); const tx=pool.transaction(); let begun=false;
@@ -77,7 +84,13 @@ export const shopsService = {
   },
   async publicDetail(slug:string,filters:Omit<ProductListParams,'shopSlug'>) {
     const pool=await getPool(); const shop=await pool.request().input('slug',sql.NVarChar(200),slug)
-      .query(`SELECT ${columns} FROM dbo.Shops s WHERE s.slug=@slug AND s.status=N'ACTIVE'`);
+      .query(`SELECT s.id,s.name,s.slug,s.logo_url logoUrl,s.banner_url bannerUrl,s.description,s.is_verified isVerified,s.created_at createdAt,
+        review_stats.averageRating,review_stats.reviewCount,completed.completedOrderCount,sold.soldCount
+        FROM dbo.Shops s
+        OUTER APPLY(SELECT CAST(AVG(CAST(r.rating AS DECIMAL(10,4))) AS DECIMAL(4,2)) averageRating,COUNT_BIG(*) reviewCount FROM dbo.ShopReviews r WHERE r.shop_id=s.id AND r.status=N'PUBLISHED') review_stats
+        OUTER APPLY(SELECT COUNT_BIG(*) completedOrderCount FROM dbo.ShopOrders so JOIN dbo.Orders o ON o.id=so.order_id WHERE so.shop_id=s.id AND so.delivered_at IS NOT NULL AND so.status NOT IN(N'CANCELLED',N'UNABLE_TO_FULFILL') AND o.logistics_status=N'DELIVERED') completed
+        OUTER APPLY(SELECT COALESCE(SUM(CAST(oi.quantity AS BIGINT)),0) soldCount FROM dbo.OrderItems oi JOIN dbo.ShopOrders so ON so.id=oi.shop_order_id JOIN dbo.Orders o ON o.id=oi.order_id WHERE so.shop_id=s.id AND so.delivered_at IS NOT NULL AND so.status NOT IN(N'CANCELLED',N'UNABLE_TO_FULFILL') AND o.logistics_status=N'DELIVERED') sold
+        WHERE s.slug=@slug AND s.status=N'ACTIVE'`);
     if(!shop.recordset[0]) throw new AppError(404,'Shop not found');
     const products=await productsService.list({...filters,shopSlug:slug});
     const s=map(shop.recordset[0]);

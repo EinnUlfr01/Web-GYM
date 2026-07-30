@@ -5,14 +5,18 @@ import api from '../../api/axios';
 import ProductCard from '../../components/products/ProductCard';
 import type { Product } from '../../types/product';
 import type { PublicShopResponse,Shop } from '../../services/shopsApi';
+import { reviewsApi } from '../../services/reviewsApi';
+import type { MarketplaceReview } from '../../types/reviews';
 
 type Option={id:number;name:string};
-const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
+const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['rating','Đánh giá cao'],['best_selling','Bán chạy'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
 export default function PublicShopPage(){
   const{shopSlug=''}=useParams(),[query,setQuery]=useSearchParams(),[shop,setShop]=useState<Shop|null>(null),[products,setProducts]=useState<Product[]>([]);
+  const[reviews,setReviews]=useState<MarketplaceReview[]>([]);
   const[options,setOptions]=useState<{categories:Option[];brands:Option[]}>({categories:[],brands:[]}),[search,setSearch]=useState(query.get('q')??''),[meta,setMeta]=useState({page:1,pages:1,total:0}),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const key=query.toString();
   useEffect(()=>{const controller=new AbortController();api.get('/products/filters',{signal:controller.signal}).then(r=>setOptions(r.data.data)).catch(()=>undefined);return()=>controller.abort();},[]);
+  useEffect(()=>{reviewsApi.shopPublic(shopSlug).then(r=>setReviews(r.data.data.items)).catch(()=>setReviews([]));},[shopSlug]);
   useEffect(()=>{const controller=new AbortController();setSearch(query.get('q')??'');setLoading(true);api.get<PublicShopResponse>(`/shops/${encodeURIComponent(shopSlug)}`,{params:Object.fromEntries(query),signal:controller.signal})
     .then(r=>{setShop(r.data.data);setProducts(r.data.products);setMeta({page:r.data.pagination.page,pages:r.data.pagination.pages,total:r.data.pagination.total});setError('');})
     .catch((error:unknown)=>{if(!controller.signal.aborted){const status=error instanceof AxiosError?error.response?.status:undefined;setShop(null);setProducts([]);setError(status===404?'Shop không khả dụng.':'Không thể tải Shop.');}})
@@ -23,6 +27,7 @@ export default function PublicShopPage(){
   return <main className="mx-auto max-w-7xl space-y-6 p-6">
     {shop.bannerUrl&&<img className="h-52 w-full rounded-xl object-cover" src={shop.bannerUrl} alt=""/>}
     <header className="flex gap-4">{shop.logoUrl&&<img className="h-20 w-20 rounded object-cover" src={shop.logoUrl} alt=""/>}<div><h1 className="text-3xl font-bold">{shop.name}</h1>{shop.isVerified&&<p className="text-emerald-400">Shop đã xác minh</p>}<p className="text-slate-300">{shop.description}</p><small className="text-slate-500">Tham gia {new Date(shop.createdAt).toLocaleDateString('vi-VN')}</small></div></header>
+    <p className="text-sm text-amber-300">{shop.averageRating==null?'Chưa có đánh giá':`${shop.averageRating.toFixed(1)}/5`} · {shop.reviewCount} đánh giá · {shop.completedOrderCount} đơn đã giao</p>
     <form onSubmit={submit} className="grid gap-3 rounded-xl border border-slate-800 p-4 md:grid-cols-4">
       <input className="rounded bg-slate-900 p-2 md:col-span-3" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm trong Shop"/><button className="rounded bg-orange-500 p-2">Tìm</button>
       <select value={query.get('categoryId')??''} onChange={e=>change('categoryId',e.target.value)} className="rounded bg-slate-900 p-2"><option value="">Mọi danh mục</option>{options.categories.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
@@ -35,5 +40,6 @@ export default function PublicShopPage(){
     <p className="text-slate-400">{meta.total} sản phẩm</p>
     {products.length?<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{products.map(p=><ProductCard key={p.id} product={p}/>)}</div>:<p>Shop chưa có sản phẩm phù hợp.</p>}
     <nav className="flex justify-center gap-4"><button disabled={meta.page<=1} onClick={()=>change('page',String(meta.page-1))}>Trước</button><span>{meta.page}/{Math.max(1,meta.pages)}</span><button disabled={meta.page>=meta.pages} onClick={()=>change('page',String(meta.page+1))}>Sau</button></nav>
+    <section className="space-y-3"><h2 className="text-2xl font-bold">Đánh giá cửa hàng</h2>{reviews.length?reviews.map(review=><article key={review.id} className="rounded-xl border border-slate-800 p-4"><div className="flex justify-between"><strong>{review.buyerName} {review.verifiedPurchase&&<span className="text-xs text-emerald-400">· Đã mua hàng</span>}</strong><span>{review.rating}/5</span></div><p className="text-xs text-slate-500">{new Date(review.publishedAt||review.createdAt).toLocaleDateString('vi-VN')}</p><p className="mt-2">{review.comment||'Người mua chỉ chấm điểm.'}</p></article>):<p className="text-slate-500">Chưa có đánh giá.</p>}</section>
   </main>;
 }

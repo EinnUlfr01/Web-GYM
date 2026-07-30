@@ -112,23 +112,24 @@ export default function ProductCard({ product }: ProductCardProps) {
               <span className="text-lg font-extrabold text-white">{product.minPrice===product.maxPrice?formatCurrency(product.minPrice):`${formatCurrency(product.minPrice)} – ${formatCurrency(product.maxPrice)}`}</span>
             )}
           </div>
-          {product.rating && (
+          {product.averageRating != null ? (
             <div className="flex items-center gap-1">
               <div className="flex">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
                     size={10}
-                    className={star <= Math.round(product.rating!) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
+                    className={star <= Math.round(product.averageRating) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
                   />
                 ))}
               </div>
               <span className="text-[10px] font-medium text-dark-400">
-                {product.review_count ? `(${product.review_count})` : ''}
+                {product.averageRating.toFixed(1)} ({product.reviewCount})
               </span>
             </div>
-          )}
+          ):<span className="text-[10px] text-slate-500">Chưa có đánh giá</span>}
         </div>
+        <p className="text-xs text-slate-400">{product.soldCount} đã bán · {product.commentCount} nhận xét</p>
 
         <p className={`text-xs font-medium ${outOfStock ? 'text-red-400' : 'text-emerald-400'}`}>
           {outOfStock ? 'Out of Stock' : `${variant.available} in stock`}

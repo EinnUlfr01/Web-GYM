@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import { Copy, RefreshCw, X } from "lucide-react";
 import { ordersApi } from "../../services/ordersApi";
+import OrderReviewActions from "../../components/reviews/OrderReviewActions";
 import type {
   CustomerOrderDetail,
   PaymentNotificationResult,
@@ -270,6 +271,7 @@ export default function CustomerOrderDetailPage() {
           </article>
         ))}
       </section>
+      <OrderReviewActions order={order} />
       <section className="overflow-x-auto rounded-xl border border-slate-800">
         <h2 className="p-5 text-lg font-semibold">Items</h2>
         <table className="w-full min-w-[800px] text-sm">

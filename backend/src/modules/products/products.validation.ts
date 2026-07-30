@@ -15,12 +15,13 @@ export const productListQuerySchema=z.object({
   verifiedShop:bool.optional(),
   minPrice:money.optional(),
   maxPrice:money.optional(),
+  minRating:z.coerce.number().min(1).max(5).optional(),
   inStock:bool.optional(),
   featured:bool.optional(),
   page:z.coerce.number().int().min(1).default(1),
   pageSize:z.coerce.number().int().min(1).max(100).optional(),
   limit:z.coerce.number().int().min(1).max(100).optional(),
-  sort:z.enum(['relevance','newest','price_asc','price_desc','name_asc','name_desc','featured','sale']).default('newest'),
+  sort:z.enum(['relevance','newest','price_asc','price_desc','name_asc','name_desc','featured','sale','rating','best_selling']).default('newest'),
 }).strict().superRefine((value,context)=>{
   if(value.q!==undefined&&value.search!==undefined)context.addIssue({code:z.ZodIssueCode.custom,path:['q'],message:'Use only q'});
   if(value.categoryId!==undefined&&value.category!==undefined)context.addIssue({code:z.ZodIssueCode.custom,path:['categoryId'],message:'Use only categoryId or category'});

@@ -1,6 +1,6 @@
 import api from '../api/axios';
 import type { Product } from '../types/product';
-export type Shop={id:number;name:string;slug:string;logoUrl:string|null;bannerUrl:string|null;description:string|null;pickupAddress?:string|null;status?:'ACTIVE'|'SUSPENDED';isVerified:boolean;isSystem?:boolean;averageRating:number;reviewCount:number;completedOrderCount:number;soldCount:number;ownerName?:string|null;ownerEmail?:string|null;productCount?:number;createdAt:string;updatedAt?:string;};
+export type Shop={id:number;name:string;slug:string;logoUrl:string|null;bannerUrl:string|null;description:string|null;pickupAddress?:string|null;status?:'ACTIVE'|'SUSPENDED';isVerified:boolean;isSystem?:boolean;averageRating:number|null;reviewCount:number;completedOrderCount:number;soldCount:number;ownerName?:string|null;ownerEmail?:string|null;productCount?:number;createdAt:string;updatedAt?:string;};
 export type PublicShopResponse={success:boolean;data:Shop;products:Product[];pagination:{page:number;limit:number;pageSize:number;total:number;pages:number;totalPages:number}};
 export const shopsApi={
   mine:()=>api.get('/seller/shop'),updateMine:(data:Partial<Shop>)=>api.patch('/seller/shop',data),

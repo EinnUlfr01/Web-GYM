@@ -47,6 +47,7 @@ import refundRoutes from './modules/refunds/refunds.routes';
 import {adminFinanceRouter,sellerFinanceRouter} from './modules/marketplace-finance/marketplace-finance.routes';
 import { adminComplaintsRouter, complaintsRouter, sellerComplaintsRouter } from './modules/complaints/complaints.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
+import { adminReviewsRouter,buyerReviewsRouter,sellerReviewsRouter } from './modules/reviews/reviews.routes';
 import path from 'path';
 
 const app = express();
@@ -119,6 +120,9 @@ app.use('/api/admin/marketplace-finance',adminFinanceRouter);
 app.use('/api/complaints',complaintsRouter);
 app.use('/api/seller/complaints',sellerComplaintsRouter);
 app.use('/api/admin/complaints',adminComplaintsRouter);
+app.use('/api/reviews',buyerReviewsRouter);
+app.use('/api/seller/reviews',sellerReviewsRouter);
+app.use('/api/admin/reviews',adminReviewsRouter);
 app.use('/api/users', userRoutes);
 app.use('/api/seller-applications', sellerApplicationRoutes);
 app.use('/api/admin/seller-applications', adminSellerApplicationRoutes);

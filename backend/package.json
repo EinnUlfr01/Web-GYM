@@ -24,6 +24,8 @@
     "acceptance:seller-010": "tsx src/scripts/seller-010-acceptance.ts",
     "acceptance:seller-011": "tsx src/scripts/seller-011-acceptance.ts",
     "acceptance:seller-011a": "tsx src/scripts/seller-011a-acceptance.ts",
+    "acceptance:seller-012": "tsx src/scripts/seller-012-acceptance.ts",
+    "integrity:seller-012": "tsx src/scripts/seller-012-integrity.ts",
     "integrity:seller-011a": "tsx src/scripts/seller-011a-integrity.ts",
     "integrity:seller-011": "tsx src/scripts/seller-011-integrity.ts",
     "integrity:seller-010": "tsx src/scripts/seller-010-integrity.ts",

@@ -68,6 +68,7 @@ import SellerOrderDetailPage from './pages/seller/SellerOrderDetailPage';
 import SellerRevenuePage from './pages/seller/SellerRevenuePage';
 import AdminSettlementsPage from './pages/admin/AdminSettlementsPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
+import ReviewsPage from './pages/reviews/ReviewsPage';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -140,6 +141,7 @@ export default function App() {
           <Route path="/orders/:orderId" element={<AccessRoute path="/orders"><CustomerOrderDetailPage /></AccessRoute>} />
           <Route path="/orders" element={<AccessRoute path="/orders"><CustomerOrdersPage /></AccessRoute>} />
           <Route path="/complaints" element={<AccessRoute path="/complaints"><ComplaintsPage role="buyer" /></AccessRoute>} />
+          <Route path="/reviews" element={<AccessRoute path="/reviews"><ReviewsPage role="buyer" /></AccessRoute>} />
           <Route path="/checkout" element={<AccessRoute path="/checkout"><CheckoutPage /></AccessRoute>} />
           <Route path="/video" element={<AccessRoute path="/video"><VideoLibrary /></AccessRoute>} />
           <Route path="/admin" element={<AccessRoute path="/admin"><AdminDashboard /></AccessRoute>} />
@@ -155,6 +157,8 @@ export default function App() {
           <Route path="/admin/refunds" element={<AccessRoute path="/admin"><AdminRefundsPage /></AccessRoute>} />
           <Route path="/admin/settlements" element={<AccessRoute path="/admin"><AdminSettlementsPage /></AccessRoute>} />
           <Route path="/admin/complaints" element={<AccessRoute path="/admin"><ComplaintsPage role="admin" /></AccessRoute>} />
+          <Route path="/admin/reviews" element={<AccessRoute path="/admin"><ReviewsPage role="admin" /></AccessRoute>} />
+          <Route path="/seller/reviews" element={<AccessRoute path="/seller/reviews"><ReviewsPage role="seller" /></AccessRoute>} />
           <Route path="/admin/seller-applications" element={<AccessRoute path="/admin"><AdminSellerApplicationsPage /></AccessRoute>} />
           <Route path="/admin/seller-applications/:applicationId" element={<AccessRoute path="/admin"><AdminSellerApplicationDetailPage /></AccessRoute>} />
           <Route path="/admin/shops" element={<AccessRoute path="/admin"><AdminShopsPage /></AccessRoute>} />

@@ -1525,55 +1525,57 @@ Admin là bên kết luận cuối cùng và phải ghi reason.
 
 ## SELLER-012 — Product Review và Shop Review
 
-**Trạng thái:** PLANNED
+**Trạng thái:** IMPLEMENTED — chờ commit.
 
-**Mục tiêu:** Tạo review thật, không dùng random/static.
+**Mục tiêu:** Tạo review verified-purchase thật, không dùng random/static.
+
+### Quyết định moderation đã thay đổi
+
+Quyết định cũ mô tả Review đi qua `PENDING → PUBLISHED/HIDDEN/REJECTED`.
+
+Quyết định áp dụng cho Marketplace MVP:
+
+- Buyer submission hợp lệ được tạo trực tiếp ở `PUBLISHED` và xuất hiện công khai ngay sau commit.
+- Buyer không được sửa, xóa hoặc gửi lại Review sau khi tạo.
+- Không có pre-moderation inbox và flow mới không tạo `PENDING`.
+- Admin có action soft moderation `PUBLISHED → HIDDEN/REJECTED`; mọi action cần reason, actor, timestamp, AuditLog và immutable history.
+- Admin có thể restore `HIDDEN/REJECTED → PUBLISHED` với reason; giữ nguyên rating, comment và publication time ban đầu.
+- Seller chỉ đọc Review `PUBLISHED` thuộc Shop của mình; không reply hoặc moderation.
+
+Thay đổi này ảnh hưởng trực tiếp SELLER-012, security/regression ở SELLER-013 và định nghĩa Marketplace MVP. `PENDING` chỉ được giữ trong schema để tương thích roadmap/legacy, không dùng trong Buyer submission.
 
 ### Product Review
 
-- Verified purchase.
-- Gắn OrderItem.
-- Rating 1–5.
-- Comment optional.
-- Một review/OrderItem.
+- Verified purchase được backend resolve từ đúng Parent Order → ShopOrder → OrderItem.
+- Gắn duy nhất một Review cho mỗi OrderItem, kể cả sau hide/reject.
+- Chỉ tạo khi Parent logistics là `DELIVERED`, `ShopOrders.delivered_at` có giá trị và child không canceled/unable.
+- Rating nguyên 1–5; comment optional, trim, tối đa 2.000 ký tự.
+- Product ID `0` là ID hợp lệ.
 
 ### Shop Review
 
-- Gắn ShopOrder.
-- Một review/ShopOrder.
-- Chỉ sau giao thành công.
-
-### Moderation
-
-```text
-PENDING
-→ PUBLISHED
-hoặc HIDDEN
-hoặc REJECTED
-```
+- Verified purchase gắn đúng ShopOrder và Buyer sở hữu Parent Order.
+- Duy nhất một Review/ShopOrder và chỉ sau giao thành công.
 
 ### Aggregate
 
-- Product average rating.
-- Product review count.
-- Product comment count.
-- Product sold count.
-- Shop rating/review count.
-- Shop completed order count.
+- Query động từ Review `PUBLISHED`: Product/Shop average rating, review count và Product comment count.
+- Product sold count lấy tổng quantity của original delivered OrderItems.
+- Shop completed order count lấy số delivered ShopOrders.
+- Hidden/rejected bị loại ngay; restore được tính lại ngay.
+- Product list/detail/Card, rating filter/sort, best-selling sort và Shop page dùng cùng nguồn dữ liệu thật.
 
 ### Không làm
 
-- AI draft/reply.
-- Auto moderation.
-- Seller reply.
-- Coach expert recommendation.
+- Buyer edit/delete/resubmit, AI draft/summary/moderation, auto moderation.
+- Seller reply/moderation, Review media/helpful votes/rewards.
+- Replacement Review entitlement.
 
 ### Acceptance
 
-- Chưa mua không review được.
-- Review Shop khác/Order khác bị chặn.
-- Aggregate chính xác.
-- Card/detail/shop page hiển thị đúng.
+- API acceptance disposable PASS 52 assertions; canonical integrity PASS.
+- Cross-Buyer, undelivered, forged fields/status/verified, duplicate/concurrent submission và non-Admin moderation bị chặn.
+- Public chỉ thấy `PUBLISHED`; moderation cập nhật aggregate đúng.
 - Log: `Log SELLER-012 Product and Shop Reviews.md`.
 
 ---

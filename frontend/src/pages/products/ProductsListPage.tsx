@@ -7,7 +7,7 @@ import type { Product,ProductListResponse } from '../../types/product';
 type Option={id:number;name:string;slug:string};
 type ShopOption=Option&{isVerified:boolean};
 type FilterOptions={categories:Option[];brands:Option[];shops:ShopOption[]};
-const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
+const sorts=[['relevance','Liên quan'],['newest','Mới nhất'],['rating','Đánh giá cao'],['best_selling','Bán chạy'],['price_asc','Giá tăng dần'],['price_desc','Giá giảm dần'],['name_asc','Tên A-Z'],['name_desc','Tên Z-A']];
 
 export default function ProductsListPage(){
   const[query,setQuery]=useSearchParams(),[items,setItems]=useState<Product[]>([]),[filters,setFilters]=useState<FilterOptions>({categories:[],brands:[],shops:[]});

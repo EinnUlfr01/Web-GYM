@@ -13,6 +13,7 @@ const common: NavItem[] = [
   { to: "/settings", label: "Cài đặt", icon: Settings },
 ];
 const member: NavItem[] = [
+  { to: "/reviews", label: "Đánh giá của tôi", icon: Star },
   { to: "/orders", label: "Đơn hàng của tôi", icon: ShoppingCart },
   { to: "/complaints", label: "Khiếu nại sản phẩm", icon: Ticket },
   { to: "/seller/apply", label: "Kênh người bán", icon: Store },
@@ -20,12 +21,14 @@ const member: NavItem[] = [
   { to: "/referral", label: "Giới thiệu", icon: Gift },
 ];
 const coach: NavItem[] = [
+  { to: "/reviews", label: "Đánh giá của tôi", icon: Star },
   { to: "/orders", label: "Đơn hàng của tôi", icon: ShoppingCart },
   { to: "/complaints", label: "Khiếu nại sản phẩm", icon: Ticket },
   { to: "/members", label: "Học viên", icon: Users },
   { to: "/crm", label: "CRM", icon: ClipboardList },
 ];
 const admin: NavItem[] = [
+  { to: "/admin/reviews", label: "Review Moderation", icon: Star },
   { to: "/admin", label: "Tổng quan quản trị", icon: Shield },
   { to: "/admin/shops", label: "Shops", icon: Store },
   { to: "/admin/brand-requests", label: "Brand Requests", icon: ClipboardList },
@@ -42,6 +45,7 @@ const admin: NavItem[] = [
   { to: "/admin/audit", label: "Audit log", icon: FileText },
 ];
 const seller: NavItem[] = [
+  { to: "/seller/reviews", label: "Đánh giá", icon: Star },
   { to: "/seller", label: "Seller workspace", icon: Store },
   { to: "/seller/shop", label: "Hồ sơ Shop", icon: Store },
   { to: "/seller/orders", label: "Shop orders", icon: ShoppingCart },
