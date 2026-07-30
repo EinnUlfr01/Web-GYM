@@ -45,11 +45,12 @@ import cartRoutes from './modules/cart/cart.routes';
 import marketplaceCompensationRoutes from './modules/marketplace-compensation/marketplace-compensation.routes';
 import refundRoutes from './modules/refunds/refunds.routes';
 import {adminFinanceRouter,sellerFinanceRouter} from './modules/marketplace-finance/marketplace-finance.routes';
+import { adminComplaintsRouter, complaintsRouter, sellerComplaintsRouter } from './modules/complaints/complaints.routes';
 import { startOrderExpirationRunner } from './modules/orders/order-expiration.runner';
 import path from 'path';
 
 const app = express();
-if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER008_ACCEPTANCE !== '1' && process.env.SELLER008A_ACCEPTANCE !== '1' && process.env.SELLER009_ACCEPTANCE !== '1' && process.env.SELLER010_ACCEPTANCE !== '1' && process.env.SELLER011_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
+if (process.env.SELLER001_ACCEPTANCE !== '1' && process.env.SELLER002_ACCEPTANCE !== '1' && process.env.SELLER003_ACCEPTANCE !== '1' && process.env.SELLER004_ACCEPTANCE !== '1' && process.env.SELLER005_ACCEPTANCE !== '1' && process.env.SELLER006_ACCEPTANCE !== '1' && process.env.SELLER007_ACCEPTANCE !== '1' && process.env.SELLER008_ACCEPTANCE !== '1' && process.env.SELLER008A_ACCEPTANCE !== '1' && process.env.SELLER009_ACCEPTANCE !== '1' && process.env.SELLER010_ACCEPTANCE !== '1' && process.env.SELLER011_ACCEPTANCE !== '1' && process.env.SELLER011A_ACCEPTANCE !== '1' && process.env.SELLER007_VERIFICATION !== '1' && process.env.REGRESSION02_ACCEPTANCE !== '1' && process.env.REGRESSION03_ACCEPTANCE !== '1' && process.env.REGRESSION04_ACCEPTANCE !== '1') startOrderExpirationRunner();
 
 // Security middleware stack
 app.use(securityHeaders);
@@ -115,6 +116,9 @@ app.use('/api/marketplace',marketplaceCompensationRoutes);
 app.use('/api/admin/refunds',refundRoutes);
 app.use('/api/seller/finance',sellerFinanceRouter);
 app.use('/api/admin/marketplace-finance',adminFinanceRouter);
+app.use('/api/complaints',complaintsRouter);
+app.use('/api/seller/complaints',sellerComplaintsRouter);
+app.use('/api/admin/complaints',adminComplaintsRouter);
 app.use('/api/users', userRoutes);
 app.use('/api/seller-applications', sellerApplicationRoutes);
 app.use('/api/admin/seller-applications', adminSellerApplicationRoutes);

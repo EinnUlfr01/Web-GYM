@@ -67,6 +67,7 @@ import SellerOrdersPage from './pages/seller/SellerOrdersPage';
 import SellerOrderDetailPage from './pages/seller/SellerOrderDetailPage';
 import SellerRevenuePage from './pages/seller/SellerRevenuePage';
 import AdminSettlementsPage from './pages/admin/AdminSettlementsPage';
+import ComplaintsPage from './pages/complaints/ComplaintsPage';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -135,8 +136,10 @@ export default function App() {
           <Route path="/seller/orders" element={<AccessRoute path="/seller/orders"><SellerOrdersPage /></AccessRoute>} />
           <Route path="/seller/orders/:shopOrderId" element={<AccessRoute path="/seller/orders"><SellerOrderDetailPage /></AccessRoute>} />
           <Route path="/seller/revenue" element={<AccessRoute path="/seller/revenue"><SellerRevenuePage /></AccessRoute>} />
+          <Route path="/seller/complaints" element={<AccessRoute path="/seller/complaints"><ComplaintsPage role="seller" /></AccessRoute>} />
           <Route path="/orders/:orderId" element={<AccessRoute path="/orders"><CustomerOrderDetailPage /></AccessRoute>} />
           <Route path="/orders" element={<AccessRoute path="/orders"><CustomerOrdersPage /></AccessRoute>} />
+          <Route path="/complaints" element={<AccessRoute path="/complaints"><ComplaintsPage role="buyer" /></AccessRoute>} />
           <Route path="/checkout" element={<AccessRoute path="/checkout"><CheckoutPage /></AccessRoute>} />
           <Route path="/video" element={<AccessRoute path="/video"><VideoLibrary /></AccessRoute>} />
           <Route path="/admin" element={<AccessRoute path="/admin"><AdminDashboard /></AccessRoute>} />
@@ -151,6 +154,7 @@ export default function App() {
           <Route path="/admin/orders/:orderId" element={<AccessRoute path="/admin"><AdminOrderDetailPage /></AccessRoute>} />
           <Route path="/admin/refunds" element={<AccessRoute path="/admin"><AdminRefundsPage /></AccessRoute>} />
           <Route path="/admin/settlements" element={<AccessRoute path="/admin"><AdminSettlementsPage /></AccessRoute>} />
+          <Route path="/admin/complaints" element={<AccessRoute path="/admin"><ComplaintsPage role="admin" /></AccessRoute>} />
           <Route path="/admin/seller-applications" element={<AccessRoute path="/admin"><AdminSellerApplicationsPage /></AccessRoute>} />
           <Route path="/admin/seller-applications/:applicationId" element={<AccessRoute path="/admin"><AdminSellerApplicationDetailPage /></AccessRoute>} />
           <Route path="/admin/shops" element={<AccessRoute path="/admin"><AdminShopsPage /></AccessRoute>} />

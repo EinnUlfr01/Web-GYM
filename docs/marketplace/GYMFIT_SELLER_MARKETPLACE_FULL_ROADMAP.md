@@ -383,7 +383,6 @@ Buyer thanh toán cho GymFit
 → ShopOrder giao thành công
 → ghi nhận doanh thu tuần của Seller
 → chờ đủ 7 ngày
-→ không có khiếu nại đang mở
 → Settlement = ELIGIBLE
 → Admin đưa vào kỳ đối soát tuần
 → Admin đánh dấu PAID
@@ -434,7 +433,7 @@ Quy tắc:
 - `earned_at` được ghi khi ShopOrder `DELIVERED`.
 - `eligible_at = delivered_at + 7 ngày lịch`.
 - Khoảng chờ tính riêng cho từng ShopOrder.
-- Khi có khiếu nại hợp lệ đang mở, settlement chuyển `HELD`.
+- Complaint `OPEN`/`UNDER_REVIEW` không tự hold settlement; chỉ Admin kết luận `SELLER_FAULT` mới hold settlement chưa `PAID`.
 - Xử lý xong thì settlement có thể trở lại `ELIGIBLE`.
 - Admin đối soát thủ công theo tuần.
 - Không hardcode một thứ cụ thể trong tuần nếu chưa có yêu cầu vận hành.
@@ -550,7 +549,7 @@ UNDETERMINED
 - Không tính commission lần thứ hai.
 - Seller chịu phí vận chuyển từ Seller đến hub cho lần thay thế.
 - GymFit không tự động tính hoặc theo dõi phí này trong MVP.
-- Khiếu nại đang mở làm settlement `HELD`.
+- Chỉ khi Admin kết luận `SELLER_FAULT`, settlement chưa `PAID` mới chuyển `HELD`.
 - Nếu thay thế thành công, giao dịch ban đầu tiếp tục và settlement được giải phóng theo rule.
 - Nếu Seller không thể hoặc từ chối thay thế, Admin có thể refund và điều chỉnh settlement.
 
@@ -568,7 +567,7 @@ UNDETERMINED
 
 #### Khi chưa xác định lỗi
 
-- Settlement giữ `HELD`.
+- Settlement tiếp tục lịch bình thường khi fault còn `UNDETERMINED`; không tự hold.
 - Admin phải ghi reason, evidence hoặc ghi chú trước khi kết luận.
 
 ## D11 — Product Review và Shop Review
@@ -1397,8 +1396,8 @@ WAITING_FOR_SHOPS
 - Hủy/refund điều chỉnh commission.
 - ShopOrder `DELIVERED` ghi nhận doanh thu Seller.
 - `eligible_at = delivered_at + 7 ngày lịch`.
-- Open complaint làm settlement `HELD`.
-- Không có complaint thì đến `eligible_at` chuyển `ELIGIBLE`.
+- Complaint `OPEN`/`UNDER_REVIEW` không tự hold; Admin kết luận `SELLER_FAULT` mới hold settlement chưa `PAID`.
+- Đến `eligible_at`, settlement `PENDING` vẫn chuyển `ELIGIBLE` nếu chưa có Seller-fault hold.
 - Admin đánh dấu `PAID` thủ công.
 - Thay đổi config không sửa snapshot Order cũ.
 - Không payout ngân hàng tự động.
@@ -1432,7 +1431,7 @@ Admin settlement inbox:
 
 ### Acceptance
 
-- ShopOrder chỉ `ELIGIBLE` sau đủ 7 ngày và không có complaint mở.
+- ShopOrder chuyển `ELIGIBLE` sau đủ 7 ngày nếu chưa bị hold bởi Seller-fault decision.
 - `HELD` chặn batch payment.
 - Admin manual `PAID` có audit.
 - Seller chỉ thấy finance của mình.
@@ -1443,7 +1442,7 @@ Admin settlement inbox:
 
 ## SELLER-011A — Lightweight Complaint, Fault Decision và Replacement
 
-**Trạng thái:** PLANNED
+**Trạng thái:** IMPLEMENTED (30/07/2026)
 
 **Mục tiêu:** Hỗ trợ khiếu nại tối thiểu trong khoảng chờ đối soát mà không xây full Return/RMA/Exchange.
 
@@ -1479,11 +1478,13 @@ Admin là bên kết luận cuối cùng và phải ghi reason.
 
 ### Settlement integration
 
-- Complaint hợp lệ đang mở chuyển settlement `HELD`.
+- `OPEN`/`UNDER_REVIEW` với `UNDETERMINED` không tự hold settlement.
+- Chỉ khi Admin kết luận `SELLER_FAULT`, settlement `PENDING`/`ELIGIBLE` mới chuyển `HELD`.
 - Complaint rejected do Buyer fault thì release settlement.
-- Seller fault yêu cầu replacement hoặc refund.
+- Seller fault mặc định yêu cầu replacement do Admin phê duyệt; mỗi Complaint chỉ có một attempt.
+- Refund chỉ là fallback khi replacement không thể hoàn thành.
 - GymFit/carrier fault không khấu trừ Seller.
-- Unresolved complaint tiếp tục `HELD`.
+- Settlement đã `PAID` bất biến; xử lý manual support/carry-forward adjustment thủ công, không clawback.
 
 ### Replacement tối thiểu
 
@@ -1510,7 +1511,7 @@ Admin là bên kết luận cuối cùng và phải ghi reason.
 ### Acceptance
 
 - Buyer không khiếu nại Order người khác.
-- Complaint hợp lệ giữ settlement.
+- Complaint `OPEN`/`UNDER_REVIEW` không tự hold; Seller-fault decision mới giữ settlement chưa `PAID`.
 - Admin fault decision có audit.
 - Seller replacement không tạo doanh thu/commission mới.
 - Buyer fault không khấu trừ Seller.
@@ -1714,7 +1715,7 @@ Marketplace MVP chỉ được xem là hoàn thành khi:
 - ShopOrder `DELIVERED` ghi nhận doanh thu tuần.
 - Settlement chờ 7 ngày.
 - Weekly manual settlement hoạt động.
-- Complaint hợp lệ có thể `HELD` settlement.
+- Admin kết luận `SELLER_FAULT` có thể `HELD` settlement chưa `PAID`; complaint chưa có kết luận không tự hold.
 - Lightweight fault decision và replacement hoạt động.
 - Product Review và Shop Review hoạt động.
 - Cross-Seller/Cross-Buyer IDOR bị chặn.
@@ -1813,3 +1814,28 @@ Nếu nhóm thay đổi quyết định:
 - SELLER-013.
 - Definition of Marketplace MVP.
 - Outside-scope list.
+
+## Version 2.1 — 30/07/2026 — SELLER-011A fault/hold decision
+
+### Quyết định cũ
+
+- Complaint hợp lệ đang mở chuyển settlement `HELD`.
+- Seller fault yêu cầu replacement hoặc refund.
+
+### Quyết định mới
+
+- Complaint `OPEN`/`UNDER_REVIEW` với `UNDETERMINED` không tự hold settlement.
+- Chỉ Admin kết luận `SELLER_FAULT` mới hold settlement chưa `PAID`.
+- Replacement là phương án ưu tiên và phải được Admin phê duyệt.
+- Mỗi Complaint chỉ có một replacement attempt chính thức.
+- Refund là fallback khi replacement không thể hoàn thành.
+- Settlement `PAID` không bị reopen, clawback hoặc tự động adjustment; Admin chỉ dùng manual support/carry-forward contract của SELLER-011.
+
+### Task và định nghĩa bị ảnh hưởng
+
+- SELLER-011.
+- SELLER-011A.
+- SELLER-013.
+- Marketplace MVP definition.
+
+Migration đã apply không bị sửa lịch sử.

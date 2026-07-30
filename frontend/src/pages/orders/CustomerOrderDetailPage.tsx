@@ -281,6 +281,7 @@ export default function CustomerOrderDetailPage() {
               <th>Quantity</th>
               <th>Unit price</th>
               <th>Line total</th>
+              <th>Support</th>
             </tr>
           </thead>
           <tbody>
@@ -292,6 +293,15 @@ export default function CustomerOrderDetailPage() {
                 <td>{item.quantity}</td>
                 <td>{money(item.unitPrice, order.currency)}</td>
                 <td>{money(item.lineTotal, order.currency)}</td>
+                <td>
+                  {order.logisticsStatus === "DELIVERED" ? (
+                    <Link className="text-blue-400 underline" to={`/complaints?orderItemId=${item.id}`}>
+                      Khiếu nại sản phẩm
+                    </Link>
+                  ) : (
+                    <span className="text-slate-500">Có sau khi giao</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
