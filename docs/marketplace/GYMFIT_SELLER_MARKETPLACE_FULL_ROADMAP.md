@@ -1,5 +1,7 @@
 # GymFit Seller Marketplace — Roadmap triển khai đầy đủ
 
+> Final status — 30/07/2026: SELLER-012 `COMPLETE`; SELLER-013 `COMPLETE`; Marketplace MVP `READY WITH VERIFICATION EXCEPTIONS`. Security/API regression, current-schema acceptance, historical 0104→forward migration, canonical integrity, build and handover passed. Authenticated browser automation and live SMTP are environment-only verification exceptions. See `MARKETPLACE_MVP_FINAL_HANDOVER.md`. Team Summary: `NOT FOUND`.
+
 **Phiên bản:** 2.0 — cập nhật ngày 29/07/2026  
 **Trạng thái:** SELLER-000 đến SELLER-007 đã hoàn thành theo log dự án; Task tiếp theo là SELLER-008  
 **Phạm vi:** Nhánh Seller/Marketplace Commerce  
@@ -24,9 +26,14 @@
 | SELLER-005 | COMPLETE | Seller Product/Variant/Image/Inventory và submit moderation |
 | SELLER-006 | COMPLETE | Admin Product moderation, suspend/republish và audit |
 | SELLER-007 | COMPLETE | Marketplace listing, search/filter/sort, Product Detail và public Shop page |
-| SELLER-008 | NEXT | Multi-Shop Order Architecture |
-| SELLER-008A | PLANNED | Persistent Server-side Cart |
-| SELLER-009 trở đi | PLANNED | Checkout/payment/refund, logistics, finance, complaint, review và final acceptance |
+| SELLER-008 | COMPLETE | Multi-Shop Order Architecture; historical 0104→forward acceptance PASS |
+| SELLER-008A | COMPLETE | Persistent Server-side Cart |
+| SELLER-009 | COMPLETE | Checkout/payment/refund/voucher; deterministic mail acceptance PASS |
+| SELLER-010 | COMPLETE | Seller fulfillment and hub logistics |
+| SELLER-011 | COMPLETE | Commission, settlement and Seller revenue |
+| SELLER-011A | COMPLETE | Complaint, fault decision and lightweight replacement |
+| SELLER-012 | COMPLETE | Product and Shop reviews |
+| SELLER-013 | COMPLETE | Security/API regression/integrity/docs PASS; browser and live SMTP are verification exceptions |
 
 ## 0.1. Baseline bắt buộc trước mỗi Task
 
@@ -1525,7 +1532,7 @@ Admin là bên kết luận cuối cùng và phải ghi reason.
 
 ## SELLER-012 — Product Review và Shop Review
 
-**Trạng thái:** IMPLEMENTED — chờ commit.
+**Trạng thái:** COMPLETE — commit `182f50e`.
 
 **Mục tiêu:** Tạo review verified-purchase thật, không dùng random/static.
 
@@ -1584,7 +1591,7 @@ Thay đổi này ảnh hưởng trực tiếp SELLER-012, security/regression �
 
 ## SELLER-013 — Security, Regression và Final Acceptance
 
-**Trạng thái:** PLANNED
+**Trạng thái:** COMPLETE — Marketplace MVP `READY WITH VERIFICATION EXCEPTIONS`.
 
 **Mục tiêu:** Chứng minh Marketplace không phá Commerce cũ và không rò quyền Seller.
 

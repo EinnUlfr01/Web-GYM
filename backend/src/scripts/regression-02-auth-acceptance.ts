@@ -9,6 +9,10 @@ import { config } from '../config/config';
 import { closePool, query } from '../config/database';
 
 if (process.env.REGRESSION02_ACCEPTANCE !== '1') throw new Error('REGRESSION02_ACCEPTANCE=1 is required');
+process.env.SELLER_APPLICATION_WRITE_RATE_LIMIT_MAX='1';
+process.env.SELLER_APPLICATION_WRITE_RATE_LIMIT_WINDOW_MS='60000';
+process.env.BRAND_REQUEST_RATE_LIMIT_MAX='1';
+process.env.BRAND_REQUEST_RATE_LIMIT_WINDOW_MS='60000';
 const database = config.db.database;
 if (!database.startsWith('GYMFIT_REGRESSION_02_') || !/^[A-Za-z0-9_]+$/.test(database)) {
   throw new Error('Refusing mutation outside GYMFIT_REGRESSION_02_*');
@@ -188,6 +192,8 @@ async function tokenTests() {
   await expect('TOKEN','valid token','GET','/auth/me',200,{token:account.accessToken});
   const changed=accounts.roleChanged;
   await expect('TOKEN','admin changes account role','PATCH',`/users/${changed.id}/security`,200,{token:accounts.admin.accessToken,body:{role:'member'}});
+  const roleAudit=Number((await query("SELECT COUNT(*) count FROM dbo.AuditLogs WHERE user_id=@actor AND action=N'user.security_updated' AND entity_type=N'User' AND entity_id=@target",{actor:accounts.admin.id,target:changed.id})).recordset[0].count);
+  check(roleAudit===1,'role mutation audit persisted');
   await expect('TOKEN','stale role access invalidated','GET','/admin/brand-requests',401,{token:changed.accessToken});
   await expect('TOKEN','stale role refresh invalidated','POST','/auth/refresh',401,{body:{refreshToken:changed.refreshToken}});
   const disabled=accounts.disabled;
@@ -239,6 +245,10 @@ async function roleAndOwnershipTests() {
   await expect('OWNERSHIP','non-owner cannot read request','GET',`/seller/brand-requests/${requestId}`,404,{token:accounts.sellerA.accessToken});
   await expect('OWNERSHIP','nonexistent request concealed','GET','/seller/brand-requests/2147483000',404,{token:accounts.sellerA.accessToken});
   await expect('OWNERSHIP','sellerId body rejected','POST','/seller/brand-requests',400,{token:accounts.sellerA.accessToken,body:{requestedName:`Spoof ${stamp}`,sellerId:accounts.sellerB.id}});
+  await expect('RATE_LIMIT','brand request limit','POST','/seller/brand-requests',429,{token:accounts.sellerB.accessToken,body:{requestedName:`Regression Brand Retry ${stamp}`}});
+  const application={businessName:'Rate Limit Shop',businessType:'SPORTS_STORE',contactName:'Rate Tester',contactEmail:`rate-${stamp}@example.test`,contactPhone:'+84901234567',businessAddress:'Acceptance Address',pickupAddress:'Acceptance Pickup',description:'Acceptance rate limit fixture'};
+  await expect('RATE_LIMIT','seller application first write','POST','/seller-applications',201,{token:accounts.memberA.accessToken,body:application});
+  await expect('RATE_LIMIT','seller application write limit','POST','/seller-applications',429,{token:accounts.memberA.accessToken,body:{...application,businessName:'Payload Changed'}});
   const shopA=await expect('OWNERSHIP','seller reads own shop','GET','/seller/shop',200,{token:accounts.sellerA.accessToken});
   check(Number(shopA.data.data.ownerUserId)===accounts.sellerA.id,'seller shop is derived from principal');
   await expect('OWNERSHIP','URL cannot select another seller shop','GET',`/seller/shop/${accounts.sellerB.id}`,404,{token:accounts.sellerA.accessToken});
@@ -253,7 +263,7 @@ async function run() {
   databaseCreated=true;
   console.log(child(migrateScript).split(/\r?\n/).filter(line=>/Target database:|Applied migrations:|Pending migrations:|Checksum mismatches:|Migration complete/.test(line)).join('\n'));
   const migrationCount=Number((await query('SELECT COUNT(*) count FROM dbo.SchemaMigrations')).recordset[0].count);
-  check(migrationCount===11,'all 11 migrations applied to isolated database');
+  check(migrationCount>=18,'all current migrations applied to isolated database');
   console.log(`REGRESSION02_MIGRATIONS ${migrationCount} PASS`);
   const live=(await query<{database_name:string}>('SELECT DB_NAME() database_name')).recordset[0].database_name;
   check(live===database&&live.startsWith('GYMFIT_REGRESSION_02_'),'live DB_NAME prefix gate before fixture writes');

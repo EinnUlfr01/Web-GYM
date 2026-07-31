@@ -473,7 +473,10 @@ async function applyMigration(transaction: Transaction, migration: MigrationFile
 async function main(): Promise<void> {
   const statusOnly = process.argv.includes('--status');
   const throughArgument = process.argv.find(argument => argument.startsWith('--through='));
-  const throughVersion = throughArgument?.slice('--through='.length);
+  const throughIndex=process.argv.indexOf('--through');
+  const throughVersion = process.argv.includes('--historical-pre-0105')
+    ? '0104'
+    : throughArgument?.slice('--through='.length) ?? (throughIndex>=0?process.argv[throughIndex+1]:undefined);
   if (throughVersion && !/^\d{4}$/.test(throughVersion)) throw new Error('Invalid --through migration version');
   const discoveredMigrations = await discoverMigrations();
   const migrations = throughVersion

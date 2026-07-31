@@ -96,6 +96,12 @@ Validation failures use 400-class responses, missing/invalid authentication uses
 Order and Payment histories are immutable normal-flow audit data. Email is attempted after committed commerce state and cannot roll back the transaction. Planned TASK-008 workout/progress APIs are **PLANNED, NOT IMPLEMENTED** and must enforce Member ownership, Coach scope, privacy and concurrency rules from the specification.
 
 Auth/RBAC closure preserved the canonical Order and verified no acceptance fixtures remain in the canonical database.
+
+## Final Marketplace module map
+
+Current Seller Marketplace routes additionally cover persistent Cart, Parent/ShopOrder checkout, Seller stock/fulfillment, Admin hub logistics, refund/voucher recovery, Seller/Admin finance, buyer/Seller/Admin complaints and replacements, and Product/Shop reviews. See [Marketplace MVP Final Handover](marketplace/MARKETPLACE_MVP_FINAL_HANDOVER.md) for the route-family map, migration range, security evidence and safe acceptance commands.
+
+Admin `PATCH /api/users/:id/security` atomically updates role/active state, increments token version, revokes target sessions and writes `user.security_updated` to `AuditLogs`. Old access and refresh tokens are invalid on the next request.
 # SELLER-002 Shop APIs
 
 ## Seller

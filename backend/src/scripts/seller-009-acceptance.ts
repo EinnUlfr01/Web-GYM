@@ -7,6 +7,12 @@ import {closePool,query} from "../config/database";
 
 if(process.env.SELLER009_ACCEPTANCE!=="1")throw new Error("SELLER009_ACCEPTANCE=1 is required");
 if(config.db.database==="GYFIT_DB"||!config.db.database.startsWith("GYMFIT_DB_SELLER009_ACCEPTANCE_"))throw new Error("Refusing unsafe database");
+process.env.NODE_ENV="test";
+process.env.MAIL_MODE="acceptance";
+process.env.BANK_NAME="GymFit Acceptance Bank";
+process.env.BANK_ACCOUNT_NAME="GYMFIT ACCEPTANCE";
+process.env.BANK_ACCOUNT_NUMBER="0000000000";
+process.env.BANK_QR_IMAGE_URL="https://example.test/gymfit-acceptance-qr.png";
 const port=Number(process.env.ACCEPTANCE_PORT||5530),base=`http://127.0.0.1:${port}/api`,stamp=Date.now();
 let server:Server|undefined,assertions=0,lastStatus=0;
 const verify=(value:boolean,message:string)=>{assertions++;if(!value)throw new Error(`Assertion ${assertions}: ${message}; status=${lastStatus}`);};
@@ -38,7 +44,9 @@ async function checkout(buyer:{id:number;token:string},items:Array<{productId:nu
   return call("/orders","POST",buyer.token,{customerName:"Buyer",customerPhone:"0900000000",shippingAddressLine1:"1 Test",shippingCity:"HCM",shippingCountry:"Vietnam",cartVersion:version,voucherCode});
 }
 async function paid(orderId:number,buyerToken:string,adminToken:string){
-  verify((await call(`/orders/${orderId}/payment-notification`,"POST",buyerToken,{paymentReference:`REF-${orderId}`})).status===200,"Buyer payment notification");
+  const notification=await call(`/orders/${orderId}/payment-notification`,"POST",buyerToken,{paymentReference:`REF-${orderId}`});
+  verify(notification.status===200,"Buyer payment notification");
+  verify(notification.data.data.emailConfigured===true&&notification.data.data.emailAttempted===true&&notification.data.data.emailSent===true,"Isolated deterministic mail transport");
   verify((await call(`/admin/orders/${orderId}/payment-status`,"PATCH",adminToken,{status:"PAID"})).status===200,"Admin marks Parent PAID");
 }
 async function dropDatabase(){

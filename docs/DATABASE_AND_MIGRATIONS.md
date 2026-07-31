@@ -87,4 +87,12 @@ No database migration required. SELLER-007 reuses existing additive indexes from
 
 Public price is computed from active Variants as the lower valid sale price or regular price. Product cards expose the minimum and maximum of those effective prices. Public stock uses only computed `Inventory.available`; `reserved` remains internal. Marketplace count and pagination operate at Product granularity.
 
+## Final Seller Marketplace migration state
+
+The final Marketplace range is `0100`–`0111`: Seller Application, Shop ownership, BrandRequest, Product mutation/moderation, Parent/ShopOrder, persistent Cart, payment/refund/voucher, hub logistics, commission/settlement, complaint/replacement, and Product/Shop reviews.
+
+Canonical SELLER-013 verification found 18 total migrations applied, 0 pending and 0 checksum mismatches; highest Seller migration is 0111. SELLER-013 requires no new migration. The older 11-migration statement below is historical SELLER-007 context.
+
+The migration runner accepts `--through=NNNN`, `--through NNNN`, and the explicit `--historical-pre-0105` alias. Partial modes are acceptance-fixture tools only. Normal canonical operation is status or full forward apply.
+
 Canonical expectation remains 11 applied migrations, 0 pending, and 0 checksum mismatch. Migrations 0100–0104 are unchanged.

@@ -16,6 +16,8 @@ Keep `backend/.env` local and ignored. `.env.example` must contain placeholders 
 | Product Order mail | `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USER`, `MAIL_APP_PASSWORD`, `ADMIN_NOTIFICATION_EMAIL` | Order notification transport/readiness |
 | Bank | `BANK_NAME`, `BANK_ACCOUNT_NAME`, `BANK_ACCOUNT_NUMBER`, `BANK_QR_IMAGE_URL` | Manual bank-transfer instructions/readiness |
 | Order | `ORDER_RESERVATION_MINUTES`, `ORDER_EXPIRATION_CRON` | Reservation deadline and expiration schedule |
+| Acceptance only | `MAIL_MODE=acceptance` | Deterministic no-network mail adapter; requires `NODE_ENV=test` and a guarded acceptance DB name |
+| Marketplace limits | `SELLER_APPLICATION_*_RATE_LIMIT_MAX`, `SELLER_APPLICATION_*_RATE_LIMIT_WINDOW_MS`, `BRAND_REQUEST_RATE_LIMIT_MAX`, `BRAND_REQUEST_RATE_LIMIT_WINDOW_MS` | Backend user+IP mutation thresholds |
 
 `MAIL_*` is deliberately separate from legacy `SMTP_*`. For Gmail, use an App Password, not the normal Gmail login password. Common transport combinations are port 465 with secure enabled or port 587 with secure disabled; use provider requirements. `MAIL_SECURE` must be exactly `true` or `false` and ports must be valid.
 
@@ -26,6 +28,8 @@ Start locally with `npm run dev` in both `backend/` and `frontend/`. Production 
 Troubleshooting: verify `/api/health`, `CORS_ORIGIN`, JWT expiry, SQL Server host/database identity, upload directory permissions and the distinction between `MAIL_*` readiness and legacy `SMTP_*`. Never print the environment file while diagnosing.
 
 Acceptance uses a separately verified isolated `DB_NAME`; temporary services must be stopped and the database dropped after acceptance.
+
+SELLER-013 commands from `backend/` are `npm run acceptance:seller-013:final -- <security|historical|marketplace|legacy|integrity|all>`. The direct security entry point additionally requires `SELLER013_SECURITY_ACCEPTANCE=1`. Historical backfill uses `npm run db:migrate -- --historical-pre-0105` only on a disposable database, seeds the pre-0105 row, and then migrates forward. Never use partial migration modes to mutate the canonical database.
 
 Canonical migration operations require a verified SQL Server backup outside the workspace before applying a pending migration. Do not log credentials, tokens or environment contents.
 
