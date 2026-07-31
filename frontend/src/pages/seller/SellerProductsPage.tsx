@@ -29,6 +29,28 @@ export default function SellerProductsPage() {
   const submit = (event: FormEvent) => { event.preventDefault(); void load(1); };
 
   return <section className="mx-auto max-w-6xl space-y-5 p-6">
+  <div className="flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+      Quản lý sản phẩm
+    </p>
+
+    <h1 className="text-3xl font-bold">
+      Sản phẩm của cửa hàng
+    </h1>
+
+    <p className="text-slate-400">
+      Tạo sản phẩm, quản lý biến thể, hình ảnh, tồn kho và gửi xét duyệt.
+    </p>
+  </div>
+
+  <Link
+    className="rounded-lg bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400"
+    to="/seller/products/new"
+  >
+    + Thêm sản phẩm
+  </Link>
+</div>
     <div>
       <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">Seller catalog · chỉ đọc</p>
       <h1 className="text-3xl font-bold">Sản phẩm của Shop</h1>
