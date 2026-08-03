@@ -190,7 +190,7 @@ export async function listSchedules(memberId: number, page: number, limit: numbe
   const assignment = await assignmentForMember(memberId);
   if (!assignment) return { items: [], pagination: pagination(page, limit, 0) };
   const today = todayInTimeZone(String(assignment.schedule_timezone));
-  const conditions = ['a.id=@assignmentId', 'a.member_id=@memberId', 'a.status=N\'ACTIVE\'', 'a.start_date<=@today', '(a.end_date IS NULL OR a.end_date>=@today)', 'c.assigned_coach_id=a.coach_id'];
+  const conditions = ['a.id=@assignmentId', 'a.member_id=@memberId', 'a.status=N\'ACTIVE\'', 'a.start_date<=@today', '(a.end_date IS NULL OR a.end_date>=@today)', 'c.assigned_coach_id=a.coach_id', 's.status<>N\'CANCELLED\''];
   const params: Record<string, unknown> = { memberId, offset: (page - 1) * limit, limit };
   params.today = today; params.assignmentId = Number(assignment.id);
   if (fromDate) { conditions.push('s.scheduled_date>=@fromDate'); params.fromDate = fromDate; }
