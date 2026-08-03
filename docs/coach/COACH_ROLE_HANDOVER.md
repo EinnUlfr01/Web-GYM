@@ -21,8 +21,8 @@ blocker.
 
 ## END COMMIT
 
-Pending the final local Coach-only commit; the final hash is recorded in the
-task handoff.
+`9b006e5` (Coach implementation commit; the documentation handover is the
+follow-up commit).
 
 ## MIGRATIONS
 
