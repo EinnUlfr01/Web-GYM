@@ -4,7 +4,6 @@ import { sendSuccess } from '../../utils/response';
 
 const actor = (req: Request) => req.user!.userId;
 const numberParam = (req: Request, key: string) => Number(req.params[key]);
-const page = (req: Request) => ({ page: Number(req.query.page ?? 1), limit: Number(req.query.limit ?? 20) });
 const run = (handler: (req: Request) => Promise<unknown>, statusCode = 200) => async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await handler(req), 'Success', statusCode); } catch (error) { next(error); } };
 
 export const getDashboard = run(req => service.dashboard(actor(req)));

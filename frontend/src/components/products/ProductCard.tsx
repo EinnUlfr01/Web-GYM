@@ -19,6 +19,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercent = hasDiscount ? Math.round((1 - variant.sale_price! / variant.price) * 100) : 0;
   const wishlisted = isInWishlist(product.id);
   const outOfStock = variant.available <= 0;
+  const averageRating = product.averageRating;
 
   return (
     <motion.div
@@ -119,12 +120,12 @@ export default function ProductCard({ product }: ProductCardProps) {
                   <Star
                     key={star}
                     size={10}
-                    className={star <= Math.round(product.averageRating) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
+                     className={star <= Math.round(averageRating ?? 0) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
                   />
                 ))}
               </div>
               <span className="text-[10px] font-medium text-dark-400">
-                {product.averageRating.toFixed(1)} ({product.reviewCount})
+                 {averageRating?.toFixed(1)} ({product.reviewCount})
               </span>
             </div>
           ):<span className="text-[10px] text-slate-500">Chưa có đánh giá</span>}

@@ -11,5 +11,5 @@ export const reviewsApi={
   shopPublic:(slug:string,page=1)=>api.get<Response<PaginatedReviews>>(`/shops/${encodeURIComponent(slug)}/reviews`,{params:{page,limit:20,sort:'newest'}}),
   admin:(params:Record<string,unknown>)=>api.get<Response<PaginatedReviews>>('/admin/reviews',{params}),
   moderate:(review:MarketplaceReview,action:'hide'|'reject'|'restore',reason:string)=>api.post<Response<MarketplaceReview>>(`/admin/reviews/${review.type.toLowerCase()}/${review.id}/${action}`,{reason}),
-  history:(review:MarketplaceReview)=>api.get<Response<Array<{id:number;eventType:string;fromStatus:string|null;toStatus:string;reason:string|null;createdAt:string;actorName:string}>>(`/admin/reviews/${review.type.toLowerCase()}/${review.id}/history`)
+  history:(review:MarketplaceReview)=>api.get<Response<Array<{id:number;eventType:string;fromStatus:string|null;toStatus:string;reason:string|null;createdAt:string;actorName:string}>>>(`/admin/reviews/${review.type.toLowerCase()}/${review.id}/history`)
 };
