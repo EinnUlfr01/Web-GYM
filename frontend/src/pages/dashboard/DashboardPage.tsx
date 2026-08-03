@@ -11,11 +11,14 @@ interface Booking { status:string; booking_date:string; }
 interface LoyaltyPoints { balance:number; }
 
 function MemberWorkoutWidget() {
-  const [data,setData] = useState<MemberCurrent|null>(null);
-  useEffect(() => { getMemberCurrent().then(setData).catch(() => undefined); }, []);
+  const [data,setData] = useState<MemberCurrent|null>(null); const [loading,setLoading] = useState(true); const [error,setError] = useState('');
+  const load = () => { setLoading(true); setError(''); getMemberCurrent().then(setData).catch((reason:unknown) => { const status = typeof reason === 'object' && reason !== null && 'response' in reason ? (reason as { response?: { status?: number } }).response?.status : undefined; if (status === 404) setData({ assignment:null, program:null, upcomingSchedules:[], activeSession:null }); else setError('Không thể tải dữ liệu workout.'); }).finally(() => setLoading(false)); };
+  useEffect(load, []);
+  if (loading) return <DashboardPanel title="Workout của bạn" description="Assignment và lịch execution thật"><div className="panel-state" aria-live="polite">Đang tải workout...</div></DashboardPanel>;
+  if (error) return <DashboardPanel title="Workout của bạn" description="Assignment và lịch execution thật"><div aria-live="polite"><PanelError message={error} onRetry={load} /></div></DashboardPanel>;
   if (!data) return null;
   const target = data.activeSession ? `/workouts/sessions/${data.activeSession.id}` : '/workouts';
-  return <DashboardPanel title="Workout của bạn" description="Assignment và lịch execution thật"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-lg font-semibold text-white">{data.activeSession ? `Đang tập · ${data.activeSession.program.name}` : data.assignment?.program_name || 'Chưa có assignment active'}</p><p className="mt-1 text-sm text-slate-400">{data.activeSession ? 'Tiếp tục session đang dở.' : `${data.upcomingSchedules.length} schedule trong tài khoản của bạn.`}</p></div><Link className="primary-button inline-flex items-center gap-2" to={target}>{data.activeSession ? 'Tiếp tục' : 'Mở Workouts'} <ArrowRight size={15}/></Link></div></DashboardPanel>;
+  return <DashboardPanel title="Workout của bạn" description="Assignment và lịch execution thật"><div className="flex flex-wrap items-center justify-between gap-4" aria-live="polite"><div><p className="text-lg font-semibold text-white">{data.activeSession ? `Đang tập · ${data.activeSession.program.name}` : data.assignment?.program_name || 'Chưa có assignment active'}</p><p className="mt-1 text-sm text-slate-400">{data.activeSession ? 'Tiếp tục session đang dở.' : data.assignment ? `${data.upcomingSchedules.length} schedule trong tài khoản của bạn.` : 'Chưa có assignment hiện tại.'}</p></div><Link className="primary-button inline-flex items-center gap-2" to={target}>{data.activeSession ? 'Tiếp tục' : 'Mở Workouts'} <ArrowRight size={15}/></Link></div></DashboardPanel>;
 }
 
 export default function DashboardPage() {

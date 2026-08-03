@@ -1,11 +1,9 @@
 import { getPool, query, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getProgress as getMemberProgress, getSession as getMemberSession } from '../member-workout/member-workout.service';
+import { assertIanaTimeZone, todayInTimeZone } from '../../utils/timezone';
 
 export const MAX_PAGE_SIZE = 50;
-const validTimeZone = (value: string) => {
-  try { Intl.DateTimeFormat('en-US', { timeZone: value }).format(); return true; } catch { return false; }
-};
 const dateOnly = (value: unknown): string => {
   const text = String(value ?? '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new AppError(400, 'Date must use YYYY-MM-DD');
@@ -13,7 +11,7 @@ const dateOnly = (value: unknown): string => {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text) throw new AppError(400, 'Invalid date');
   return text;
 };
-const todayInTimeZone = (timeZone: string) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const datePart = (value: unknown): string => value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? '').slice(0, 10);
 const addDays = (value: string, days: number) => {
   const date = new Date(`${value}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -25,7 +23,7 @@ const mondayDay = (value: string) => {
 };
 
 export function assertTimeZone(timeZone: string) {
-  if (!validTimeZone(timeZone)) throw new AppError(400, 'schedule_timezone must be a valid IANA timezone');
+  assertIanaTimeZone(timeZone);
 }
 
 export async function assertMemberScope(coachId: number, memberId: number) {
@@ -80,8 +78,8 @@ export async function assertAssignment(coachId: number, assignmentId: number) {
 }
 
 async function assertSchedule(coachId: number, scheduleId: number) {
-  const result = await query<{ id: number; assignment_id: number; scheduled_date: string; status: string }>(
-    `SELECT s.id,s.assignment_id,s.scheduled_date,s.status
+  const result = await query<{ id: number; assignment_id: number; scheduled_date: string; status: string; schedule_timezone: string }>(
+    `SELECT s.id,s.assignment_id,s.scheduled_date,s.status,a.schedule_timezone
      FROM dbo.CoachProgramSchedules s
      JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
      JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
@@ -99,12 +97,12 @@ export async function dashboard(coachId: number) {
     query(`SELECT COUNT(*) AS count FROM dbo.CRMCustomers c JOIN dbo.Users u ON u.id=c.user_id WHERE c.assigned_coach_id=@coachId AND u.role=N'member' AND u.is_active=1`, { coachId }),
     query(`SELECT COUNT(*) AS count FROM dbo.WorkoutPrograms WHERE owner_coach_id=@coachId AND is_active=1`, { coachId }),
     query(`SELECT COUNT(*) AS count FROM dbo.CoachProgramAssignments a JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId JOIN dbo.Users u ON u.id=a.member_id AND u.is_active=1 WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'`, { coachId }),
-    query(`SELECT TOP 5 s.id,s.scheduled_date,s.status,p.name AS program_name,u.id AS member_id,u.name AS member_name,d.title AS day_title
+     query(`SELECT TOP 50 s.id,s.scheduled_date,s.status,a.schedule_timezone,p.name AS program_name,u.id AS member_id,u.name AS member_name,d.title AS day_title
             FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
             JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
             JOIN dbo.Users u ON u.id=a.member_id AND u.is_active=1 JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
             JOIN dbo.WorkoutProgramDays d ON d.id=s.program_day_id
-            WHERE s.scheduled_date>=CAST(GETDATE() AS date) AND s.status=N'SCHEDULED'
+             WHERE s.status=N'SCHEDULED'
             ORDER BY s.scheduled_date,s.id`, { coachId }),
     query(`SELECT TOP 5 * FROM (
              SELECT ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name,
@@ -123,9 +121,13 @@ export async function dashboard(coachId: number) {
              JOIN dbo.Users u ON u.id=ms.member_id AND u.is_active=1
            ) sessions ORDER BY started_at DESC,id DESC`, { coachId }),
   ]);
+  const upcomingSchedules = schedules.recordset.filter(item => {
+    assertTimeZone(String(item.schedule_timezone));
+    return datePart(item.scheduled_date) >= todayInTimeZone(String(item.schedule_timezone));
+  }).slice(0, 5);
   return {
     counts: { assignedMembers: Number(members.recordset[0].count), activeMembers: Number(activeMembers.recordset[0].count), ownedPrograms: Number(programs.recordset[0].count), activeAssignments: Number(assignments.recordset[0].count) },
-    upcomingSchedules: schedules.recordset,
+    upcomingSchedules,
     recentSessions: sessions.recordset,
     attentionQueue: [],
     attentionQueueAvailable: false,
@@ -327,12 +329,12 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
 }
 
 export async function reschedule(coachId: number, scheduleId: number, scheduledDate: string) {
-  const schedule = await assertSchedule(coachId, scheduleId); const date = dateOnly(scheduledDate); const today = todayInTimeZone('UTC'); if (schedule.status !== 'SCHEDULED' || date < today) throw new AppError(409, 'Only future scheduled items can be rescheduled');
+  const schedule = await assertSchedule(coachId, scheduleId); const date = dateOnly(scheduledDate); assertTimeZone(schedule.schedule_timezone); const today = todayInTimeZone(schedule.schedule_timezone); if (schedule.status !== 'SCHEDULED' || date < today) throw new AppError(409, 'Only future scheduled items can be rescheduled');
   const result = await query(`UPDATE dbo.CoachProgramSchedules SET scheduled_date=@scheduledDate,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@scheduleId AND status=N'SCHEDULED'`, { scheduledDate: date, scheduleId }); return result.recordset[0];
 }
 
 export async function cancelSchedule(coachId: number, scheduleId: number) {
-  const schedule = await assertSchedule(coachId, scheduleId); if (schedule.status !== 'SCHEDULED' || schedule.scheduled_date < todayInTimeZone('UTC')) throw new AppError(409, 'Only future scheduled items can be cancelled');
+  const schedule = await assertSchedule(coachId, scheduleId); assertTimeZone(schedule.schedule_timezone); if (schedule.status !== 'SCHEDULED' || datePart(schedule.scheduled_date) < todayInTimeZone(schedule.schedule_timezone)) throw new AppError(409, 'Only future scheduled items can be cancelled');
   const result = await query(`UPDATE dbo.CoachProgramSchedules SET status=N'CANCELLED',updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@scheduleId AND status=N'SCHEDULED'`, { scheduleId }); return result.recordset[0];
 }
 
