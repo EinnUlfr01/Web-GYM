@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Calendar, ChevronDown, ClipboardList, FileText, Gift, LayoutDashboard, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, Users, UserCheck, Wallet, X } from "lucide-react";
+import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, Users, UserCheck, Wallet, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { canAccess } from "../../auth/accessPolicy";
@@ -21,6 +21,12 @@ const member: NavItem[] = [
   { to: "/referral", label: "Giới thiệu", icon: Gift },
 ];
 const coach: NavItem[] = [
+  { to: "/coach", label: "Coach Dashboard", icon: LayoutDashboard },
+  { to: "/coach/exercises", label: "Exercise Library", icon: Dumbbell },
+  { to: "/coach/workout-programs", label: "My Programs", icon: ClipboardList },
+  { to: "/coach/members", label: "My Members", icon: Users },
+  { to: "/coach/assignments", label: "Assignments", icon: ClipboardList },
+  { to: "/coach/schedules", label: "Schedules", icon: CalendarClock },
   { to: "/reviews", label: "Đánh giá của tôi", icon: Star },
   { to: "/orders", label: "Đơn hàng của tôi", icon: ShoppingCart },
   { to: "/complaints", label: "Khiếu nại sản phẩm", icon: Ticket },

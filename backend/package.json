@@ -38,6 +38,7 @@
     "integrity:seller-007": "tsx src/scripts/seller-007-integrity.ts",
     "acceptance:regression-02": "tsx src/scripts/regression-02-auth-acceptance.ts",
     "acceptance:regression-03": "tsx src/scripts/regression-03-product-acceptance.ts",
+    "acceptance:coach-role": "tsx src/scripts/coach-role-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",
     "integrity:regression-04": "tsx src/scripts/regression-04-seller-integrity.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",

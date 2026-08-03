@@ -8,6 +8,20 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import CoachDashboard from './pages/coaches/CoachDashboard';
+import CoachExerciseLibraryPage from './pages/coaches/CoachExerciseLibraryPage';
+import CoachExerciseDetailPage from './pages/coaches/CoachExerciseDetailPage';
+import CoachProgramsPage from './pages/coaches/CoachProgramsPage';
+import CoachProgramNewPage from './pages/coaches/CoachProgramNewPage';
+import CoachProgramBuilderPage from './pages/coaches/CoachProgramBuilderPage';
+import CoachMembersPage from './pages/coaches/CoachMembersPage';
+import CoachMemberDetailPage from './pages/coaches/CoachMemberDetailPage';
+import CoachAssignmentsPage from './pages/coaches/CoachAssignmentsPage';
+import CoachAssignmentNewPage from './pages/coaches/CoachAssignmentNewPage';
+import CoachAssignmentDetailPage from './pages/coaches/CoachAssignmentDetailPage';
+import CoachSchedulesPage from './pages/coaches/CoachSchedulesPage';
+import CoachSessionsPage from './pages/coaches/CoachSessionsPage';
+import CoachSessionDetailPage from './pages/coaches/CoachSessionDetailPage';
+import CoachProgressPage from './pages/coaches/CoachProgressPage';
 import CoachListPage from './pages/coaches/CoachListPage';
 import CoachProfilePage from './pages/coaches/CoachProfilePage';
 import MembersPage from './pages/members/MembersPage';
@@ -169,6 +183,22 @@ export default function App() {
           <Route path="/admin/inventory" element={<AccessRoute path="/admin"><AdminInventoryPage /></AccessRoute>} />
           <Route path="/admin/products/:productId/variants" element={<AccessRoute path="/admin"><AdminProductVariantsPage /></AccessRoute>} />
           <Route path="/coach" element={<AccessRoute path="/coach"><CoachDashboard /></AccessRoute>} />
+          <Route path="/coach/exercises" element={<AccessRoute path="/coach"><CoachExerciseLibraryPage /></AccessRoute>} />
+          <Route path="/coach/exercises/:exerciseId" element={<AccessRoute path="/coach"><CoachExerciseDetailPage /></AccessRoute>} />
+          <Route path="/coach/workout-programs" element={<AccessRoute path="/coach"><CoachProgramsPage /></AccessRoute>} />
+          <Route path="/coach/workout-programs/new" element={<AccessRoute path="/coach"><CoachProgramNewPage /></AccessRoute>} />
+          <Route path="/coach/workout-programs/:programId" element={<AccessRoute path="/coach"><CoachProgramBuilderPage /></AccessRoute>} />
+          <Route path="/coach/workout-programs/:programId/edit" element={<AccessRoute path="/coach"><CoachProgramBuilderPage /></AccessRoute>} />
+          <Route path="/coach/members" element={<AccessRoute path="/coach"><CoachMembersPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId" element={<AccessRoute path="/coach"><CoachMemberDetailPage /></AccessRoute>} />
+          <Route path="/coach/assignments" element={<AccessRoute path="/coach"><CoachAssignmentsPage /></AccessRoute>} />
+          <Route path="/coach/assignments/new" element={<AccessRoute path="/coach"><CoachAssignmentNewPage /></AccessRoute>} />
+          <Route path="/coach/assignments/:assignmentId" element={<AccessRoute path="/coach"><CoachAssignmentDetailPage /></AccessRoute>} />
+          <Route path="/coach/schedules" element={<AccessRoute path="/coach"><CoachSchedulesPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId/schedule" element={<AccessRoute path="/coach"><CoachSchedulesPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId/sessions" element={<AccessRoute path="/coach"><CoachSessionsPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId/sessions/:sessionId" element={<AccessRoute path="/coach"><CoachSessionDetailPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId/progress" element={<AccessRoute path="/coach"><CoachProgressPage /></AccessRoute>} />
           <Route path="/access-denied" element={<AccessDenied/>}/>
         </Route>
 
