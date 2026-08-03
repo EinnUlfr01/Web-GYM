@@ -36,6 +36,9 @@ const coach: NavItem[] = [
   { to: "/crm", label: "CRM", icon: ClipboardList },
 ];
 const admin: NavItem[] = [
+  { to: "/admin/coaches", label: "Quản lý Coach", icon: Users },
+  { to: "/admin/exercises", label: "Exercise Library", icon: Dumbbell },
+  { to: "/admin/workouts", label: "Workout Governance", icon: ClipboardList },
   { to: "/admin/reviews", label: "Review Moderation", icon: Star },
   { to: "/admin", label: "Tổng quan quản trị", icon: Shield },
   { to: "/admin/shops", label: "Shops", icon: Store },

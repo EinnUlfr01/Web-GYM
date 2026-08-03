@@ -83,9 +83,28 @@ Approval atomically promotes the applicant to Seller, revokes existing sessions,
 
 Mounted APIs include public/authenticated Plans, Coaches, Bookings, Videos, Exercises; and authenticated Referral, Coupons, Loyalty, CRM, Tickets, Invoices, Audit, Analytics, Revenue, Backup and Media. Their route files are authoritative. Existing Exercises remains a separate shared source; Membership payment under Plans is separate from Product Order payment.
 
-## Out of scope for current Coach hardening
+## Admin Coach Management
 
-Admin Coach Management, Admin pages, Video, Marketplace, Seller, Payment, Refund and Settlement are not changed by the Coach/Member Workout slice. The current Member Workout routes below are implemented and self-scoped; route files remain authoritative for exact validation.
+All routes in this section require `authenticate` plus `authorize(UserRole.ADMIN)`. Admin mutations do not rely on the frontend guard.
+
+| Method | Route | Contract |
+|---|---|---|
+| GET | `/api/admin/coaches`, `/api/admin/coaches/summary`, `/api/admin/coaches/:coachId` | Safe Coach list, dashboard counters and detail; no auth secrets |
+| PATCH | `/api/admin/coaches/:coachId/status` | `ACTIVE`, `SUSPENDED` or `INACTIVE`; bounded optional reason; token version increment |
+| GET | `/api/admin/coaches/:coachId/members` | Members in the selected CRM Coach scope |
+| GET | `/api/admin/coaches/coach-members/unassigned` | Active Members without an active Coach |
+| POST | `/api/admin/coaches/:coachId/members/:memberId/assign` | Transactional assign; duplicate scope returns `409` |
+| POST | `/api/admin/coaches/:coachId/members/:memberId/reassign` | Requires target Coach Program/date/timezone; delegates to existing reassignment service |
+| GET/POST | `/api/admin/exercises` | Admin Exercise list/search/filter/create |
+| GET/PATCH | `/api/admin/exercises/:exerciseId` | Admin Exercise detail/update |
+| POST | `/api/admin/exercises/:exerciseId/activate|deactivate` | Soft state changes; no hard delete |
+| GET | `/api/admin/workouts/programs|assignments|schedules|sessions|progress` | Read-only governance, with Coach/Member/status/date filters where applicable |
+
+Suspended Coaches remain visible to Admin but fail the backend live-auth check and cannot access Coach Workspace. Existing `WorkoutPrograms`, `CoachProgramAssignments`, `MemberWorkoutSessions`, snapshots, set logs and progress are preserved. Admin Program Builder remains `BLOCKED_ADMIN_PROGRAM_OWNERSHIP_MODEL` because the current schema is Coach-owned.
+
+## Out of scope for current Admin Coach work
+
+Video, Marketplace, Seller, Payment, Refund, Settlement, payroll, AI generation, chat, complex notifications, live coaching and Booking-created Coach–Member relations remain unchanged. The current Member Workout routes below are implemented and self-scoped; route files remain authoritative for exact validation.
 
 ## Authorization and response principles
 

@@ -17,10 +17,12 @@ This is the only documentation index. Source code, migration files and verified 
 - [Coach Role Handover](coach/COACH_ROLE_HANDOVER.md)
 - [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md)
 - [Coach Reassignment ADR](coach/ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md)
+- [Admin Coach Management Handover](admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md)
 
 ## Module references
 
 - Coach/Member Workout: [Member Workout Flow Discovery](coach/MEMBER_WORKOUT_FLOW_DISCOVERY.md), [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md).
+- Admin Coach Management: [Admin Coach Management Handover](admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md).
 - Dashboard presentation: [Dashboard Design System](DASHBOARD_DESIGN_SYSTEM.md).
 - Auth/RBAC: [Auth RBAC Security Model](AUTH_RBAC_SECURITY_MODEL.md).
 - Database and API contract details: [Database and Migrations](DATABASE_AND_MIGRATIONS.md), [API and Authorization](API_AND_AUTHORIZATION.md).

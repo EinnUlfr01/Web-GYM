@@ -33,6 +33,7 @@ Inventory baseline: branch `fix/vinh-coach-e2e-hardening`, source commit `21f690
 | `docs/coach/MEMBER_WORKOUT_FLOW_DISCOVERY.md` | SUPPORTING | Member flow decisions | `21f6901` | Active contract evidence | Update applied-state/contract facts |
 | `docs/coach/COACH_ROLE_DISCOVERY_REPORT.md` | HISTORICAL | Role-only discovery | `21f6901` | Superseded by E2E handover | Archive under `docs/archive/2026-08/` |
 | `docs/coach/ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md` | CANONICAL | Reassignment lifecycle | `21f6901` | New domain decision required | Create and keep |
+| `docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md` | CANONICAL | Admin Coach/TASK-008 handover | `feat/vinh-admin-coach-management` | Admin status, assign/reassign, Exercise and governance | Update with final acceptance/build evidence |
 | `docs/marketplace/ADR-001-MARKETPLACE-FOUNDATION-DECISIONS.md` | SUPPORTING | Marketplace decisions | `21f6901` | Out-of-scope supporting doc | Keep unchanged |
 | `docs/marketplace/ADR-002-SHOP-FOUNDATION-AND-PRODUCT-OWNERSHIP-BASELINE.md` | SUPPORTING | Marketplace decisions | `21f6901` | Out-of-scope supporting doc | Keep unchanged |
 | `docs/marketplace/ADR-003-BRAND-REQUEST-AND-MODERATION.md` | SUPPORTING | Marketplace decisions | `21f6901` | Out-of-scope supporting doc | Keep unchanged |

@@ -4,12 +4,17 @@ Updated: 2026-08-03 (Asia/Saigon)
 
 ## Snapshot
 
-- Working branch: `fix/vinh-coach-e2e-hardening`.
-- Requested baseline: `feat/vinh-coach-member-e2e` at `21f69017b0c4f2f5933998b0382d0676b0e83a16`.
+- Working branch: `feat/vinh-admin-coach-management`.
+- Start baseline: `fix/vinh-coach-e2e-hardening` at `90140f5`.
 - Canonical database: `GYMFIT_DB`; acceptance databases are disposable and must use a guarded prefix.
 - Coach authoring/assignment/schedule migration `0007` is applied and checksum-valid on the canonical database.
 - Additive Member Workout migration `0008_member_workout_flow.sql` is applied on the canonical database.
+- Additive Admin Coach migration `0009_admin_coach_management.sql` is pending on the canonical database; it was applied and checksum-verified on disposable acceptance databases only.
 - No acceptance fixtures are intended to remain in `GYMFIT_DB`.
+
+## Admin Coach Management scope
+
+The current branch adds dedicated Admin routes and pages for Coach list/detail/status, CRM Member assign/reassign through the existing reassignment service, Admin Exercise CRUD/status, and read-only Workout Governance across Programs, Assignments, Schedules, Sessions and Progress. Migration `0009_admin_coach_management.sql` adds only bounded Coach status fields; its live applied/checksum state must be verified on the target database before release.
 
 ## Coach/Member Workout scope
 
@@ -19,11 +24,11 @@ Hardening addresses flat API contracts, full Set Log CRUD, dedicated progress hi
 
 ## Verification result
 
-All requested Coach/Member gates passed: isolated real-data API/browser acceptance, backend build, frontend production build, frontend TypeScript with only the three pre-existing out-of-scope errors, `git diff --check`, migration status, canonical backup/integrity checks and documentation inventory/link/claim review. Evidence is recorded in [`docs/coach/COACH_END_TO_END_HANDOVER.md`](docs/coach/COACH_END_TO_END_HANDOVER.md) and [`docs/DOCUMENTATION_CLEANUP_REPORT.md`](docs/DOCUMENTATION_CLEANUP_REPORT.md).
+The Admin backend acceptance passed on an isolated database, including authorization, exercise create, assign/reassign, concurrent scope safety, Member execution, governance reads and suspended-Coach denial. Backend and frontend production builds passed; frontend TypeScript still reports only the three pre-existing out-of-scope errors. Admin browser verification is blocked because the available Browser plugin is missing its required runtime entry point. Canonical `GYMFIT_DB` remains fixture-free with 20 applied migrations, 0 checksum mismatches and `0009` pending. Evidence is recorded in [`docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md`](docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md) and [`docs/coach/COACH_END_TO_END_HANDOVER.md`](docs/coach/COACH_END_TO_END_HANDOVER.md).
 
 ## Out of scope and remaining baseline debt
 
-Admin Coach Management, Admin pages, Video, Marketplace, Seller, Payment, Refund and Settlement are unchanged. The only allowed TypeScript failures are:
+Video, Marketplace, Seller, Payment, Refund and Settlement are unchanged. The only allowed TypeScript failures are:
 
 - `frontend/src/components/products/ProductCard.tsx`
 - `frontend/src/pages/reviews/ReviewsPage.tsx`

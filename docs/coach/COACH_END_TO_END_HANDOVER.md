@@ -9,7 +9,7 @@ Final commit: report after local commit; do not place a self-referencing hash in
 
 This handover covers the minimum Coach/Member Workout business flow: assignment/program/schedule read, Start Session, immutable snapshot, Set Logs, Complete/Abandon, Progress and Coach visibility of real Member execution data. Hardening additionally covers contract alignment, dedicated progress pages, current date-range eligibility, timezone consistency, reassignment lifecycle, dashboard states, migration checks and repository documentation cleanup.
 
-The final verdict must be one of `FULL_COACH_BUSINESS_E2E_COMPLETE`, `PARTIALLY_COMPLETE` or `BLOCKED`, based on the evidence in the final report. No Admin Coach Management, Video, Marketplace, Seller, Payment, Refund or Settlement claim belongs here.
+The final verdict must be one of `FULL_COACH_BUSINESS_E2E_COMPLETE`, `PARTIALLY_COMPLETE` or `BLOCKED`, based on the evidence in the final report. Admin Coach Management is documented separately in [`docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md`](../admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md); no Admin claim belongs in this Coach handover.
 
 ## API and UI contract
 

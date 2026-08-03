@@ -4,7 +4,7 @@ GymFit is a full-stack gym-management and commerce platform with Member, Coach, 
 
 ## Current status
 
-The Coach/Member Workout business slice is implemented on the preceding baseline and is being hardened on `fix/vinh-coach-e2e-hardening`: current assignment/schedule, Start Session, immutable snapshot, set-log CRUD, Complete/Abandon, Progress, Coach monitoring, timezone and documentation cleanup. Admin Coach Management, Video, Marketplace, Seller, Payment, Refund and Settlement are out of scope for this workstream.
+The Coach/Member Workout business slice is implemented on the baseline `90140f5`. The current branch adds the scoped Admin Coach Management layer: Coach status, CRM assign/reassign, Admin Exercise Library, read-only Workout Governance and Admin-only routes. Video, Marketplace, Seller, Payment, Refund and Settlement remain out of scope.
 
 The three known frontend TypeScript errors outside this scope remain intentionally untouched: `frontend/src/components/products/ProductCard.tsx`, `frontend/src/pages/reviews/ReviewsPage.tsx` and `frontend/src/services/reviewsApi.ts`.
 
@@ -12,7 +12,7 @@ The three known frontend TypeScript errors outside this scope remain intentional
 
 - Frontend: React 18, TypeScript, Vite, React Router 6, Zustand, Axios and Tailwind CSS.
 - Backend: Node.js, Express, TypeScript, SQL Server (`mssql`), Zod, JWT and Nodemailer.
-- Database: SQL Server with ordered, checksummed migrations; Coach uses `0007` and Member Workout execution uses additive `0008`.
+- Database: SQL Server with ordered, checksummed migrations; Coach uses `0007`, Member Workout execution uses additive `0008`, and Admin Coach status uses additive `0009`.
 
 ```text
 backend/         Express API and acceptance scripts

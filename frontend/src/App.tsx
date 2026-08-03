@@ -7,6 +7,10 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCoachManagementPage from './pages/admin/coaches/AdminCoachManagementPage';
+import AdminCoachDetailPage from './pages/admin/coaches/AdminCoachDetailPage';
+import AdminExerciseLibraryPage from './pages/admin/exercises/AdminExerciseLibraryPage';
+import AdminWorkoutGovernancePage from './pages/admin/workouts/AdminWorkoutGovernancePage';
 import CoachDashboard from './pages/coaches/CoachDashboard';
 import CoachExerciseLibraryPage from './pages/coaches/CoachExerciseLibraryPage';
 import CoachExerciseDetailPage from './pages/coaches/CoachExerciseDetailPage';
@@ -169,6 +173,10 @@ export default function App() {
           <Route path="/checkout" element={<AccessRoute path="/checkout"><CheckoutPage /></AccessRoute>} />
           <Route path="/video" element={<AccessRoute path="/video"><VideoLibrary /></AccessRoute>} />
           <Route path="/admin" element={<AccessRoute path="/admin"><AdminDashboard /></AccessRoute>} />
+          <Route path="/admin/coaches" element={<AccessRoute path="/admin/coaches"><AdminCoachManagementPage /></AccessRoute>} />
+          <Route path="/admin/coaches/:coachId" element={<AccessRoute path="/admin/coaches"><AdminCoachDetailPage /></AccessRoute>} />
+          <Route path="/admin/exercises" element={<AccessRoute path="/admin/exercises"><AdminExerciseLibraryPage /></AccessRoute>} />
+          <Route path="/admin/workouts" element={<AccessRoute path="/admin/workouts"><AdminWorkoutGovernancePage /></AccessRoute>} />
           <Route path="/admin/analytics" element={<AccessRoute path="/admin"><AnalyticsPage /></AccessRoute>} />
           <Route path="/admin/audit" element={<AccessRoute path="/admin"><AuditPage /></AccessRoute>} />
           <Route path="/admin/revenue" element={<AccessRoute path="/admin"><RevenuePage /></AccessRoute>} />

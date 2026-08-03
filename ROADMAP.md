@@ -10,7 +10,7 @@ Updated 2026-08-03. This file is a current workstream view; historical checkpoin
 | Coach program, assignment and schedule authoring | COMPLETE | Migration `0007`, Coach handover |
 | Member Workout minimum flow | COMPLETE | Migration `0008`, Coach E2E handover |
 
-## Active: Coach/Member Workout hardening
+## Active: Admin Coach Management completion
 
 | Workstream | Status | Owner | Dependency | Gate | Next action |
 |---|---|---|---|---|---|
@@ -20,9 +20,14 @@ Updated 2026-08-03. This file is a current workstream view; historical checkpoin
 | Assignment/date/timezone/reassignment policy | COMPLETE | Coach slice | CRM scope | API/concurrency acceptance PASS | Maintain lifecycle ADR |
 | Documentation cleanup | COMPLETE | Repository | Inventory/governance | Link/claim/hygiene scan PASS | Update canonical docs when contracts change |
 
+| Admin Coach list/detail/status | IN PROGRESS | `0009` + Admin routes | Admin-only authorization | Backend/frontend build and acceptance | Run isolated Admin–Coach–Member acceptance |
+| Admin assign/reassign | IN PROGRESS | Existing reassignment service | CRM scope + active Coach | Concurrency/IDOR acceptance | Verify old assignment pause and history preservation |
+| Admin Exercise Library | IN PROGRESS | Existing `Exercises` schema | Admin-only mutations | CRUD/status acceptance | Verify no snapshot mutation |
+| Admin Workout Governance | IN PROGRESS | `0007`/`0008` + legacy sessions | Read-only Admin routes | Query/authorization acceptance | Verify five tabs and filters |
+
 ## Explicitly out of scope for this workstream
 
-Admin Coach Management, Admin pages, Video Library, Marketplace, Seller, Payment, Refund, Settlement, and the three pre-existing frontend TypeScript errors.
+Video Library, Marketplace, Seller, Payment, Refund, Settlement, and the three pre-existing frontend TypeScript errors.
 
 ## Delivery gates
 

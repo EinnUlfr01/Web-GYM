@@ -28,7 +28,9 @@ Static product uploads use the configured upload directory and `/uploads`; repos
 
 ## Workout boundary
 
-The Coach/Member Workout slice reuses `Users`, `CRMCustomers` and `Exercises`, extends the repository with Coach migrations `0007` and additive execution migration `0008`, and keeps legacy `WorkoutSessions` separate. Commerce, Video and Admin surfaces are not part of this boundary.
+The Coach/Member Workout slice reuses `Users`, `CRMCustomers` and `Exercises`, extends the repository with Coach migrations `0007` and additive execution migration `0008`, and keeps legacy `WorkoutSessions` separate. Admin Coach Management is a separate Admin-only governance layer: migration `0009` adds bounded Coach status fields, Admin mutations use `CRMCustomers` and the existing reassignment service, and Workout Governance reads the existing `0007`/`0008` plus legacy session data without mutation. Commerce and Video remain outside this boundary.
+
+Admin status is enforced in the backend live-user check as well as the frontend navigation: `SUSPENDED` and `INACTIVE` Coaches cannot enter Coach Workspace, while their historical programs, assignments, sessions and progress remain queryable by Admin. Admin Program ownership is intentionally read-only because the schema only models Coach-owned Programs.
 ## Dashboard presentation boundary
 
 The GYMFIT Command Center is a frontend presentation layer over existing API contracts. Role visibility remains centralized in `frontend/src/auth/accessPolicy.ts`; dashboard components must not widen Member or Coach data scope. Missing backend dashboard fields render as unavailable/empty states rather than fabricated values. The Member Workout widget has explicit loading, empty and retryable error states.
