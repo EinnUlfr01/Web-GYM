@@ -15,9 +15,9 @@ interface ReassignmentInput {
 }
 
 /**
- * Domain operation for a future reassignment workflow. It intentionally has no
- * Admin route: ownership is changed in one transaction and old executions stay
- * attached to the old assignment for audit/history.
+ * Transactional Coach reassignment domain operation.
+ * Used by the bounded Admin Coach Management route.
+ * Historical sessions remain attached to the previous assignment.
  */
 export async function reassignMemberCoach(input: ReassignmentInput) {
   if (input.endDate && input.endDate < input.startDate) throw new AppError(400, 'endDate must be on or after startDate');

@@ -57,7 +57,4 @@ Inventory baseline: branch `fix/vinh-coach-e2e-hardening`, source commit `21f690
 | `docs/archive/2026-08/TASK-008_IMPLEMENTATION_SPEC.md` | HISTORICAL | Archived pre-implementation specification | `21f6901` | Old migration/status plan superseded | Keep as evidence |
 | `docs/archive/2026-08/logs/TASK-008_START_CHECKPOINT.md` | HISTORICAL | Archived checkpoint | `21f6901` | Old not-started snapshot | Keep as evidence |
 | `docs/archive/2026-08/marketplace/GYMFIT_SELLER_MARKETPLACE_FULL_ROADMAP_V1_BACKUP.md` | DUPLICATE/HISTORICAL | Archived Marketplace backup | `21f6901` | Active roadmap supersedes explicit backup | Keep as evidence |
-| `TASK008_CODEX_APP_PACKAGE.zip` | GENERATED_TEMP | Task package archive | `21f6901` | Untracked generated/user artifact | Preserve; do not stage/delete without explicit approval |
-| `TASK008_CODEX_APP_PACKAGE/` | GENERATED_TEMP | Extracted task package | `21f6901` | Untracked generated/user artifact | Preserve; exclude from project-doc audit |
-
 The three TypeScript files listed in the task are implementation debt, not documentation inventory candidates.
