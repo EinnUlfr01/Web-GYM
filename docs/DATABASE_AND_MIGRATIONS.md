@@ -73,6 +73,12 @@ SELLER-002 acceptance databases must start with
 Canonical `GYMFIT_DB` is explicitly refused by the acceptance runner.
 # Migration 0102 — Brand Request and moderation
 
+## Coach Member Workout migrations
+
+Migration `0007_coach_programs_assignments_schedules.sql` is the canonical Coach authoring/assignment/schedule contract and remains checksum-valid. Migration `0008_member_workout_flow.sql` is additive and creates `MemberWorkoutSessions`, `MemberWorkoutSessionExercises` and `MemberWorkoutSetLogs`; it does not alter legacy `WorkoutSessions` or the `0007` tables.
+
+Canonical `GYMFIT_DB` verification on 2026-08-03: 20 applied migrations, 0 pending, 0 checksum mismatches. Before applying `0008`, a COPY_ONLY CHECKSUM full backup was created and `RESTORE VERIFYONLY WITH CHECKSUM` passed. The migration runner applied `0008` transactionally; no manual SQL, reset or drop was used on canonical.
+
 Migration 0102 adds unique `Brands.normalized_name`, protected `is_generic`,
 the Generic Brand, transactional `BrandRequests`, and immutable
 `BrandRequestStatusHistory`. It preserves existing Brand IDs and every

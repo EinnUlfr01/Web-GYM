@@ -186,3 +186,7 @@ Review and apply migration `0007` to the intended environment using the normal
 verified-backup workflow, then coordinate with the Member-workout owner to
 replace the truthful blocked monitoring fields with real Member-generated
 session/set-log data. Do not expand this Coach-only branch into Member work.
+
+## Superseding Coach E2E update — 2026-08-03
+
+This handover is superseded for the completed local Coach E2E slice by [COACH_END_TO_END_HANDOVER.md](COACH_END_TO_END_HANDOVER.md). `0007` was applied safely and remains unchanged; additive `0008` supplies the Member execution model. Coach monitoring now reads real Member sessions, immutable snapshots, set summaries and progress, while Coach authoring/assignment/schedule scope remains backward-compatible.

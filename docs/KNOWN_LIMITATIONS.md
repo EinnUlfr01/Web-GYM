@@ -19,4 +19,6 @@ Real Gmail, Bank/QR, authenticated Customer and Admin browser flows are verified
 Auth/RBAC closure reports manual browser evidence only and does not claim Codex browser automation PASS.
 
 The canonical post-migration smoke run confirmed health and Admin login/me, but refresh rotation/logout revocation was inconclusive and requires a clean follow-up smoke run.
-Dashboard limitation: the current backend has no Coach-scoped dashboard/schedule endpoint, so the Coach dashboard intentionally renders an unavailable state instead of inventing counts or sessions. Authenticated Member, Coach and Admin desktop/mobile acceptance and account switching passed on 2026-07-16. Browser screenshot capture timed out, so visual evidence used rendered DOM, role navigation and measured overflow rather than persisted screenshots.
+Dashboard limitation: the current backend still has no broad Coach-scoped dashboard redesign; the Coach workspace keeps its existing scope. The approved Member Workout slice now has real assignment, schedule, session, snapshot, set-log and progress endpoints. Authenticated Member workout routes were checked at 375, 768 and 1440 widths with no horizontal overflow. Browser screenshot capture was not required; verification used rendered DOM and measured overflow.
+
+The three pre-existing frontend TypeScript errors remain intentionally out of scope: `ProductCard.tsx`, `ReviewsPage.tsx`, and `reviewsApi.ts`. Frontend production build passes; Vite still reports its non-blocking large-chunk advisory.

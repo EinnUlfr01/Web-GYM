@@ -39,6 +39,10 @@ npm run db:migrate:status
 npm run dev
 ```
 
+## Coach Member Workout Flow
+
+The Coach E2E slice now includes the additive Member Workout API/UI: assignment and schedule read, Start Session, immutable snapshot, set logs, Complete/Abandon, and self-scoped Progress. Coach monitoring reads the resulting session, snapshot, set summary and progress facts. See [Coach end-to-end handover](docs/coach/COACH_END_TO_END_HANDOVER.md).
+
 In another terminal:
 
 ```bash

@@ -180,6 +180,25 @@ Protected Shop, owner, publication, moderation, review, reservation, and
 derived Inventory fields are rejected by strict validation. Cross-Shop path
 IDs return 404. Seller submission can only transition DRAFT/REJECTED to
 PENDING_REVIEW; no Seller endpoint can publish.
+
+## Member Workout API (Coach E2E)
+
+All routes below require `authenticate` plus `authorize(member)`, except the Coach monitoring routes which retain `authorize(coach)` and existing CRM/assignment scope checks. Member identity is always derived from the JWT; request bodies do not accept `member_id`, `user_id` or `coach_id`.
+
+| Method | Route | Contract |
+|---|---|---|
+| GET | `/api/member/workouts/current` | Active assignment, program, upcoming schedules and active session |
+| GET | `/api/member/workouts/schedules` | Self-only paginated schedule list |
+| GET | `/api/member/workouts/schedules/:scheduleId` | Self-only schedule detail and target exercises |
+| POST | `/api/member/workouts/schedules/:scheduleId/start` | Transactional Start Session plus immutable snapshot |
+| GET | `/api/member/workouts/sessions` | Self-only session history |
+| GET | `/api/member/workouts/sessions/:sessionId` | Snapshot and set logs |
+| POST | `/api/member/workouts/sessions/:sessionId/complete` | `IN_PROGRESS` to `COMPLETED` |
+| POST | `/api/member/workouts/sessions/:sessionId/abandon` | `IN_PROGRESS` to `ABANDONED`; schedule to `SKIPPED` |
+| POST/PATCH/DELETE | `/api/member/workouts/sessions/:sessionId/exercises/:sessionExerciseId/sets...` | Self-only set CRUD while in progress |
+| GET | `/api/member/workouts/progress` | Completed sessions, duration, volume and due completion |
+
+Coach session history/detail/progress now include Member-generated rows within the existing Coach-to-Member scope. Cross-scope resources return `404`; role failures return `401/403`.
 # SELLER-006 Admin Product Moderation
 
 - `GET /api/admin/product-moderation` — ADMIN-only Seller Product inbox with strict pagination/search/filter/date/sort whitelist; defaults to `PENDING_REVIEW`.

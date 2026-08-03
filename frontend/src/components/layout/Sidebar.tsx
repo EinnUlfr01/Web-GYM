@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, Users, UserCheck, Wallet, X } from "lucide-react";
+import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LineChart, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, Users, UserCheck, Wallet, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { canAccess } from "../../auth/accessPolicy";
@@ -13,6 +13,8 @@ const common: NavItem[] = [
   { to: "/settings", label: "Cài đặt", icon: Settings },
 ];
 const member: NavItem[] = [
+  { to: "/workouts", label: "Workouts", icon: Dumbbell },
+  { to: "/progress", label: "Progress", icon: LineChart },
   { to: "/reviews", label: "Đánh giá của tôi", icon: Star },
   { to: "/orders", label: "Đơn hàng của tôi", icon: ShoppingCart },
   { to: "/complaints", label: "Khiếu nại sản phẩm", icon: Ticket },

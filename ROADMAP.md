@@ -34,3 +34,7 @@ Auth/RBAC closure: manual browser acceptance and offline cleanup passed; no brow
 Canonical migrations `0001–0006` are applied and auth/RBAC closure is complete. TASK-008 remains not started; it is unblocked and its next action is the Discovery Gate, followed by migration `0007` if required.
 
 Dashboard UI redesign is complete and authenticated browser-accepted for Member, Coach and Admin at desktop/mobile breakpoints, including account switching and route guards. The isolated acceptance environment was removed. This frontend-only workstream does not start TASK-008 or change backend contracts.
+
+## Coach E2E completion update — 2026-08-03
+
+The approved Coach business slice is complete on the local branch: migration `0007` remains checksum-valid, additive migration `0008_member_workout_flow.sql` is applied, and the minimum Member Workout Flow is available. The accepted scope is limited to Coach monitoring plus Member assignment/schedule, session snapshot, set logs, Complete/Abandon and Progress. Admin Coach Management, Video, Marketplace, Seller, Payment, Refund and Settlement remain out of scope.

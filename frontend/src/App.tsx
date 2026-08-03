@@ -83,6 +83,7 @@ import SellerRevenuePage from './pages/seller/SellerRevenuePage';
 import AdminSettlementsPage from './pages/admin/AdminSettlementsPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
 import ReviewsPage from './pages/reviews/ReviewsPage';
+import { MemberProgressExercisesPage, MemberProgressPage, MemberProgressSessionsPage, MemberWorkoutHomePage, MemberWorkoutProgramPage, MemberWorkoutScheduleDetailPage, MemberWorkoutSchedulePage, MemberWorkoutSessionDetailPage, MemberWorkoutSessionsPage } from './pages/workouts/MemberWorkoutPages';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -130,6 +131,15 @@ export default function App() {
         {/* PROTECTED */}
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/workouts" element={<AccessRoute path="/workouts"><MemberWorkoutHomePage /></AccessRoute>} />
+          <Route path="/workouts/program" element={<AccessRoute path="/workouts"><MemberWorkoutProgramPage /></AccessRoute>} />
+          <Route path="/workouts/schedule" element={<AccessRoute path="/workouts"><MemberWorkoutSchedulePage /></AccessRoute>} />
+          <Route path="/workouts/schedule/:scheduleId" element={<AccessRoute path="/workouts"><MemberWorkoutScheduleDetailPage /></AccessRoute>} />
+          <Route path="/workouts/sessions" element={<AccessRoute path="/workouts"><MemberWorkoutSessionsPage /></AccessRoute>} />
+          <Route path="/workouts/sessions/:sessionId" element={<AccessRoute path="/workouts"><MemberWorkoutSessionDetailPage /></AccessRoute>} />
+          <Route path="/progress" element={<AccessRoute path="/progress"><MemberProgressPage /></AccessRoute>} />
+          <Route path="/progress/sessions" element={<AccessRoute path="/progress"><MemberProgressSessionsPage /></AccessRoute>} />
+          <Route path="/progress/exercises/:exerciseId" element={<AccessRoute path="/progress"><MemberProgressExercisesPage /></AccessRoute>} />
           <Route path="/members" element={<AccessRoute path="/members"><MembersPage /></AccessRoute>} />
           <Route path="/referral" element={<AccessRoute path="/referral"><ReferralPage /></AccessRoute>} />
           <Route path="/coupons" element={<AccessRoute path="/coupons"><CouponPage /></AccessRoute>} />

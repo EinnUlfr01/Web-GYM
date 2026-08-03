@@ -36,3 +36,7 @@ TASK-008 must first audit the existing public Exercises API, `WorkoutPrograms.ts
 The GYMFIT Command Center is a frontend presentation layer over existing API contracts. Role visibility remains centralized in `frontend/src/auth/accessPolicy.ts`; dashboard components must not widen Member or Coach data scope. Missing backend dashboard fields render as unavailable/empty states rather than fabricated values. TASK-008 remains separate and not started.
 
 Dashboard authentication was accepted through three differential layers: direct backend, explicit Vite `/api` proxy, and the real React form/store/router flow. The earlier login timeout was isolated to the acceptance harness/process context; no auth or dashboard source change was required.
+
+## Coach Member execution flow
+
+The execution path is `Member JWT -> /api/member/workouts -> active assignment/schedule scope -> transactional session start -> immutable snapshot -> set logs -> terminal session/schedule state -> Coach read-only monitoring`. `MemberWorkoutSessions`, `MemberWorkoutSessionExercises` and `MemberWorkoutSetLogs` are additive to the `0007` Coach tables and deliberately do not reuse the incompatible legacy `WorkoutSessions` contract. All member identity comes from the JWT; URL IDs are ownership-checked.

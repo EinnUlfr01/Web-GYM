@@ -1,5 +1,6 @@
 import { getPool, query, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
+import { getProgress as getMemberProgress, getSession as getMemberSession } from '../member-workout/member-workout.service';
 
 export const MAX_PAGE_SIZE = 50;
 const validTimeZone = (value: string) => {
@@ -105,11 +106,22 @@ export async function dashboard(coachId: number) {
             JOIN dbo.WorkoutProgramDays d ON d.id=s.program_day_id
             WHERE s.scheduled_date>=CAST(GETDATE() AS date) AND s.status=N'SCHEDULED'
             ORDER BY s.scheduled_date,s.id`, { coachId }),
-    query(`SELECT TOP 5 ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name
-            FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
-            JOIN dbo.CRMCustomers c ON c.user_id=ws.user_id AND c.assigned_coach_id=@coachId
-            JOIN dbo.Users u ON u.id=ws.user_id AND u.is_active=1
-            ORDER BY ws.started_at DESC,ws.id DESC`, { coachId }),
+    query(`SELECT TOP 5 * FROM (
+             SELECT ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name,
+                    CAST(NULL AS INT) AS set_count,CAST(NULL AS INT) AS completed_set_count
+             FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
+             JOIN dbo.CRMCustomers c ON c.user_id=ws.user_id AND c.assigned_coach_id=@coachId
+             JOIN dbo.Users u ON u.id=ws.user_id AND u.is_active=1
+             UNION ALL
+             SELECT ms.id,ms.member_id,u.name AS member_name,ms.started_at,ms.ended_at AS completed_at,ms.status,p.name AS workout_name,
+                    (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
+                    (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count
+             FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId
+             JOIN dbo.CoachProgramSchedules cs ON cs.id=ms.schedule_id AND cs.assignment_id=a.id
+             JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
+             JOIN dbo.CRMCustomers c ON c.user_id=ms.member_id AND c.assigned_coach_id=@coachId
+             JOIN dbo.Users u ON u.id=ms.member_id AND u.is_active=1
+           ) sessions ORDER BY started_at DESC,id DESC`, { coachId }),
   ]);
   return {
     counts: { assignedMembers: Number(members.recordset[0].count), activeMembers: Number(activeMembers.recordset[0].count), ownedPrograms: Number(programs.recordset[0].count), activeAssignments: Number(assignments.recordset[0].count) },
@@ -226,7 +238,7 @@ export async function createProgramExercise(coachId: number, dayId: number, data
 }
 
 export async function updateProgramExercise(coachId: number, id: number, data: Record<string, unknown>) {
-  await assertProgramExerciseOwner(coachId, id); const result = await query(`UPDATE dbo.WorkoutProgramExercises SET target_sets=@targetSets,target_reps_min=@targetRepsMin,target_reps_max=@targetRepsMax,target_weight=@targetWeight,target_duration_seconds=@targetDurationSeconds,rest_seconds=@restSeconds,tempo=@tempo,coach_note=@coachNote,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@id`, { ...data, id }); return result.recordset[0];
+  await assertProgramExerciseOwner(coachId, id); const result = await query(`UPDATE dbo.WorkoutProgramExercises SET target_sets=@targetSets,target_reps_min=@targetRepsMin,target_reps_max=@targetRepsMax,target_weight=@targetWeight,target_duration_seconds=@targetDurationSeconds,rest_seconds=@restSeconds,tempo=@tempo,coach_note=@coachNote,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@id`, { id, targetSets: data.targetSets ?? null, targetRepsMin: data.targetRepsMin ?? null, targetRepsMax: data.targetRepsMax ?? null, targetWeight: data.targetWeight ?? null, targetDurationSeconds: data.targetDurationSeconds ?? null, restSeconds: data.restSeconds ?? null, tempo: data.tempo ?? null, coachNote: data.coachNote ?? null }); return result.recordset[0];
 }
 
 export async function deleteProgramExercise(coachId: number, id: number) { await assertProgramExerciseOwner(coachId, id); await query('DELETE FROM dbo.WorkoutProgramExercises WHERE id=@id', { id }); }
@@ -256,7 +268,7 @@ export async function getMember(coachId: number, memberId: number) {
   const member = await assertMemberScope(coachId, memberId);
   const [assignment, sessionCount] = await Promise.all([
     query(`SELECT TOP 1 a.id,a.program_id,a.coach_id,a.start_date,a.end_date,a.status,a.schedule_timezone,a.note,p.name AS program_name FROM dbo.CoachProgramAssignments a JOIN dbo.WorkoutPrograms p ON p.id=a.program_id WHERE a.member_id=@memberId AND a.coach_id=@coachId ORDER BY CASE WHEN a.status=N'ACTIVE' THEN 0 ELSE 1 END,a.updated_at DESC`, { memberId, coachId }),
-    query(`SELECT COUNT(*) AS count FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, { memberId, coachId }),
+    query(`SELECT (SELECT COUNT(*) FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId)+(SELECT COUNT(*) FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId WHERE ms.member_id=@memberId) AS count`, { memberId, coachId }),
   ]);
   return { ...member, currentAssignment: assignment.recordset[0] ?? null, sessionCount: Number(sessionCount.recordset[0].count), sessionDataAvailable: true };
 }
@@ -325,25 +337,34 @@ export async function cancelSchedule(coachId: number, scheduleId: number) {
 }
 
 export async function listSessions(coachId: number, memberId: number, page: number, limit: number) {
-  await assertMemberScope(coachId, memberId); const params = { coachId, memberId, offset: (page - 1) * limit, limit };
-  const [rows, count] = await Promise.all([
-    query(`SELECT ws.id,ws.user_id AS member_id,ws.workout_id,ws.started_at,ws.completed_at,ws.status,ws.notes,w.name AS workout_name,w.description AS workout_description FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId ORDER BY ws.started_at DESC,ws.id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`, params),
-    query(`SELECT COUNT(*) AS total FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, params),
-  ]); return { items: rows.recordset.map(row => ({ ...row, setSummary: null, blockedReason: 'BLOCKED_BY_MEMBER_WORKOUT_FLOW' })), page, limit, total: Number(count.recordset[0].total), totalPages: Math.ceil(Number(count.recordset[0].total) / limit) };
+  await assertMemberScope(coachId, memberId); const params = { coachId, memberId };
+  const [legacy, member] = await Promise.all([
+    query(`SELECT ws.id,ws.user_id AS member_id,ws.workout_id,ws.started_at,ws.completed_at,ws.status,ws.notes,w.name AS workout_name,w.description AS workout_description FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, params),
+    query(`SELECT ms.id,ms.member_id,CAST(NULL AS INT) AS workout_id,ms.assignment_id,ms.schedule_id,ms.started_at,ms.ended_at AS completed_at,ms.status,ms.note AS notes,p.name AS workout_name,p.description AS workout_description,
+                  (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
+                  (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count
+           FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId JOIN dbo.WorkoutPrograms p ON p.id=a.program_id WHERE ms.member_id=@memberId`, params),
+  ]);
+  const items = [...legacy.recordset.map(row => ({ ...row, source: 'legacy' as const, setSummary: null, blockedReason: 'LEGACY_SESSION_NO_MEMBER_SET_LOGS' })), ...member.recordset.map(row => ({ ...row, source: 'member' as const, setSummary: { total: Number(row.set_count), completed: Number(row.completed_set_count) }, blockedReason: null }))].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime() || Number(b.id) - Number(a.id));
+  const total = items.length; const start = (page - 1) * limit;
+  return { items: items.slice(start, start + limit), page, limit, total, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getSession(coachId: number, memberId: number, sessionId: number) {
-  await assertMemberScope(coachId, memberId); const result = await query(`SELECT ws.id,ws.user_id AS member_id,ws.workout_id,ws.started_at,ws.completed_at,ws.status,ws.notes,w.name AS workout_name,w.description AS workout_description FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.id=@sessionId AND ws.user_id=@memberId`, { coachId, memberId, sessionId }); if (!result.recordset[0]) throw new AppError(404, 'Session not found');
+  await assertMemberScope(coachId, memberId);
+  const memberResult = await query(`SELECT ms.id FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId WHERE ms.id=@sessionId AND ms.member_id=@memberId`, { coachId, memberId, sessionId });
+  if (memberResult.recordset[0]) {
+    const memberSession = await getMemberSession(memberId, sessionId);
+    return { id: memberSession.id, member_id: memberSession.member_id, workout_id: null, assignment_id: memberSession.assignment_id, schedule_id: memberSession.schedule_id, started_at: memberSession.started_at, completed_at: memberSession.ended_at, status: memberSession.status, notes: memberSession.note, workout_name: memberSession.program.name, workout_description: null, exerciseSnapshot: memberSession.exercises, setSummary: { total: memberSession.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0), completed: memberSession.exercises.reduce((sum, exercise) => sum + exercise.sets.filter(set => Boolean((set as { completed?: unknown }).completed)).length, 0) }, blockedReason: null, source: 'member' as const };
+  }
+  const result = await query(`SELECT ws.id,ws.user_id AS member_id,ws.workout_id,ws.started_at,ws.completed_at,ws.status,ws.notes,w.name AS workout_name,w.description AS workout_description FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.id=@sessionId AND ws.user_id=@memberId`, { coachId, memberId, sessionId }); if (!result.recordset[0]) throw new AppError(404, 'Session not found');
   const exercises = await query(`SELECT id,workout_id,name,sets,reps,weight,duration_seconds,rest_seconds,sort_order FROM dbo.WorkoutExercises WHERE workout_id=@workoutId ORDER BY sort_order,id`, { workoutId: result.recordset[0].workout_id });
-  return { ...result.recordset[0], exerciseSnapshot: exercises.recordset, setSummary: null, blockedReason: 'BLOCKED_BY_MEMBER_WORKOUT_FLOW' };
+  return { ...result.recordset[0], exerciseSnapshot: exercises.recordset, setSummary: null, blockedReason: 'LEGACY_SESSION_NO_MEMBER_SET_LOGS', source: 'legacy' as const };
 }
 
 export async function getProgress(coachId: number, memberId: number) {
-  await assertMemberScope(coachId, memberId); const [summary, recent, due] = await Promise.all([
-    query(`SELECT COUNT(*) AS completed_sessions,COALESCE(SUM(CASE WHEN ws.status=N'completed' AND ws.completed_at IS NOT NULL THEN DATEDIFF(SECOND,ws.started_at,ws.completed_at) ELSE 0 END),0) AS total_duration FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, { coachId, memberId }),
-    query(`SELECT TOP 10 ws.id,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId ORDER BY ws.started_at DESC,ws.id DESC`, { coachId, memberId }),
-    query(`SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN s.status=N'COMPLETED' THEN 1 ELSE 0 END),0) AS completed FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.member_id=@memberId AND a.coach_id=@coachId WHERE s.scheduled_date<CAST(GETDATE() AS date)`, { coachId, memberId }),
-  ]);
-  const dueTotal = Number(due.recordset[0].total); const completedDue = Number(due.recordset[0].completed);
-  return { completed_sessions: Number(summary.recordset[0].completed_sessions), total_duration: Number(summary.recordset[0].total_duration), training_volume: null, completion_rate: dueTotal ? (completedDue / dueTotal) * 100 : null, recent_sessions: recent.recordset, exercise_history: [], blockedReason: 'BLOCKED_BY_MEMBER_WORKOUT_FLOW', dataSources: { legacySessions: true, setLogs: false, memberProgressFlow: false } };
+  await assertMemberScope(coachId, memberId);
+  const memberProgress = await getMemberProgress(memberId);
+  const legacy = await query(`SELECT COUNT(*) AS completed_sessions,COALESCE(SUM(CASE WHEN ws.status=N'completed' AND ws.completed_at IS NOT NULL THEN DATEDIFF(SECOND,ws.started_at,ws.completed_at) ELSE 0 END),0) AS total_duration FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, { coachId, memberId });
+  return { ...memberProgress, completed_sessions: memberProgress.completed_sessions + Number(legacy.recordset[0].completed_sessions), total_duration: memberProgress.total_duration + Number(legacy.recordset[0].total_duration), dataSources: { ...memberProgress.dataSources, legacySessions: true } };
 }
