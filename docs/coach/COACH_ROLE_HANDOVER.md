@@ -15,14 +15,14 @@ blocker.
 
 `feat/vinh-coach-role-only`
 
-## START COMMIT
+## COMMIT LEDGER
 
-`54015ae9638ec9f722e171c01a0ca69533ba907d`
+`BASE_IMPLEMENTATION_COMMIT: 20b07bf`
 
-## END COMMIT
+`FIX_VALIDATION_COMMIT: 95ba829`
 
-`9b006e5` (Coach implementation commit; the documentation handover is the
-follow-up commit).
+`DOCUMENTATION_COMMIT: reported in the final handover; omitted here to avoid
+a self-referencing commit hash.`
 
 ## MIGRATIONS
 
@@ -83,10 +83,22 @@ business logic were left unchanged.
 - Frontend production build: PASS (`npm run build`; only the existing Vite
   large-chunk warning was emitted).
 - `git diff --check`: PASS.
-- Coach acceptance suite on isolated database: PASS for guest/member RBAC,
-  owner spoof rejection, Program/Member/Assignment/Session scope, cross-Coach
-  IDOR, concurrent duplicate Assignment protection, concurrent idempotent
-  Schedule generation, legacy monitoring reads and truthful blocked progress.
+- Frontend TypeScript baseline: FAIL with four errors. The Coach error was
+  `CoachDashboard.tsx` accessing `CoachSession.member_name`; the three
+  pre-existing out-of-scope errors were `ProductCard.tsx` TS2345,
+  `ReviewsPage.tsx` TS2339, and `reviewsApi.ts` TS2348.
+- Frontend TypeScript after the fix: FAIL project-wide with only those same
+  three pre-existing out-of-scope errors; no Coach TypeScript errors and no new
+  errors were introduced.
+- Coach acceptance suite on isolated database:
+  PASS for Coach A/B login, guest/member RBAC, owner spoof rejection,
+  Program/Member/Assignment/Session scope, cross-Coach IDOR, concurrent
+  duplicate Assignment protection, concurrent idempotent Schedule generation,
+  legacy monitoring reads and truthful blocked progress.
+- Browser Coach regression: PASS for Coach A and Coach B login, Member access
+  denial, Guest redirect to login, dashboard session rendering, Coach pages at
+  mobile width without horizontal overflow, and no new browser console errors.
+  Existing React Router future-flag warnings remain.
 - Acceptance cleanup: PASS; acceptance users/programs/assignments/schedules
   were removed before the isolated database was dropped.
 
@@ -95,6 +107,16 @@ business logic were left unchanged.
 Backend and frontend builds pass on the final Coach implementation. The
 backend acceptance runner is guarded by `COACH_ACCEPTANCE=1` and an isolated
 `GYMFIT_DB_COACH_ACCEPTANCE_*` database name.
+
+## SESSION CONTRACT FIX
+
+The dashboard API query returns `u.name AS member_name`, and `Users.name` is
+non-null in the database. `CoachSession` now models that dashboard response as
+`member_name: string`; the dashboard renders the safe fallback
+`Hội viên #<member_id>` when the returned name is empty. Session history/detail
+and progress use separate frontend types because those existing endpoints do
+not return `member_name` in their payloads. No new API, Member flow, session,
+or set-log write was added.
 
 ## SECURITY RESULTS
 
