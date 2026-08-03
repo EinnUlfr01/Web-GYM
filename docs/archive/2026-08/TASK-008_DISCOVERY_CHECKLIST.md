@@ -1,3 +1,7 @@
+# Status: HISTORICAL
+# Do not use as implementation source of truth.
+# Superseded by: `docs/coach/COACH_END_TO_END_HANDOVER.md` and `docs/PROJECT_STATUS.md`
+
 # TASK-008 Discovery Checklist
 
 Read this first before TASK-008 implementation. Do not create migration `0006` until the gate is complete.

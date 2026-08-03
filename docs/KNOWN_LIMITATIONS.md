@@ -1,24 +1,12 @@
 # Known Limitations
 
-- TASK-008 workout programs, assignments, sessions and progress are not implemented. Existing public Exercises/WorkoutPrograms UI must be audited before reuse.
-- AI recommendations, camera, pose estimation, automatic rep counting, medical diagnosis, nutrition, wearables and live coaching are out of scope.
-- Product Order bank reconciliation and refunds are manual records; no bank/Stripe API performs settlement.
-- Legacy membership payment/configuration is separate from Product Order payment.
-- Product image coverage is intentionally limited to verified assets (canonical baseline: 1 ProductImages row).
-- Final TASK-007 backend lint passed with 58 pre-existing warnings; frontend production build passed with a non-blocking chunk-size warning.
-- Legacy operational modules remain outside TASK-008 refactoring scope and use mixed controller/service patterns.
-- Authenticated Marketplace browser journeys are not automated because no safe Playwright/Cypress fixture lifecycle exists. API/security acceptance uses disposable databases; canonical credentials are never created for browser testing.
-- Live Product Order SMTP is environment-dependent and was not exercised in SELLER-013. The guarded deterministic acceptance transport passed; commerce commits before best-effort delivery.
-- Frontend has no lint script. Backend retains warning-only `no-explicit-any` debt and the frontend production build retains a Vite large-chunk advisory.
-- Carrier integration, automated bank refund/payout, full RMA, automated clawback, Seller wallet/escrow, AI moderation and Seller review replies remain outside Marketplace MVP.
-- Team Summary: `NOT FOUND`.
-- Browser-local token persistence remains a deliberate compatibility constraint; XSS prevention, exact CORS allowlists and strict CSP/Helmet remain important. A future cookie-based redesign requires a separate CSRF threat-model review.
+Status: CANONICAL
+Last verified: 2026-08-03
 
-Real Gmail, Bank/QR, authenticated Customer and Admin browser flows are verified; older contrary limitations are fixed and superseded.
-
-Auth/RBAC closure reports manual browser evidence only and does not claim Codex browser automation PASS.
-
-The canonical post-migration smoke run confirmed health and Admin login/me, but refresh rotation/logout revocation was inconclusive and requires a clean follow-up smoke run.
-Dashboard limitation: the current backend still has no broad Coach-scoped dashboard redesign; the Coach workspace keeps its existing scope. The approved Member Workout slice now has real assignment, schedule, session, snapshot, set-log and progress endpoints. Authenticated Member workout routes were checked at 375, 768 and 1440 widths with no horizontal overflow. Browser screenshot capture was not required; verification used rendered DOM and measured overflow.
-
-The three pre-existing frontend TypeScript errors remain intentionally out of scope: `ProductCard.tsx`, `ReviewsPage.tsx`, and `reviewsApi.ts`. Frontend production build passes; Vite still reports its non-blocking large-chunk advisory.
+- The current task implements the minimum Coach/Member Workout business flow. Measurement tracking, medical diagnosis, nutrition, wearables, AI recommendations, camera/pose estimation, automatic rep counting and live coaching remain out of scope.
+- Reassignment has a reusable transactional domain function and an ADR, but no Admin UI or public reassignment route is added in this Coach-only task.
+- Legacy `WorkoutSessions` remain a separate historical source. Coach monitoring can show legacy rows with an explicit blocked set-summary reason; new Member Workout rows provide snapshot/set/progress facts.
+- Frontend has no lint script. The production build may emit a non-blocking Vite large-chunk advisory.
+- Exactly three frontend TypeScript errors remain pre-existing and outside this task: `ProductCard.tsx`, `ReviewsPage.tsx` and `reviewsApi.ts`.
+- Browser acceptance uses disposable deterministic data and must not create fixtures in `GYMFIT_DB`. Marketplace authenticated journeys and payment integrations remain governed by their own supporting documentation.
+- Browser-local token persistence remains a compatibility constraint. A future cookie/CSP redesign requires a separate CSRF/security task.

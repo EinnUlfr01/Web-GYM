@@ -1,6 +1,6 @@
 # API Overview
 
-Catalog generated from `backend/src/app.ts` and current route files on 2026-07-15. `Auth` means JWT bearer authentication; role checks shown are backend checks.
+Catalog verified against `backend/src/app.ts` and current route files on 2026-08-03. `Auth` means JWT bearer authentication; role checks shown are backend checks.
 
 The complete six-actor authorization matrix and session/ownership rules are maintained in [AUTH_RBAC_SECURITY_MODEL.md](AUTH_RBAC_SECURITY_MODEL.md). `authenticate` validates the live session, token version, active user and current role on every protected request.
 
@@ -81,19 +81,19 @@ Approval atomically promotes the applicant to Seller, revokes existing sessions,
 
 ## Relevant legacy modules
 
-Mounted APIs include public/authenticated Plans, Coaches, Bookings, Videos, Exercises; and authenticated Referral, Coupons, Loyalty, CRM, Tickets, Invoices, Audit, Analytics, Revenue, Backup and Media. Their route files are authoritative. Existing Exercises provides public list/taxonomy/detail plus Admin/Coach update; it is a Discovery Gate input, not proof TASK-008 is implemented. Membership payment under Plans is separate from Product Order payment.
+Mounted APIs include public/authenticated Plans, Coaches, Bookings, Videos, Exercises; and authenticated Referral, Coupons, Loyalty, CRM, Tickets, Invoices, Audit, Analytics, Revenue, Backup and Media. Their route files are authoritative. Existing Exercises remains a separate shared source; Membership payment under Plans is separate from Product Order payment.
 
-## Planned, not implemented
+## Out of scope for current Coach hardening
 
-TASK-008 plans Admin/Coach Exercise and Program CRUD/builder APIs; Admin/Coach assignment APIs; Member self assignment/schedule/session/set-log APIs; and Member/Coach/Admin progress APIs. Exact paths must be finalized after Discovery and must not be advertised as current routes.
+Admin Coach Management, Admin pages, Video, Marketplace, Seller, Payment, Refund and Settlement are not changed by the Coach/Member Workout slice. The current Member Workout routes below are implemented and self-scoped; route files remain authoritative for exact validation.
 
 ## Authorization and response principles
 
-JWT bearer authentication supplies the authenticated identity and role (`ADMIN`, `COACH`, `MEMBER`). Backend middleware and owner-filtered service queries are authoritative; frontend guards are navigation UX only. Customer Order endpoints derive ownership from JWT and reject cross-member access. Admin override exists only in Admin routes. New TASK-008 Coach access must require an active Coach-Member scope.
+JWT bearer authentication supplies the authenticated identity and role (`ADMIN`, `COACH`, `MEMBER`). Backend middleware and owner-filtered service queries are authoritative; frontend guards are navigation UX only. Customer Order endpoints derive ownership from JWT and reject cross-member access. Admin override exists only in Admin routes. Coach Workout access requires an active CRM/assignment scope; Member Workout identity comes from the Member JWT.
 
 Validation failures use 400-class responses, missing/invalid authentication uses 401, insufficient role/scope uses 403, missing resources use 404, business transition/concurrency conflicts use 409, and incomplete required external configuration may use 503. Central error handling owns unexpected failures. SQL inputs must remain parameterized; pagination, filtering and sorting require validation/allowlists.
 
-Order and Payment histories are immutable normal-flow audit data. Email is attempted after committed commerce state and cannot roll back the transaction. Planned TASK-008 workout/progress APIs are **PLANNED, NOT IMPLEMENTED** and must enforce Member ownership, Coach scope, privacy and concurrency rules from the specification.
+Order and Payment histories are immutable normal-flow audit data. Email is attempted after committed commerce state and cannot roll back the transaction. Member Workout session snapshots and terminal set logs are self-scoped and transactional; Coach reads remain scoped and read-only.
 
 Auth/RBAC closure preserved the canonical Order and verified no acceptance fixtures remain in the canonical database.
 
@@ -197,6 +197,8 @@ All routes below require `authenticate` plus `authorize(member)`, except the Coa
 | POST | `/api/member/workouts/sessions/:sessionId/abandon` | `IN_PROGRESS` to `ABANDONED`; schedule to `SKIPPED` |
 | POST/PATCH/DELETE | `/api/member/workouts/sessions/:sessionId/exercises/:sessionExerciseId/sets...` | Self-only set CRUD while in progress |
 | GET | `/api/member/workouts/progress` | Completed sessions, duration, volume and due completion |
+| GET | `/api/member/workouts/progress/sessions` | Completed/abandoned history with status/date/program/day filters and pagination |
+| GET | `/api/member/workouts/progress/exercises/:exerciseId` | Self-only exercise totals and completed-session history; `404` without history |
 
 Coach session history/detail/progress now include Member-generated rows within the existing Coach-to-Member scope. Cross-scope resources return `404`; role failures return `401/403`.
 # SELLER-006 Admin Product Moderation

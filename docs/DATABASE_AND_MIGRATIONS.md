@@ -1,104 +1,38 @@
 # Database and Migrations
 
-GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must never mutate it.
+Status: CANONICAL
+Last verified: 2026-08-03
 
-The runner in `backend/src/scripts/migrate.ts` reads ordered `db/migrations/NNNN_description.sql` files, applies each in a transaction, and records filename/version/SHA-256 in `SchemaMigrations`. `npm run db:migrate:status` is read-only. A changed checksum for an applied migration is an integrity failure; never edit migrations `0001`-`0005`.
+GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must never mutate it. The runner in `backend/src/scripts/migrate.ts` reads ordered `db/migrations/NNNN_description.sql` files, applies each migration transactionally and records filename/version/SHA-256 in `SchemaMigrations`. `npm run db:migrate:status` is read-only.
 
-Filenames must match `NNNN_description.sql` and execute lexicographically. Each migration and its tracking row commit in one transaction. A line containing only `GO` is a supported SQL batch separator. Apply mode must stop when required foundation tables are absent or stock backfill is ambiguous; destructive reset/bootstrap is not a fallback.
+## Current migration contract
 
-| Migration | Purpose |
-|---|---|
-| 0001 | Commerce catalog foundation: variants/options/images and canonical per-variant Inventory |
-| 0002 | Default variants, low-stock threshold and InventoryAdjustments |
-| 0003 | Orders, OrderItems and OrderStatusHistory |
-| 0004 | PaymentStatusHistory |
-| 0005 | Reservation expiration metadata/index |
-| 0006 | Auth session security: `Users.token_version`, hashed rotating `AuthSessions`, and active booking-slot uniqueness |
-| 0100 | Seller Application and `seller` primary-role foundation |
+| Migration | Purpose | State |
+|---|---|---|
+| `0001`–`0005` | Commerce foundation, inventory, orders, payment history and reservation metadata | Applied and immutable |
+| `0006` | Auth session security and booking-slot uniqueness | Applied and immutable |
+| `0007_coach_programs_assignments_schedules.sql` | Coach programs, days, exercises, assignments and schedules | Applied and checksum-valid |
+| `0008_member_workout_flow.sql` | Member session, immutable exercise snapshot and set-log tables | Applied and additive |
+| `0100`–`0111` | Seller/Marketplace modules | Existing applied range; unchanged by Coach work |
 
-Verified canonical baseline after auth-session closure: Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, active AuthSessions 0. Inventory enforces non-negative `on_hand`, `0 <= reserved <= on_hand`, and computed `available = on_hand - reserved`. Products own variants/images; variants own inventory; Orders own item snapshots and immutable status/payment history. Expiration releases eligible unpaid reservations; delivery consumes reserved/on-hand stock.
+The canonical verification target is 20 applied migrations, 0 pending and 0 checksum mismatches. The exact live result must be captured by the final status command; do not hard-code a future commit hash in this document.
 
-Before applying a migration: confirm target identity, create a canonical backup using the established backup process, verify that backup, review SQL and checksum/status, then apply once. Never include passwords, credential-bearing connection strings or sensitive backup names in documentation/logs.
+## Coach/Member data model
 
-Acceptance uses an isolated database such as `GYMFIT_DB_TASK008_ACCEPTANCE_<timestamp>` restored from a verified baseline. Verify identity before mutation, run acceptance there, clean up, and re-check canonical counts/integrity.
+`0007` owns `WorkoutPrograms`, `WorkoutProgramDays`, `WorkoutProgramExercises`, `CoachProgramAssignments` and `CoachProgramSchedules`. `0008` owns `MemberWorkoutSessions`, `MemberWorkoutSessionExercises` and `MemberWorkoutSetLogs`. The snapshot copies exercise identity, name, ordering and targets at Start; later template edits do not rewrite history. Unique constraints protect one session per schedule, one active session per Member and one set number per session exercise.
 
-TASK-008 is not started and may not reuse `0006`; any future numbering must be chosen only after its Discovery Gate. See the [full specification](TASK-008_IMPLEMENTATION_SPEC.md).
+Member and Coach identity is derived from JWT plus backend scope queries. The current assignment requires `ACTIVE`, its date range to include today in its IANA timezone, and its Coach to match the active `CRMCustomers.assigned_coach_id`. Historical sessions remain preserved even when a CRM scope changes.
 
-Marketplace allocation is reserved as Coach `0007`–`0049`, shared `0050`–`0099`, and Seller `0100`–`0199`. SELLER-001 uses `0100`; applied migrations must never be renumbered or edited. `SellerApplications` owns one mutable application per User while `SellerApplicationStatusHistory` is append-only.
+## Safe migration procedure
 
-SELLER-004 requires no database migration. Migration `0101` already provides
-the authoritative `Products.shop_id` NOT NULL foreign key and
-`IX_Products_Shop_Active`; its backfill assigned the legacy catalog to GymFit
-Official. ProductVariants, ProductImages, and Inventory intentionally do not
-duplicate `shop_id` because they inherit ownership through Product. The
-canonical state therefore remains nine applied migrations with no `0103`.
+1. Query and verify the target database identity.
+2. Create and verify a `COPY_ONLY CHECKSUM` backup before mutation.
+3. Review the migration SQL, runner status and checksum.
+4. Apply forward-only through the normal runner; never edit or renumber an applied file.
+5. Re-run status and invariant queries.
 
-SELLER-004 acceptance databases require `SELLER004_ACCEPTANCE=1`, use the
-`GYMFIT_DB_SELLER004_ACCEPTANCE_` prefix, and apply the existing `0001`–`0102`
-chain before tests.
+Acceptance uses an isolated name such as `GYMFIT_DB_COACH_E2E_FIX_<timestamp>`, restored from a verified baseline. Seed deterministic data only there, run API/browser acceptance, clean fixture rows, drop the database and verify it is absent. Never print credentials or secrets.
 
-SELLER-005 uses `0103_seller_product_mutation_and_submission.sql`. It adds the
-Product moderation foundation, submitted/review fields, and nullable
-BrandRequest FK, with constraints enforcing lifecycle consistency and exactly
-one Brand source. Existing Products are backfilled to PUBLISHED without
-changing catalog IDs or child data. Indexes support Shop moderation lists and
-the future Admin review queue. SELLER-005 acceptance requires
-`SELLER005_ACCEPTANCE=1`, an isolated
-`GYMFIT_DB_SELLER005_ACCEPTANCE_` database, and an isolated upload directory.
+## Integrity rules
 
-Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
-
-Canonical migration `0006_auth_session_security.sql` applied successfully via the migration runner with checksum `e6608c0d29d163f4f4a6627e8e1f34fa22f642bbec1f3cea5ac01cc31982dd74`; pending migrations are `0` and checksum mismatches are `0`. Backup and `RESTORE VERIFYONLY WITH CHECKSUM` passed before mutation.
-# Migration 0101 — Shop ownership baseline
-
-`0101_shop_foundation_and_product_ownership_baseline.sql` creates `Shops`, the
-GymFit Official system row, Seller Shop backfill and mandatory
-`Products.shop_id`.
-
-Key invariants:
-
-- filtered unique indexes enforce one Shop per non-null owner and unique
-  `system_key`;
-- Shop slug is unique;
-- system Shops have no owner and non-system Shops require an owner;
-- Shop status is ACTIVE or SUSPENDED and aggregate placeholders are bounded;
-- every Product has a non-null, FK-backed Shop;
-- all Products that existed before 0101, including Product ID 0, belong to
-  `system_key=GYMFIT_OFFICIAL`;
-- Product, ProductVariant, Inventory and ProductImage identities and counts are
-  not rewritten.
-
-SELLER-002 acceptance databases must start with
-`GYMFIT_DB_SELLER002_ACCEPTANCE_` and require `SELLER002_ACCEPTANCE=1`.
-Canonical `GYMFIT_DB` is explicitly refused by the acceptance runner.
-# Migration 0102 — Brand Request and moderation
-
-## Coach Member Workout migrations
-
-Migration `0007_coach_programs_assignments_schedules.sql` is the canonical Coach authoring/assignment/schedule contract and remains checksum-valid. Migration `0008_member_workout_flow.sql` is additive and creates `MemberWorkoutSessions`, `MemberWorkoutSessionExercises` and `MemberWorkoutSetLogs`; it does not alter legacy `WorkoutSessions` or the `0007` tables.
-
-Canonical `GYMFIT_DB` verification on 2026-08-03: 20 applied migrations, 0 pending, 0 checksum mismatches. Before applying `0008`, a COPY_ONLY CHECKSUM full backup was created and `RESTORE VERIFYONLY WITH CHECKSUM` passed. The migration runner applied `0008` transactionally; no manual SQL, reset or drop was used on canonical.
-
-Migration 0102 adds unique `Brands.normalized_name`, protected `is_generic`,
-the Generic Brand, transactional `BrandRequests`, and immutable
-`BrandRequestStatusHistory`. It preserves existing Brand IDs and every
-`Products.brand_id` reference. A filtered unique index permits only one global
-PENDING request per normalized name.
-# SELLER-006 / Migration 0104
-
-`0104_admin_product_moderation.sql` adds nullable current-decision fields to Products and append-only `ProductModerationHistory`. Existing GymFit Official Products retain null `reviewed_at`, `published_at`, and `reviewed_by_user_id`; migration 0104 does not fabricate legacy history. The history table has Product/User foreign keys, lifecycle/reason checks, inbox/history indexes, and an UPDATE/DELETE rejection trigger.
-# SELLER-007 marketplace query decision
-
-No database migration required. SELLER-007 reuses existing additive indexes from catalog and SELLER-002 through SELLER-006: Shop status/verification, Product Shop/active/moderation, Product Variant product/default, Inventory Variant, Product image, Brand, and Category indexes. No `0105` placeholder or duplicate index is created.
-
-Public price is computed from active Variants as the lower valid sale price or regular price. Product cards expose the minimum and maximum of those effective prices. Public stock uses only computed `Inventory.available`; `reserved` remains internal. Marketplace count and pagination operate at Product granularity.
-
-## Final Seller Marketplace migration state
-
-The final Marketplace range is `0100`–`0111`: Seller Application, Shop ownership, BrandRequest, Product mutation/moderation, Parent/ShopOrder, persistent Cart, payment/refund/voucher, hub logistics, commission/settlement, complaint/replacement, and Product/Shop reviews.
-
-Canonical SELLER-013 verification found 18 total migrations applied, 0 pending and 0 checksum mismatches; highest Seller migration is 0111. SELLER-013 requires no new migration. The older 11-migration statement below is historical SELLER-007 context.
-
-The migration runner accepts `--through=NNNN`, `--through NNNN`, and the explicit `--historical-pre-0105` alias. Partial modes are acceptance-fixture tools only. Normal canonical operation is status or full forward apply.
-
-Canonical expectation remains 11 applied migrations, 0 pending, and 0 checksum mismatch. Migrations 0100–0104 are unchanged.
+Applied checksums are immutable. No reset, drop or manual migration is a fallback. A checksum mismatch blocks completion. Existing Marketplace migrations and commerce invariants remain outside Coach scope and must be unchanged.

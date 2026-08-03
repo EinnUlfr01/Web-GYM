@@ -26,14 +26,12 @@ Creating an order reserves inventory. Expiration or valid cancellation releases 
 
 Static product uploads use the configured upload directory and `/uploads`; repository images use `/image`; media uses `/media`. Bank QR accepts a root-relative public URL or HTTPS and rejects unsafe/local schemes.
 
-## TASK-008 boundary
+## Workout boundary
 
-Auth/RBAC hardening was accepted manually across Member, Coach and Admin browser flows; temporary acceptance resources were removed after verification.
-
-TASK-008 must first audit the existing public Exercises API, `WorkoutPrograms.tsx`, `MediaPlayer.tsx`, User/Role data, media handling, and any Coach-Member/workout tables. It extends the system only after REUSE/EXTEND/REPLACE/DEPRECATED decisions; it must not create a parallel workout system. Commerce code and migrations `0001`-`0005` remain untouched.
+The Coach/Member Workout slice reuses `Users`, `CRMCustomers` and `Exercises`, extends the repository with Coach migrations `0007` and additive execution migration `0008`, and keeps legacy `WorkoutSessions` separate. Commerce, Video and Admin surfaces are not part of this boundary.
 ## Dashboard presentation boundary
 
-The GYMFIT Command Center is a frontend presentation layer over existing API contracts. Role visibility remains centralized in `frontend/src/auth/accessPolicy.ts`; dashboard components must not widen Member or Coach data scope. Missing backend dashboard fields render as unavailable/empty states rather than fabricated values. TASK-008 remains separate and not started.
+The GYMFIT Command Center is a frontend presentation layer over existing API contracts. Role visibility remains centralized in `frontend/src/auth/accessPolicy.ts`; dashboard components must not widen Member or Coach data scope. Missing backend dashboard fields render as unavailable/empty states rather than fabricated values. The Member Workout widget has explicit loading, empty and retryable error states.
 
 Dashboard authentication was accepted through three differential layers: direct backend, explicit Vite `/api` proxy, and the real React form/store/router flow. The earlier login timeout was isolated to the acceptance harness/process context; no auth or dashboard source change was required.
 

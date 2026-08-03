@@ -1,3 +1,7 @@
+# Status: HISTORICAL
+# Do not use as implementation source of truth.
+# Superseded by: `docs/coach/COACH_END_TO_END_HANDOVER.md`
+
 # TASK-008 Start Checkpoint
 
 TASK-007 baseline: FULL_TASK_007_COMPLETE

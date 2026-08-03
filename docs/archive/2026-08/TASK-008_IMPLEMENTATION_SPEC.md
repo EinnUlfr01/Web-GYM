@@ -1,3 +1,7 @@
+# Status: HISTORICAL
+# Do not use as implementation source of truth.
+# Superseded by: `docs/coach/COACH_END_TO_END_HANDOVER.md` and `docs/ROADMAP.md`
+
 # GymFit — TASK-008 Implementation Specification
 
 ## Workout Program, Member Sessions and Progress

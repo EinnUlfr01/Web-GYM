@@ -1,3 +1,7 @@
+# Status: HISTORICAL
+# Do not use as implementation source of truth.
+# Superseded by: `docs/marketplace/GYMFIT_SELLER_MARKETPLACE_FULL_ROADMAP.md`
+
 # GymFit Seller Marketplace — Roadmap triển khai đầy đủ
 
 **Trạng thái:** Roadmap được nhóm thống nhất để chuẩn bị viết Prompt cho Codex  

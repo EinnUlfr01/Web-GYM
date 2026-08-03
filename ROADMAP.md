@@ -1,40 +1,29 @@
 # GymFit Roadmap
 
-Updated 2026-07-15. Older roadmap statements that cancelled TASK-008 are superseded.
-
-## Security hardening interlock
-
-Auth/RBAC hardening occupies migration `0006` and is independent of TASK-008. TASK-008 remains not started; its first possible migration number is now `0007`, only after its Discovery Gate.
+Updated 2026-08-03. This file is a current workstream view; historical checkpoints are archived under `docs/archive/2026-08/` and `logs/`.
 
 ## Completed foundation
 
-| Task | Status | Outcome |
+| Workstream | Status | Evidence |
 |---|---|---|
-| TASK-001 through TASK-006 | Complete | Core gym, authentication, roles, membership, operational and catalog foundations |
-| TASK-007A | Complete | Product/image, variant and inventory foundation |
-| TASK-007B | Complete | Admin catalog, variant, inventory and order management |
-| TASK-007C | Complete | Variant checkout, orders, payment, reservation, Gmail/Bank and lifecycle acceptance |
+| Core gym/auth/RBAC and TASK-001–TASK-007 | COMPLETE | Existing module handovers and migration ledger |
+| Coach program, assignment and schedule authoring | COMPLETE | Migration `0007`, Coach handover |
+| Member Workout minimum flow | COMPLETE | Migration `0008`, Coach E2E handover |
 
-## TASK-008 — WORKOUT PROGRAM AND MEMBER PROGRESS
+## Active: Coach/Member Workout hardening
 
-TASK-008 was reopened after FULL TASK-007 acceptance. Its implementation has not started.
+| Workstream | Status | Owner | Dependency | Gate | Next action |
+|---|---|---|---|---|---|
+| Flat session/progress contracts | COMPLETE | Coach slice | `0007`/`0008` applied | API/browser acceptance PASS | Maintain contract tests |
+| Set Log CRUD and terminal rules | COMPLETE | Coach slice | Member session snapshot | API/browser acceptance PASS | Maintain contract tests |
+| Progress history/exercise detail | COMPLETE | Coach slice | Completed Member sessions | API/browser acceptance PASS | Maintain contract tests |
+| Assignment/date/timezone/reassignment policy | COMPLETE | Coach slice | CRM scope | API/concurrency acceptance PASS | Maintain lifecycle ADR |
+| Documentation cleanup | COMPLETE | Repository | Inventory/governance | Link/claim/hygiene scan PASS | Update canonical docs when contracts change |
 
-1. **008A — Exercise Library and Workout Programs.** Discovery resolved; migration `0006`; Exercise/Program APIs, ownership rules, program builder and Admin/Coach UI; Build Gate A passes.
-2. **008B — Member Assignments and Workout Sessions.** Coach-Member scope decided; migration `0007`; assignments, schedules, immutable session snapshots, set logs and Member workout flow; authorization/concurrency acceptance and Build Gate B pass.
-3. **008C — Member Progress and Final Project Acceptance.** Migration `0008` only if manual measurements require it; progress formulas/API/UI; privacy, timezone, browser, isolated-DB and final build acceptance pass.
+## Explicitly out of scope for this workstream
 
-Dependencies and gates: branch from the auth/RBAC closure; complete the [Discovery Gate](docs/TASK-008_DISCOVERY_CHECKLIST.md) before `0007`; never edit applied migrations; use isolated acceptance databases; update documentation before handoff.
+Admin Coach Management, Admin pages, Video Library, Marketplace, Seller, Payment, Refund, Settlement, and the three pre-existing frontend TypeScript errors.
 
-Out of scope: AI, camera, pose estimation, automatic rep counting, medical diagnosis, nutrition, wearables, social feed/gamification expansion, live coaching, and new payment work.
+## Delivery gates
 
-Final project completion requires all three subtasks, migrations and checksums, backend/frontend build gates, authorization/IDOR/concurrency tests, Admin/Coach/Member browser acceptance, acceptance cleanup, canonical DB integrity, documentation, commit, and branch push.
-
-Auth/RBAC closure: manual browser acceptance and offline cleanup passed; no browser automation was rerun.
-
-Canonical migrations `0001–0006` are applied and auth/RBAC closure is complete. TASK-008 remains not started; it is unblocked and its next action is the Discovery Gate, followed by migration `0007` if required.
-
-Dashboard UI redesign is complete and authenticated browser-accepted for Member, Coach and Admin at desktop/mobile breakpoints, including account switching and route guards. The isolated acceptance environment was removed. This frontend-only workstream does not start TASK-008 or change backend contracts.
-
-## Coach E2E completion update — 2026-08-03
-
-The approved Coach business slice is complete on the local branch: migration `0007` remains checksum-valid, additive migration `0008_member_workout_flow.sql` is applied, and the minimum Member Workout Flow is available. The accepted scope is limited to Coach monitoring plus Member assignment/schedule, session snapshot, set logs, Complete/Abandon and Progress. Admin Coach Management, Video, Marketplace, Seller, Payment, Refund and Settlement remain out of scope.
+Backend build, frontend TypeScript with only the three recorded baseline errors, frontend production build, focused Coach regression, isolated real-data acceptance, responsive browser checks at 375/768/1440, migration `0007` checksum/status verification, canonical database integrity and documentation link/secret/hygiene scans. No acceptance fixture may be written to `GYMFIT_DB`, and no push is automatic.

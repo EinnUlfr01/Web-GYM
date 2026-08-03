@@ -28,7 +28,7 @@ Product stock is variant-specific and `available = on_hand - reserved`. Do not b
 
 Use targeted inspection/type checking while editing. Backend scripts are `dev`, `build`, `start`, `lint`, `db:migrate`, and `db:migrate:status`; frontend scripts are `dev`, `build`, and `preview`. Run builds at meaningful task gates, not after every file. For acceptance, restore to an isolated timestamped database, verify `DB_NAME()` before mutation, run authorization/IDOR/concurrency/browser cases, clean up, and verify `GYMFIT_DB` integrity.
 
-New migrations use `NNNN_description.sql`, execute lexically, and are recorded with SHA-256 checksum. Never modify an applied migration. TASK-008 starts at `0006` only after the [Discovery Gate](TASK-008_DISCOVERY_CHECKLIST.md).
+New migrations use `NNNN_description.sql`, execute lexically, and are recorded with SHA-256 checksum. Never modify an applied migration. Coach uses `0007` and Member Workout execution uses additive `0008`; verify the ledger before any new migration.
 
 For debugging, check health/API response, configured database identity, central structured logs, validation errors, JWT/role state, and frontend network responses. Do not commit runtime logs or print environment secrets.
 
@@ -36,7 +36,7 @@ Update README/status/API/database/security/limitations/handoff documents with ev
 
 ## Branch and handoff policy
 
-TASK-008 uses `008-workout-programs-progress` from final TASK-007 commit `427ad52996961648ffc622ca1bf2999a5aab3df4`. Do not push directly to `main`, merge `main` during the task, force-push, or edit applied migrations. Inspect the route registration, module, consumer, schema and tests before changing a contract. Stage explicit paths only; never use `git add .` or `git add -A`.
+The current hardening branch is `fix/vinh-coach-e2e-hardening` from `21f69017b0c4f2f5933998b0382d0676b0e83a16`. Do not push directly to `main`, merge `main` during the task, force-push, or edit applied migrations. Inspect the route registration, module, consumer, schema and tests before changing a contract. Stage explicit paths only; never use `git add .` or `git add -A`.
 
 Build/lint commands verified from package scripts: backend `npm run build` and `npm run lint`; frontend `npm run build` (TypeScript runs through the configured Vite build). Use targeted checks during implementation and the specification's Build Gates rather than rebuilding after every file.
 

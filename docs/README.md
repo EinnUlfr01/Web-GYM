@@ -1,30 +1,32 @@
 # GymFit Documentation Index
 
-This is the only documentation index. Current source and applied migrations override documentation if a conflict is found.
+This is the only documentation index. Source code, migration files and verified database status override any document conflict. Historical files are evidence only and are archived under [`archive/`](archive/).
 
-## Which file should I read?
+## Getting started
 
-- New teammate: [root README](../README.md), then [Developer Workflow](DEVELOPER_WORKFLOW.md).
-- Current project state: [PROJECT_STATUS.md](../PROJECT_STATUS.md).
-- What to build next: [ROADMAP.md](../ROADMAP.md) and [TASK-008 Implementation Specification](TASK-008_IMPLEMENTATION_SPEC.md).
-- Database work: [Database and Migrations](DATABASE_AND_MIGRATIONS.md).
-- API/security work: [API and Authorization](API_AND_AUTHORIZATION.md).
-- Historical TASK-007 evidence: [TASK-007 Final Handoff](TASK-007_FINAL_HANDOFF.md) and [TASK-007 Completion](../logs/TASK-007_COMPLETION.md).
-- Coach-only TASK-008 evidence: [Coach Discovery Report](coach/COACH_ROLE_DISCOVERY_REPORT.md) and [Coach Role Handover](coach/COACH_ROLE_HANDOVER.md).
-- Coach Member E2E evidence: [Member Workout Flow Discovery](coach/MEMBER_WORKOUT_FLOW_DISCOVERY.md) and [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md).
+- New/local setup: [root README](../README.md), [Setup and Environment](SETUP_AND_ENVIRONMENT.md), [Developer Workflow](DEVELOPER_WORKFLOW.md), [Contributing](../CONTRIBUTING.md).
+- Current snapshot and next work: [PROJECT_STATUS](../PROJECT_STATUS.md), [ROADMAP](../ROADMAP.md).
+- Documentation rules and full audit: [Documentation Governance](DOCUMENTATION_GOVERNANCE.md), [Documentation Inventory](DOCUMENTATION_INVENTORY.md), [Cleanup Report](DOCUMENTATION_CLEANUP_REPORT.md).
 
-## Canonical files
+## Canonical source set
 
-| File | Purpose | Intended reader | Update when |
-|---|---|---|---|
-| [Architecture](ARCHITECTURE.md) | Verified system structure and data flows | Developers/architects | Modules, integrations or boundaries change |
-| [Setup and Environment](SETUP_AND_ENVIRONMENT.md) | Install, environment names and startup | New/local developers | Scripts or configuration names change |
-| [Database and Migrations](DATABASE_AND_MIGRATIONS.md) | Schema ownership and migration safety | Backend/DB developers | A migration is added/applied |
-| [API and Authorization](API_AND_AUTHORIZATION.md) | Current API groups and access rules | Backend/frontend/security | Routes or authorization change |
-| [Developer Workflow](DEVELOPER_WORKFLOW.md) | Branch, implementation, testing and handoff workflow | Contributors | Tooling or delivery gates change |
-| [Known Limitations](KNOWN_LIMITATIONS.md) | Only current verified limitations | All contributors | A limitation is added or resolved |
-| [TASK-007 Final Handoff](TASK-007_FINAL_HANDOFF.md) | Official final evidence | Maintainers | Only for a verified regression/correction |
-| [TASK-008 Implementation Specification](TASK-008_IMPLEMENTATION_SPEC.md) | Authoritative scope and acceptance contract | TASK-008 implementers | Approved TASK-008 decision changes |
-| [TASK-008 Discovery Checklist](TASK-008_DISCOVERY_CHECKLIST.md) | First implementation gate | TASK-008 implementers | Discovery requirements change |
+- [Architecture](ARCHITECTURE.md)
+- [API and Authorization](API_AND_AUTHORIZATION.md)
+- [Database and Migrations](DATABASE_AND_MIGRATIONS.md)
+- [Known Limitations](KNOWN_LIMITATIONS.md)
+- [Coach Role Handover](coach/COACH_ROLE_HANDOVER.md)
+- [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md)
+- [Coach Reassignment ADR](coach/ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md)
 
-Curated project history is under [`logs/`](../logs/README.md). Runtime logger output belongs under ignored `backend/logs/` and is never documentation.
+## Module references
+
+- Coach/Member Workout: [Member Workout Flow Discovery](coach/MEMBER_WORKOUT_FLOW_DISCOVERY.md), [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md).
+- Dashboard presentation: [Dashboard Design System](DASHBOARD_DESIGN_SYSTEM.md).
+- Auth/RBAC: [Auth RBAC Security Model](AUTH_RBAC_SECURITY_MODEL.md).
+- Database and API contract details: [Database and Migrations](DATABASE_AND_MIGRATIONS.md), [API and Authorization](API_AND_AUTHORIZATION.md).
+- Marketplace: [Marketplace MVP Final Handover](marketplace/MARKETPLACE_MVP_FINAL_HANDOVER.md) and its supporting ADRs. Marketplace is out of scope for the current Coach hardening.
+- Historical task evidence: [TASK-007 Final Handoff](TASK-007_FINAL_HANDOFF.md), [curated logs](../logs/README.md), and the archived [TASK-008 Discovery Checklist](archive/2026-08/TASK-008_DISCOVERY_CHECKLIST.md).
+
+## Index policy
+
+This file is an index, not a second source of truth. Add new canonical or supporting documents to the inventory and link them here only when they have a maintained owner and update trigger.

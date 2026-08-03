@@ -19,7 +19,7 @@ Migration `0008_member_workout_flow.sql` adds a separate execution model:
 2. `MemberWorkoutSessionExercises` stores the exercise target snapshot at Start Session. It contains copied names and targets, so later Coach program edits do not rewrite history.
 3. `MemberWorkoutSetLogs` stores the member's set-level input with a uniqueness guard on `(session_exercise_id, set_number)`.
 
-This reuses the `0007` Coach tables without altering their schema or the legacy session model. No `0008` business behavior is enabled until its migration is applied through the migration runner.
+This reuses the `0007` Coach tables without altering their schema or the legacy session model. Migration `0008` is applied through the normal runner and enables the additive Member execution tables without changing `0007`.
 
 ## State and authorization rules
 
