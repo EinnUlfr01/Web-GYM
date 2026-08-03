@@ -6,7 +6,7 @@
 
 JWT bearer authentication supplies `userId` and role. Roles are `ADMIN`, `COACH`, and `MEMBER`; backend middleware and ownership queries are authoritative. The frontend uses `ProtectedRoute` and `AdminRoute` for navigation UX, but these do not replace API authorization.
 
-The hardened flow is `JWT -> signature/issuer/audience -> live AuthSessions + Users token_version/role/is_active -> route role check -> controller ownership query`. Refresh credentials are opaque hashed database records and rotate atomically; logout/password/security changes revoke sessions. See [AUTH_RBAC_SECURITY_MODEL.md](AUTH_RBAC_SECURITY_MODEL.md).
+The hardened flow is `JWT -> signature/issuer/audience -> live AuthSessions + Users token_version/role/is_active -> route role check -> controller ownership query`. Refresh credentials are opaque hashed database records and rotate atomically; logout/password/security changes revoke sessions. See [API and Authorization](API_AND_AUTHORIZATION.md) for the active route policy.
 
 Backend features live under `backend/src/modules/`. Legacy modules commonly use route/controller pairs; current commerce modules add validation and service layers. `backend/src/app.ts` mounts middleware, `/uploads`, `/image`, `/media`, health/CSRF endpoints, and all API routers. Central not-found/error middleware formats failures; validation uses Zod or express-validator depending on module.
 

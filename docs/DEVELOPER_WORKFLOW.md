@@ -20,7 +20,7 @@ Current commerce modules (`products`, `admin-products`, `admin-catalog`, `admin-
 
 Login returns JWT state used by the Axios client and Zustand auth store. Protected/Admin frontend routes improve UX. Backend `authenticate`, `authorize`, and owner-filtered queries provide actual security. Never accept a customer identity from request body when it can be derived from the JWT.
 
-Auth hardening uses bearer access tokens backed by live `AuthSessions`; refresh tokens are opaque and one-time rotating. Use the shared frontend access policy for every new protected route/navigation entry, and add backend role plus ownership enforcement for every API route. See [AUTH_RBAC_SECURITY_MODEL.md](AUTH_RBAC_SECURITY_MODEL.md).
+Auth hardening uses bearer access tokens backed by live `AuthSessions`; refresh tokens are opaque and one-time rotating. Use the shared frontend access policy for every new protected route/navigation entry, and add backend role plus ownership enforcement for every API route. See [API and Authorization](API_AND_AUTHORIZATION.md).
 
 Product stock is variant-specific and `available = on_hand - reserved`. Do not bypass service transactions, transition rules, history writes, expiration handling or ownership filters.
 

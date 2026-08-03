@@ -2,7 +2,7 @@
 
 Catalog verified against `backend/src/app.ts` and current route files on 2026-08-03. `Auth` means JWT bearer authentication; role checks shown are backend checks.
 
-The complete six-actor authorization matrix and session/ownership rules are maintained in [AUTH_RBAC_SECURITY_MODEL.md](AUTH_RBAC_SECURITY_MODEL.md). `authenticate` validates the live session, token version, active user and current role on every protected request.
+The six-actor authorization matrix and session/ownership rules are maintained in this document and the active module handover. `authenticate` validates the live session, token version, active user and current role on every protected request.
 
 ## Auth
 

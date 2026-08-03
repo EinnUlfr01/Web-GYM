@@ -1,34 +1,48 @@
 # GymFit Documentation Index
 
-This is the only documentation index. Source code, migration files and verified database status override any document conflict. Historical files are evidence only and are archived under [`archive/`](archive/).
+AI MUST READ:
 
-## Getting started
+1. [`README.md`](../README.md)
+2. [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)
+3. [`ROADMAP.md`](../ROADMAP.md)
+4. `docs/README.md` (this file)
+5. The canonical handover for the module being changed
 
-- New/local setup: [root README](../README.md), [Setup and Environment](SETUP_AND_ENVIRONMENT.md), [Developer Workflow](DEVELOPER_WORKFLOW.md), [Contributing](../CONTRIBUTING.md).
-- Current snapshot and next work: [PROJECT_STATUS](../PROJECT_STATUS.md), [ROADMAP](../ROADMAP.md).
-- Documentation rules and full audit: [Documentation Governance](DOCUMENTATION_GOVERNANCE.md), [Documentation Inventory](DOCUMENTATION_INVENTORY.md), [Cleanup Report](DOCUMENTATION_CLEANUP_REPORT.md).
+AI MUST NOT USE AS CURRENT SOURCE OF TRUTH:
 
-## Canonical source set
+- `docs/archive/**`
+- `logs/**`
+- Codex prompts and temporary packages
+- `skill/**` and `skills/**`
 
-- [Architecture](ARCHITECTURE.md)
-- [API and Authorization](API_AND_AUTHORIZATION.md)
-- [Database and Migrations](DATABASE_AND_MIGRATIONS.md)
-- [Known Limitations](KNOWN_LIMITATIONS.md)
-- [Coach Role Handover](coach/COACH_ROLE_HANDOVER.md)
-- [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md)
-- [Coach Reassignment ADR](coach/ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md)
-- [Admin Coach Management Handover](admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md)
+## Active documentation
 
-## Module references
+- Project overview: [`README.md`](../README.md)
+- Current status: [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)
+- Roadmap: [`ROADMAP.md`](../ROADMAP.md)
+- Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- API and authorization: [`API_AND_AUTHORIZATION.md`](API_AND_AUTHORIZATION.md)
+- Database and migrations: [`DATABASE_AND_MIGRATIONS.md`](DATABASE_AND_MIGRATIONS.md)
+- Known limitations: [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md)
+- Setup and environment: [`SETUP_AND_ENVIRONMENT.md`](SETUP_AND_ENVIRONMENT.md)
+- Developer workflow: [`DEVELOPER_WORKFLOW.md`](DEVELOPER_WORKFLOW.md)
+- Contributing: [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+- Coach module: [`COACH_MODULE_HANDOVER.md`](coach/COACH_MODULE_HANDOVER.md)
+- Coach reassignment decision: [`ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md`](coach/ADR_COACH_REASSIGNMENT_ASSIGNMENT_LIFECYCLE.md)
 
-- Coach/Member Workout: [Member Workout Flow Discovery](coach/MEMBER_WORKOUT_FLOW_DISCOVERY.md), [Coach End-to-End Handover](coach/COACH_END_TO_END_HANDOVER.md).
-- Admin Coach Management: [Admin Coach Management Handover](admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md).
-- Dashboard presentation: [Dashboard Design System](DASHBOARD_DESIGN_SYSTEM.md).
-- Auth/RBAC: [Auth RBAC Security Model](AUTH_RBAC_SECURITY_MODEL.md).
-- Database and API contract details: [Database and Migrations](DATABASE_AND_MIGRATIONS.md), [API and Authorization](API_AND_AUTHORIZATION.md).
-- Marketplace: [Marketplace MVP Final Handover](marketplace/MARKETPLACE_MVP_FINAL_HANDOVER.md) and its supporting ADRs. Marketplace is out of scope for the current Coach hardening.
-- Historical task evidence: [TASK-007 Final Handoff](TASK-007_FINAL_HANDOFF.md), [curated logs](../logs/README.md), and the archived [TASK-008 Discovery Checklist](archive/2026-08/TASK-008_DISCOVERY_CHECKLIST.md).
+## Marketplace reference
 
-## Index policy
+Marketplace documentation is protected and is not edited, renamed, merged or archived by Coach documentation work. Use the existing [`MARKETPLACE_MVP_FINAL_HANDOVER.md`](marketplace/MARKETPLACE_MVP_FINAL_HANDOVER.md) and its existing supporting files as the Marketplace source set.
 
-This file is an index, not a second source of truth. Add new canonical or supporting documents to the inventory and link them here only when they have a maintained owner and update trigger.
+## Archive and history
+
+`docs/archive/**` and `logs/**` preserve historical evidence only. They must not be linked as current implementation truth except through this Archive/History reference. Current milestones remain in [`logs/PROJECT_HISTORY.md`](../logs/PROJECT_HISTORY.md).
+
+## Documentation governance
+
+- Source code, migrations and verified database state override documentation conflicts.
+- Keep one canonical handover per active module and one index here.
+- Put historical evidence under `docs/archive/**` with a `HISTORICAL` header and `DO NOT USE AS CURRENT SOURCE OF TRUTH` marker.
+- Keep logs concise and human-readable; never store secrets, passwords, raw tokens or raw acceptance payloads.
+- Do not commit temporary prompts, generated packages, inventories or cleanup reports as active project documentation.
+- When contracts or migration state change, update this index, the module handover and the root status documents together.

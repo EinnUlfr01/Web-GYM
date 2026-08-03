@@ -21,7 +21,7 @@ The old Coach loses access as soon as the CRM scope changes. The new Coach does 
 
 ## Implementation boundary
 
-The reusable domain function is `reassignMemberCoach` in `backend/src/modules/coach-workspace/coach-reassignment.service.ts`. The Admin route delegates to this function and supplies the Admin actor as `assigned_by`; no public reassignment route exists. Existing Coach `createAssignment` remains the normal new-assignment path when a reassignment workflow is not invoked. Admin-specific contracts are documented in [`docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md`](../admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md).
+The reusable domain function is `reassignMemberCoach` in `backend/src/modules/coach-workspace/coach-reassignment.service.ts`. The Admin route delegates to this function and supplies the Admin actor as `assigned_by`; no public reassignment route exists. Existing Coach `createAssignment` remains the normal new-assignment path when a reassignment workflow is not invoked. Admin-specific contracts are documented in [`COACH_MODULE_HANDOVER.md`](COACH_MODULE_HANDOVER.md).
 
 ## Consequences
 

@@ -1,37 +1,47 @@
 # GymFit Project Status
 
-Updated: 2026-08-03 (Asia/Saigon)
+Updated: 2026-08-04 (Asia/Saigon)
 
 ## Snapshot
 
-- Working branch: `feat/vinh-admin-coach-management`.
-- Start baseline: `fix/vinh-coach-e2e-hardening` at `90140f5`.
-- Canonical database: `GYMFIT_DB`; acceptance databases are disposable and must use a guarded prefix.
-- Coach authoring/assignment/schedule migration `0007` is applied and checksum-valid on the canonical database.
-- Additive Member Workout migration `0008_member_workout_flow.sql` is applied on the canonical database.
-- Additive Admin Coach migration `0009_admin_coach_management.sql` is pending on the canonical database; it was applied and checksum-verified on disposable acceptance databases only.
-- No acceptance fixtures are intended to remain in `GYMFIT_DB`.
+- Working branch: `coach1`.
+- Cleanup baseline: `3ed26100f867ccd96cca8b23f19c1b35d1360db0`.
+- Canonical database: `GYMFIT_DB`.
+- Canonical migration status: `21 applied`, `0 pending`, `0 checksum mismatches`.
+- Coach migrations `0007`, `0008` and `0009` are applied and checksum-valid.
+- Acceptance databases are disposable, guarded by prefix and must be dropped after use.
+- No acceptance fixtures remain in `GYMFIT_DB`.
 
-## Admin Coach Management scope
+## Coach module
 
-The current branch adds dedicated Admin routes and pages for Coach list/detail/status, CRM Member assign/reassign through the existing reassignment service, Admin Exercise CRUD/status, and read-only Workout Governance across Programs, Assignments, Schedules, Sessions and Progress. Migration `0009_admin_coach_management.sql` adds only bounded Coach status fields; its live applied/checksum state must be verified on the target database before release.
+The Coach/Member Workout slice and bounded Admin Coach Management are implemented. The canonical handover is [`docs/coach/COACH_MODULE_HANDOVER.md`](docs/coach/COACH_MODULE_HANDOVER.md).
 
-## Coach/Member Workout scope
+- Coach Workspace: implemented and scoped by JWT/CRM/assignment ownership.
+- Member Workout: Start Session, immutable snapshot, Set Logs, Complete/Abandon, history and progress.
+- Admin Coach: list/detail/status, assign/reassign and status token invalidation.
+- Admin Exercise Library: existing-schema CRUD and activate/deactivate.
+- Admin Workout Governance: read-only Programs, Assignments, Schedules, Sessions and Progress.
+- Admin Program Builder: `BLOCKED_ADMIN_PROGRAM_OWNERSHIP_MODEL`.
 
-The current slice covers Coach-owned programs and scoped assignments/schedules plus Member current assignment/program, schedule read, Start Session, immutable exercise snapshot, Set Logs, Complete/Abandon, session history and Progress. Coach monitoring reads real Member sessions, snapshots, set summaries and progress within active CRM/assignment scope.
+## Verification
 
-Hardening addresses flat API contracts, full Set Log CRUD, dedicated progress history and exercise detail, current date-range eligibility, IANA timezone consistency, reassignment lifecycle, dashboard error states and documentation integrity.
+- Backend build: PASS.
+- Backend lint: PASS, 0 errors with existing warnings.
+- Frontend TypeScript: PASS, 0 errors.
+- Frontend production build: PASS; existing large-chunk warning remains non-blocking.
+- Isolated Admin–Coach–Member acceptance: PASS, including RBAC, IDOR, duplicate assignment, concurrent reassign, history preservation, Exercise status and suspended Coach denial.
+- Acceptance database cleanup/drop: PASS.
+- Browser visual verification: `BROWSER_VERIFICATION_BLOCKED` because the approved runtime entry point is missing; no browser PASS is claimed.
 
-## Verification result
+## Known blockers
 
-The Admin backend acceptance passed on an isolated database, including authorization, exercise create, assign/reassign, concurrent scope safety, Member execution, governance reads and suspended-Coach denial. Backend and frontend production builds passed; frontend TypeScript still reports only the three pre-existing out-of-scope errors. Admin browser verification is blocked because the available Browser plugin is missing its required runtime entry point. Canonical `GYMFIT_DB` remains fixture-free with 20 applied migrations, 0 checksum mismatches and `0009` pending. Evidence is recorded in [`docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md`](docs/admin/ADMIN_COACH_MANAGEMENT_HANDOVER.md) and [`docs/coach/COACH_END_TO_END_HANDOVER.md`](docs/coach/COACH_END_TO_END_HANDOVER.md).
+- `FULL_PROJECT_CLEAN_INSTALL_BLOCKED_BY_MARKETPLACE_MIGRATION_0100`: a fresh baseline contains `SellerApplications` before migration `0100` creates it. This is owned by Marketplace/Seller work and is outside Coach scope.
+- Browser visual verification requires a working approved browser runtime at `375x812`, `768x1024` and `1440x900`.
 
-## Out of scope and remaining baseline debt
+## Protected scope
 
-Video, Marketplace, Seller, Payment, Refund and Settlement are unchanged. The only allowed TypeScript failures are:
+Marketplace documentation under `docs/marketplace/**`, Marketplace/Seller backend modules, Video and Auth architecture are protected and unchanged by this cleanup. See [`docs/README.md`](docs/README.md) for the canonical documentation index.
 
-- `frontend/src/components/products/ProductCard.tsx`
-- `frontend/src/pages/reviews/ReviewsPage.tsx`
-- `frontend/src/services/reviewsApi.ts`
+## Next action
 
-See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for current limitations and [`docs/README.md`](docs/README.md) for canonical documentation.
+Run the visual browser checklist when the approved browser runtime is available. Resolve migration `0100` separately on a Marketplace-owned branch; do not alter it as part of Coach work.

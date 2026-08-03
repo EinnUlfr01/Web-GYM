@@ -1,5 +1,5 @@
 # Status: HISTORICAL
-# Do not use as implementation source of truth.
+# DO NOT USE AS CURRENT SOURCE OF TRUTH.
 # Superseded by: `docs/coach/COACH_END_TO_END_HANDOVER.md` and `docs/ROADMAP.md`
 
 # GymFit — TASK-008 Implementation Specification

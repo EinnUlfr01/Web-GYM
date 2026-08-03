@@ -2,7 +2,7 @@
 
 ## Branches and commits
 
-- Branch from the verified task baseline recorded in `PROJECT_STATUS.md`. The current Coach hardening branch is `fix/vinh-coach-e2e-hardening` from `21f69017b0c4f2f5933998b0382d0676b0e83a16`.
+- Branch from the verified task baseline recorded in `PROJECT_STATUS.md`. The current Coach documentation cleanup branch is `coach1`; implementation and verification commits are recorded in `docs/coach/COACH_MODULE_HANDOVER.md`.
 - Use a scoped `feat/`, `fix/` or `docs/` branch name and never mix unrelated modules.
 - Do not push directly to `main`. Use explicit paths with `git add`; never use `git add .` or `git add -A`.
 - Example commits: `feat: add workout program builder`, `fix: enforce member session ownership`, `docs: update TASK-008 handoff`.
@@ -23,4 +23,4 @@ Never commit `.env`, secrets, raw `.log` files, backups, uploads, test databases
 
 Run targeted typecheck/lint/tests while developing. Use Build Gate A/B/C at subtask boundaries and one final build, as specified; do not repeatedly rebuild after each file. Authorization, ownership/IDOR, transition, concurrency, validation, timezone, and browser flows are required where affected.
 
-Every completed task must update canonical docs, migration notes, API overview, status/handoff, and known limitations. Before handoff: validate links, scan changed files for secrets, run `git diff --check`, review staged paths, commit explicitly, and report the exact commit. Push only when explicitly requested.
+Every completed task must update the canonical docs index, the module handover, migration notes when applicable, API overview, status and known limitations. Before handoff: validate links, scan changed files for secrets, run `git diff --check`, review staged paths, commit explicitly, and report the exact commit. Push only when explicitly requested.

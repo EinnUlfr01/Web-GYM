@@ -1,5 +1,5 @@
 # Status: HISTORICAL
-# Do not use as implementation source of truth.
+# DO NOT USE AS CURRENT SOURCE OF TRUTH.
 # Superseded by: `docs/coach/COACH_END_TO_END_HANDOVER.md` and `docs/PROJECT_STATUS.md`
 
 # TASK-008 Discovery Checklist

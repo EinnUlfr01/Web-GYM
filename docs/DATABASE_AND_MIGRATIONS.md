@@ -1,7 +1,7 @@
 # Database and Migrations
 
 Status: CANONICAL
-Last verified: 2026-08-03
+Last verified: 2026-08-04
 
 GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must never mutate it. The runner in `backend/src/scripts/migrate.ts` reads ordered `db/migrations/NNNN_description.sql` files, applies each migration transactionally and records filename/version/SHA-256 in `SchemaMigrations`. `npm run db:migrate:status` is read-only.
 
@@ -13,10 +13,10 @@ GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must n
 | `0006` | Auth session security and booking-slot uniqueness | Applied and immutable |
 | `0007_coach_programs_assignments_schedules.sql` | Coach programs, days, exercises, assignments and schedules | Applied and checksum-valid |
 | `0008_member_workout_flow.sql` | Member session, immutable exercise snapshot and set-log tables | Applied and additive |
-| `0009_admin_coach_management.sql` | Bounded Coach status/reason fields and status index | New in this branch; apply forward-only |
+| `0009_admin_coach_management.sql` | Bounded Coach status/reason fields and status index | Applied and checksum-valid |
 | `0100`–`0111` | Seller/Marketplace modules | Existing applied range; unchanged by Coach work |
 
-The baseline has 20 applied migrations. After applying this branch, the expected target is 21 applied migrations, 0 pending and 0 checksum mismatches; the exact live result must be captured by the final status command and must not be hard-coded before verification.
+The verified canonical result is 21 applied migrations, 0 pending and 0 checksum mismatches. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
 
 ## Coach/Member data model
 
