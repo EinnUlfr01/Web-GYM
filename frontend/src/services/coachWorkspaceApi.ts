@@ -1,5 +1,5 @@
 import api from '../api/axios';
-import type { CoachAssignment, CoachDashboardData, CoachExercise, CoachMember, CoachMemberDetail, CoachProgram, CoachProgramDay, CoachProgramExercise, CoachProgress, CoachSchedule, CoachSession } from '../types/coachWorkspace';
+import type { CoachAssignment, CoachDashboardData, CoachExercise, CoachMember, CoachMemberDetail, CoachProgram, CoachProgramDay, CoachProgramExercise, CoachProgress, CoachSchedule, CoachSessionDetail, CoachSessionHistoryItem } from '../types/coachWorkspace';
 
 type Page<T> = { items:T[]; page:number; limit:number; total:number; totalPages:number };
 const data = <T,>(response:{data:{data:T}}) => response.data.data;
@@ -32,6 +32,6 @@ export const listSchedules = async (params:Record<string,unknown>) => page<Coach
 export const generateSchedules = async (id:number, body:Record<string,unknown>) => data<{inserted:number;fromDate:string;horizonDays:number}>(await api.post(`${coach}/assignments/${id}/schedules/generate`, body));
 export const reschedule = async (id:number, scheduledDate:string) => data<CoachSchedule>(await api.post(`${coach}/schedules/${id}/reschedule`, { scheduledDate }));
 export const cancelSchedule = async (id:number) => data<CoachSchedule>(await api.post(`${coach}/schedules/${id}/cancel`, {}));
-export const listSessions = async (memberId:number, params:Record<string,unknown>) => page<CoachSession>(await api.get(`${coach}/members/${memberId}/sessions`, { params }));
-export const getSession = async (memberId:number, sessionId:number) => data<CoachSession & {exerciseSnapshot:unknown[]}>(await api.get(`${coach}/members/${memberId}/sessions/${sessionId}`));
+export const listSessions = async (memberId:number, params:Record<string,unknown>) => page<CoachSessionHistoryItem>(await api.get(`${coach}/members/${memberId}/sessions`, { params }));
+export const getSession = async (memberId:number, sessionId:number) => data<CoachSessionDetail>(await api.get(`${coach}/members/${memberId}/sessions/${sessionId}`));
 export const getProgress = async (memberId:number) => data<CoachProgress>(await api.get(`${coach}/members/${memberId}/progress`));
