@@ -1,6 +1,6 @@
 import { FormEvent, MouseEvent, RefObject, useEffect, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Lock, ShieldCheck, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PageHeader from '../../components/shared/page-header';
 import Card from '../../components/ui/card';
@@ -165,25 +165,32 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-2xl">
-      <PageHeader title="Settings" subtitle="Manage your account settings" />
+    <div className="mx-auto max-w-5xl animate-fade-in space-y-6">
+      <PageHeader title="Settings" subtitle="Quản lý thông tin tài khoản và bảo mật đăng nhập." />
 
-      <Card>
-        <h3 className="text-lg font-semibold mb-1">Profile Information</h3>
-        <p className="text-sm text-[#94A3B8] mb-6">Your account details</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Name" value={user?.name || ''} disabled />
-          <Input label="Email" value={user?.email || ''} disabled />
-          <Input label="Role" value={user?.role || ''} disabled />
-          <Input label="Phone" value={user?.phone || ''} disabled />
-        </div>
-      </Card>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,.8fr)]">
+        <Card>
+          <div className="mb-6 flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime-300/10 text-lime-300"><User size={19}/></span>
+            <div><h2 className="text-lg font-semibold text-white">Thông tin hồ sơ</h2><p className="mt-1 text-sm text-slate-400">Thông tin nhận diện đang gắn với tài khoản của bạn.</p></div>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Input id="settings-name" label="Tên hiển thị" value={user?.name || ''} disabled />
+            <Input id="settings-email" label="Email" value={user?.email || ''} disabled />
+            <Input id="settings-role" label="Vai trò" value={user?.role || ''} disabled />
+            <Input id="settings-phone" label="Số điện thoại" value={user?.phone || ''} disabled />
+          </div>
+          <p className="mt-5 flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-950/55 p-3 text-xs leading-5 text-slate-400"><ShieldCheck className="mt-0.5 shrink-0 text-blue-300" size={15}/>Các trường hồ sơ hiện ở chế độ chỉ đọc để tránh cập nhật ngoài luồng tài khoản.</p>
+        </Card>
 
-      <Card>
-        <h3 className="text-lg font-semibold mb-1">Đổi mật khẩu</h3>
-        <p className="mb-6 text-sm text-[#94A3B8]">Cập nhật mật khẩu đăng nhập để bảo vệ tài khoản.</p>
-        <Button ref={triggerRef} type="button" onClick={() => setModalOpen(true)}>Đổi mật khẩu</Button>
-      </Card>
+        <Card className="h-fit">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-400/10 text-blue-300"><Lock size={19}/></span>
+          <h2 className="mt-5 text-lg font-semibold text-white">Mật khẩu & bảo mật</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Dùng mật khẩu mạnh, khác với các dịch vụ khác để bảo vệ tài khoản.</p>
+          <div className="my-5 h-px bg-slate-800" />
+          <Button ref={triggerRef} className="w-full" type="button" icon={<KeyRound size={16}/>} onClick={() => setModalOpen(true)}>Đổi mật khẩu</Button>
+        </Card>
+      </div>
 
       {modalOpen && (
         <div
@@ -196,14 +203,16 @@ export default function SettingsPage() {
             aria-modal="true"
             aria-labelledby="change-password-title"
             aria-describedby="change-password-description"
-            className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl sm:p-7"
+            className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl shadow-black/50 sm:p-7"
           >
             <form onSubmit={handlePasswordChange} className="space-y-5">
-              <div>
-                <h2 id="change-password-title" className="text-2xl font-bold">Đổi mật khẩu</h2>
-                <p id="change-password-description" className="mt-2 text-sm text-slate-400">
-                  Nhập mật khẩu hiện tại và mật khẩu mới của bạn.
-                </p>
+              <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">
+                <div>
+                  <span className="mb-4 grid h-10 w-10 place-items-center rounded-xl bg-lime-300/10 text-lime-300"><KeyRound size={19}/></span>
+                  <h2 id="change-password-title" className="text-2xl font-bold">Đổi mật khẩu</h2>
+                  <p id="change-password-description" className="mt-2 text-sm leading-6 text-slate-400">Nhập mật khẩu hiện tại và mật khẩu mới của bạn.</p>
+                </div>
+                <button type="button" className="btn-ghost h-10 w-10 shrink-0 p-0" aria-label="Đóng hộp thoại đổi mật khẩu" onClick={closeModal}><X size={18}/></button>
               </div>
 
               {formError && (
@@ -245,9 +254,9 @@ export default function SettingsPage() {
                 <p className="text-sm text-red-300">Xác nhận mật khẩu mới không khớp.</p>
               )}
 
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                <Button type="button" variant="secondary" disabled={loading} onClick={closeModal}>Hủy</Button>
-                <Button type="submit" loading={loading} disabled={!canSubmit}>Cập nhật mật khẩu</Button>
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-800 pt-5 sm:flex-row sm:justify-end">
+                <Button className="w-full sm:w-auto" type="button" variant="secondary" disabled={loading} onClick={closeModal}>Hủy</Button>
+                <Button className="w-full sm:w-auto" type="submit" loading={loading} disabled={!canSubmit}>Cập nhật mật khẩu</Button>
               </div>
             </form>
           </div>

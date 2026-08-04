@@ -57,14 +57,14 @@ export default function TicketPage() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2"><MessageSquare size={18} /> Create New Ticket</h3>
           <form onSubmit={createTicket} className="space-y-4 max-w-lg">
-            <Input placeholder="Subject" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} required />
-            <textarea className="input min-h-[120px]" placeholder="Describe your issue..." value={form.description} onChange={e => setForm({...form, description: e.target.value})} required />
-            <select className="input" value={form.priority} onChange={e => setForm({...form, priority: e.target.value as any})}>
+            <Input id="ticket-subject" label="Subject" placeholder="Briefly summarize your request" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} required />
+            <label className="label" htmlFor="ticket-description">Description<textarea id="ticket-description" className="input mt-2 min-h-[120px]" placeholder="Describe your issue..." value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></label>
+            <label className="label" htmlFor="ticket-priority">Priority<select id="ticket-priority" className="input mt-2" value={form.priority} onChange={e => setForm({...form, priority: e.target.value as any})}>
               <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
-            </select>
-            <div className="flex gap-2">
-              <Button type="submit" loading={saving}>{saving ? 'Creating...' : 'Create'}</Button>
-              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+            </select></label>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button className="w-full sm:w-auto" type="submit" loading={saving}>{saving ? 'Creating...' : 'Create'}</Button>
             </div>
           </form>
         </motion.div>

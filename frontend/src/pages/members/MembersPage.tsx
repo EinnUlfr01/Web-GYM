@@ -41,7 +41,7 @@ export default function MembersPage() {
         <button className="btn-primary"><UserPlus size={16} /> Add Member</button>
       </motion.div>
       <div className="flex gap-3 max-w-sm">
-        <Input placeholder="Search members..." icon={<Search size={16} />} value={search} onChange={e => setSearch(e.target.value)} />
+        <Input label="Search members" placeholder="Name or email" icon={<Search size={16} />} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
       <div className="card overflow-hidden">
         <DataTable columns={columns} data={filtered} emptyTitle="No members found" emptyDescription="Members will appear here once they register." />
