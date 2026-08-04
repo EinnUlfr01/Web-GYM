@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Menu, Search } from 'lucide-react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
 export default function Layout() {
@@ -79,7 +79,11 @@ export default function Layout() {
             >
               <Menu size={19} aria-hidden="true" />
             </button>
-            <div><span>GYMFIT / {title}</span><strong>{title}</strong></div>
+            <Link to="/" className="topbar-home-link" aria-label="Về trang chủ GymFit">
+              <span className="topbar-home-mark">G</span>
+              <strong>GYMFIT</strong>
+            </Link>
+            <div className="topbar-section"><span>GYMFIT / {title}</span><strong>{title}</strong></div>
           </div>
           <div className="topbar-tools">
             <button className="icon-button" type="button" aria-label="Tìm kiếm"><Search size={18} /></button>
