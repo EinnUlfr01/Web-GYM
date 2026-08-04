@@ -144,8 +144,11 @@ export default function MarketingHeader() {
   const handleEdgeEnter = () => {
     if (!canUseEdgeHover()) return;
     edgePointerInsideRef.current = true;
-    clearDrawerTimers();
-    if (drawerOpenRef.current) return;
+    clearTimeoutIfPresent('close');
+    if (
+      drawerOpenRef.current
+      || openTimerRef.current !== undefined
+    ) return;
     openTimerRef.current = window.setTimeout(() => {
       openTimerRef.current = undefined;
       if (edgePointerInsideRef.current && canUseEdgeHover() && !drawerOpenRef.current) {
@@ -157,7 +160,15 @@ export default function MarketingHeader() {
   const handleEdgeLeave = () => {
     edgePointerInsideRef.current = false;
     clearTimeoutIfPresent('open');
-    scheduleEdgeClose();
+    window.requestAnimationFrame(() => {
+      if (
+        openSourceRef.current === 'edge'
+        && !edgePointerInsideRef.current
+        && !drawerPointerInsideRef.current
+      ) {
+        scheduleEdgeClose();
+      }
+    });
   };
 
   const handleDrawerEnter = () => {
