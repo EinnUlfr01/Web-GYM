@@ -82,7 +82,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         : [{ label: "Cá nhân", items: member }, { label: "Chung", items: common }];
   const signOut = async () => { await logout(); window.location.replace("/login"); };
   return <aside className="command-sidebar">
-    <div className="sidebar-brand"><div className="brand-mark">G</div><div><strong>GYMFIT</strong><small>COMMAND CENTER</small></div>{onClose && <button className="icon-button mobile-close" onClick={onClose} aria-label="Đóng menu"><X size={18}/></button>}</div>
+    <div className="sidebar-brand">
+      <Link to="/" onClick={onClose} className="sidebar-brand-link" aria-label="Về trang chủ GymFit">
+        <div className="brand-mark">G</div>
+        <div><strong>GYMFIT</strong><small>COMMAND CENTER</small></div>
+      </Link>
+      {onClose && <button className="icon-button mobile-close" onClick={onClose} aria-label="Đóng menu"><X size={18}/></button>}
+    </div>
     <div className="sidebar-context"><span className="status-dot"/> {role === "admin" ? "ADMIN CONTROL" : role === "coach" ? "COACH WORKSPACE" : role === "seller" ? "SELLER WORKSPACE" : "MEMBER SPACE"}</div>
     <nav className="sidebar-nav" aria-label="Điều hướng chính">
       {groups.map(group => <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{group.items.filter(item => role && canAccess(role, item.to)).map(item => <Link key={item.to} to={item.to} onClick={onClose} className={`nav-item ${location.pathname === item.to || location.pathname.startsWith(`${item.to}/`) ? "active" : ""}`}><item.icon size={17}/><span>{item.label}</span></Link>)}</div>)}

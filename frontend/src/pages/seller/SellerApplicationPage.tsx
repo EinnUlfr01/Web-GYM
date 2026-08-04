@@ -60,8 +60,8 @@ export default function SellerApplicationPage() {
   };
 
   if(loading)return <div className="grid min-h-64 place-items-center text-slate-400">Đang tải Kênh người bán…</div>;
-  if(!eligible)return <section className="mx-auto max-w-3xl"><div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 sm:p-8"><Store className="mb-5 text-amber-300" size={30}/><h1 className="text-2xl font-bold">Kênh người bán</h1><p className="mt-3 leading-7 text-amber-100">Chỉ tài khoản Member có thể tạo hồ sơ Seller. Tài khoản {user?.role?.toUpperCase()} hiện không đủ điều kiện.</p></div></section>;
-  if(application?.status==='APPROVED'||user?.role==='seller')return <section className="mx-auto max-w-3xl"><div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 sm:p-8"><CheckCircle2 className="mb-5 text-emerald-300" size={34}/><p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">Approved</p><h1 className="mt-2 text-3xl font-bold">Tài khoản Seller đã được phê duyệt</h1><p className="mt-3 leading-7 text-slate-300">Phiên đăng nhập cũ đã bị thu hồi khi phê duyệt. Shop onboarding sẽ được triển khai trong SELLER-002.</p><Link className="btn-primary mt-6" to="/seller">Mở Seller workspace</Link></div></section>;
+  if(!eligible)return <section className="mx-auto max-w-3xl"><div className="warning-panel p-6 sm:p-8"><Store className="mb-5 text-amber-300" size={30}/><h1 className="text-2xl font-bold">Kênh người bán</h1><p className="mt-3 leading-7 text-amber-100">Chỉ tài khoản Member có thể tạo hồ sơ Seller. Tài khoản {user?.role?.toUpperCase()} hiện không đủ điều kiện.</p></div></section>;
+  if(application?.status==='APPROVED'||user?.role==='seller')return <section className="mx-auto max-w-3xl"><div className="success-panel p-6 sm:p-8"><CheckCircle2 className="mb-5 text-emerald-300" size={34}/><p className="text-sm font-semibold uppercase tracking-widest text-emerald-300">Approved</p><h1 className="mt-2 text-3xl font-bold">Tài khoản Seller đã được phê duyệt</h1><p className="mt-3 leading-7 text-slate-300">Phiên đăng nhập cũ đã bị thu hồi khi phê duyệt. Shop onboarding sẽ được triển khai trong SELLER-002.</p><Link className="btn-primary mt-6" to="/seller">Mở Seller workspace</Link></div></section>;
 
   return <section className="mx-auto max-w-5xl space-y-6">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -69,30 +69,30 @@ export default function SellerApplicationPage() {
       <span className="w-fit rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold tracking-wide text-slate-300">{application?.status||'DRAFT'}</span>
     </header>
 
-    {error&&<p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
-    {application?.status==='REJECTED'&&<div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5"><strong className="text-red-100">Hồ sơ bị từ chối</strong><p className="mt-3 text-sm font-semibold text-red-100">Lý do từ chối</p><p className="mt-1 whitespace-pre-wrap leading-6 text-slate-200">{application.reviewReason?.trim()||'Admin chưa cung cấp lý do chi tiết.'}</p><p className="mt-3 text-sm text-slate-300">Bạn có thể cập nhật hồ sơ và gửi lại để xét duyệt.</p><p className="mt-1 text-sm text-slate-400">Lý do từ chối trước đó vẫn được lưu trong lịch sử trạng thái.</p></div>}
-    {application?.status==='WITHDRAWN'&&<div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-amber-100">Hồ sơ đã rút. Bạn có thể chỉnh sửa và gửi lại cùng hồ sơ này.</div>}
-    {pending&&<div className="flex gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-5"><Clock3 className="mt-0.5 shrink-0 text-blue-300" size={20}/><div><strong className="text-blue-100">Đang chờ xét duyệt</strong><p className="mt-2 text-sm leading-6 text-slate-300">Đã gửi {application.submittedAt?new Date(application.submittedAt).toLocaleString('vi-VN'):'—'}. Hồ sơ đang ở chế độ chỉ đọc.</p></div></div>}
+    {error&&<p role="alert" className="danger-panel p-4 text-sm text-red-200">{error}</p>}
+    {application?.status==='REJECTED'&&<div className="danger-panel p-5"><strong className="text-red-100">Hồ sơ bị từ chối</strong><p className="mt-3 text-sm font-semibold text-red-100">Lý do từ chối</p><p className="mt-1 whitespace-pre-wrap leading-6 text-slate-200">{application.reviewReason?.trim()||'Admin chưa cung cấp lý do chi tiết.'}</p><p className="mt-3 text-sm text-slate-300">Bạn có thể cập nhật hồ sơ và gửi lại để xét duyệt.</p><p className="mt-1 text-sm text-slate-400">Lý do từ chối trước đó vẫn được lưu trong lịch sử trạng thái.</p></div>}
+    {application?.status==='WITHDRAWN'&&<div className="warning-panel p-5 text-amber-100">Hồ sơ đã rút. Bạn có thể chỉnh sửa và gửi lại cùng hồ sơ này.</div>}
+    {pending&&<div className="info-panel flex gap-3 p-5"><Clock3 className="mt-0.5 shrink-0 text-blue-300" size={20}/><div><strong className="text-blue-100">Đang chờ xét duyệt</strong><p className="mt-2 text-sm leading-6 text-slate-300">Đã gửi {application.submittedAt?new Date(application.submittedAt).toLocaleString('vi-VN'):'—'}. Hồ sơ đang ở chế độ chỉ đọc.</p></div></div>}
 
-    <form onSubmit={onSave} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/65 shadow-xl shadow-black/10">
-      <section className="border-b border-slate-800 p-5 sm:p-7">
+    <form onSubmit={onSave} className="surface-panel overflow-hidden p-0">
+      <section className="form-section sm:p-7">
         <div className="mb-5 flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-lime-300/10 text-lime-300"><Building2 size={18}/></span><div><h2 className="font-semibold text-white">Thông tin doanh nghiệp</h2><p className="mt-1 text-sm text-slate-400">Thông tin pháp lý và loại hình hoạt động của đơn vị.</p></div></div>
         <div className="grid gap-5 md:grid-cols-2">{renderField('businessName')}{renderField('businessType')}{renderField('taxCode')}</div>
       </section>
-      <section className="border-b border-slate-800 p-5 sm:p-7">
+      <section className="form-section sm:p-7">
         <div className="mb-5 flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-400/10 text-blue-300"><User size={18}/></span><div><h2 className="font-semibold text-white">Thông tin liên hệ</h2><p className="mt-1 text-sm text-slate-400">Đầu mối để GymFit trao đổi trong quá trình xét duyệt.</p></div></div>
         <div className="grid gap-5 md:grid-cols-2">{renderField('contactName')}{renderField('contactEmail')}{renderField('contactPhone')}</div>
       </section>
-      <section className="p-5 sm:p-7">
+      <section className="form-section sm:p-7">
         <div className="mb-5 flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-400/10 text-amber-300"><MapPin size={18}/></span><div><h2 className="font-semibold text-white">Vận hành và hiện diện</h2><p className="mt-1 text-sm text-slate-400">Địa chỉ lấy hàng, kênh trực tuyến và phần giới thiệu doanh nghiệp.</p></div></div>
         <div className="grid gap-5 md:grid-cols-2">{renderField('businessAddress',true)}{renderField('pickupAddress',true)}{renderField('websiteUrl')}{renderField('socialUrl')}{renderField('description',true)}</div>
       </section>
-      <div className="flex flex-col gap-4 border-t border-slate-800 bg-slate-950/80 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+      <div className="form-actions flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <p className="text-sm text-slate-400">{missing.length?`Còn ${missing.length} trường bắt buộc chưa hoàn tất.`:validEmail?'Hồ sơ đã đủ trường bắt buộc để gửi xét duyệt.':'Vui lòng kiểm tra lại email liên hệ.'}</p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row">{pending&&<button disabled={saving} className="btn-secondary" type="button" onClick={()=>void withdraw()}>Rút hồ sơ</button>}{editable&&<><button disabled={saving} className="btn-secondary" type="submit"><Save size={16}/>{saving?'Đang lưu…':'Lưu bản nháp'}</button><button disabled={saving} className="btn-primary" type="button" onClick={()=>void submit()}><Send size={16}/>Gửi xét duyệt</button></>}</div>
       </div>
     </form>
 
-    {application&&<section className="rounded-2xl border border-slate-800 bg-slate-950/55 p-5 sm:p-6"><div className="flex items-center gap-2"><FileText className="text-lime-300" size={18}/><h2 className="text-lg font-semibold">Lịch sử trạng thái</h2></div><ol className="mt-5 space-y-4">{application.history.map(item=><li key={item.id} className="border-l-2 border-lime-300/40 pl-4"><strong className="text-sm text-slate-100">{item.fromStatus||'Mới'} → {item.toStatus}</strong><p className="mt-1 text-sm text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')} · {item.actorName||'System'}</p>{item.reason&&<p className="mt-1 text-sm text-red-200">{item.reason}</p>}</li>)}</ol></section>}
+    {application&&<section className="surface-panel p-5 sm:p-6"><div className="flex items-center gap-2"><FileText className="text-lime-300" size={18}/><h2 className="text-lg font-semibold">Lịch sử trạng thái</h2></div><ol className="mt-5 space-y-4">{application.history.map(item=><li key={item.id} className="border-l-2 border-lime-300/40 pl-4"><strong className="text-sm text-slate-100">{item.fromStatus||'Mới'} → {item.toStatus}</strong><p className="mt-1 text-sm text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')} · {item.actorName||'System'}</p>{item.reason&&<p className="mt-1 text-sm text-red-200">{item.reason}</p>}</li>)}</ol></section>}
   </section>;
 }

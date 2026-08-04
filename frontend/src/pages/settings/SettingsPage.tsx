@@ -203,7 +203,7 @@ export default function SettingsPage() {
             aria-modal="true"
             aria-labelledby="change-password-title"
             aria-describedby="change-password-description"
-            className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl shadow-black/50 sm:p-7"
+            className="dialog-surface w-full max-w-lg rounded-2xl p-5 sm:p-7"
           >
             <form onSubmit={handlePasswordChange} className="space-y-5">
               <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">

@@ -23,7 +23,7 @@ export default function ReferralPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl border border-lime-300/20 bg-gradient-to-br from-lime-300/10 via-slate-950 to-slate-950 p-6 sm:p-8">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="surface-card relative overflow-hidden bg-gradient-to-br from-lime-300/10 via-slate-900 to-slate-900 p-6 sm:p-8">
         <div className="absolute -right-12 -top-16 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" aria-hidden="true" />
         <div className="relative max-w-2xl">
           <span className="mb-5 grid h-11 w-11 place-items-center rounded-xl border border-lime-300/20 bg-lime-300/10 text-lime-300"><Sparkles size={21}/></span>
@@ -40,7 +40,7 @@ export default function ReferralPage() {
         <StatCard title="Hoa hồng đã nhận" value={commission ? `$${Number(commission.total).toFixed(2)}` : '$0'} icon={<DollarSign size={20} />} subtitle={`${commission?.count || 0} giao dịch`} />
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card p-5 sm:p-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="surface-card p-5 sm:p-6">
         <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-400/10 text-blue-300"><Share2 size={18} /></span><div><h3 className="section-title">Chia sẻ liên kết giới thiệu</h3><p className="mt-1 text-sm text-slate-400">Sao chép liên kết này và gửi trực tiếp cho bạn bè.</p></div></div>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <Input label="Referral link" value={referralLink} readOnly containerClassName="min-w-0 flex-1" className="font-mono text-xs" />
@@ -48,7 +48,7 @@ export default function ReferralPage() {
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card p-5 sm:p-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="surface-card p-5 sm:p-6">
         <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-400/10 text-violet-300"><Gift size={18} /></span><h3 className="section-title">Người dùng được giới thiệu</h3></div>
         {(!referrals || referrals.length === 0) ? (
           <div className="mt-5 grid min-h-44 place-items-center rounded-xl border border-dashed border-slate-700 bg-slate-950/40 p-6 text-center"><div><Gift className="mx-auto text-slate-600" size={30}/><p className="mt-3 font-medium text-slate-300">Chưa có lượt giới thiệu</p><p className="mt-1 text-sm text-slate-500">Chia sẻ liên kết phía trên để bắt đầu.</p></div></div>

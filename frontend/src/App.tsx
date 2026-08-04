@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate,useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import Layout from './components/layout/Layout';
 import CommandMenu from './components/layout/CommandMenu';
@@ -227,7 +227,7 @@ export default function App() {
               <div className="text-center">
                 <h1 className="text-6xl font-bold mb-4 text-white">404</h1>
                 <p className="text-[#94A3B8] text-lg mb-8">Page not found</p>
-                <a href="/" className="rounded-lg bg-[#2563eb] px-6 py-3 font-semibold text-white hover:bg-[#1d4ed8] transition-all inline-block">Back to Home</a>
+                <Link to="/" className="inline-block rounded-lg bg-[#2563eb] px-6 py-3 font-semibold text-white transition-all hover:bg-[#1d4ed8]">Back to Home</Link>
               </div>
             </div>
           </MarketingHeaderWrapper>
