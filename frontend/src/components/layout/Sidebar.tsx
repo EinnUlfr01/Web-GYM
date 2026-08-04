@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LineChart, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, UserCheck, UserCircle, Users, Wallet, X } from 'lucide-react';
+import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LineChart, LogOut, Package, PanelLeftClose, PanelLeftOpen, Settings, Shield, ShoppingCart, Star, Store, Ticket, UserCheck, UserCircle, Users, Wallet, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { canAccess } from '../../auth/accessPolicy';
@@ -72,12 +72,61 @@ const seller: NavItem[] = [
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 
-export default function Sidebar({ onClose }: { onClose?: () => void }) {
+interface SidebarProps {
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export default function Sidebar({ onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const [adminOpen, setAdminOpen] = useState(true);
   const role = user?.role as Role | undefined;
   const groups = role === 'admin' ? [{ label: 'Quản trị', items: admin }] : role === 'coach' ? [{ label: 'Không gian Coach', items: coach }] : role === 'seller' ? [{ label: 'Kênh người bán', items: seller }] : [{ label: 'Cá nhân', items: member }, { label: 'Chung', items: common }];
   const signOut = async () => { await logout(); window.location.replace('/login'); };
-  return <aside className="command-sidebar"><div className="sidebar-brand"><Link to="/" onClick={onClose} className="sidebar-brand-link" aria-label="Về trang chủ GymFit"><div className="brand-mark">G</div><div><strong>GYMFIT</strong><small>COMMAND CENTER</small></div></Link>{onClose && <button className="icon-button mobile-close" onClick={onClose} aria-label="Đóng menu"><X size={18} /></button>}</div><div className="sidebar-context"><span className="status-dot" /> {role === 'admin' ? 'ADMIN CONTROL' : role === 'coach' ? 'COACH WORKSPACE' : role === 'seller' ? 'SELLER WORKSPACE' : 'MEMBER SPACE'}</div><nav className="sidebar-nav" aria-label="Điều hướng chính">{groups.map(group => <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{group.items.filter(item => role && canAccess(role, item.to)).map(item => <Link key={item.to} to={item.to} onClick={onClose} className={`nav-item ${location.pathname === item.to || location.pathname.startsWith(`${item.to}/`) ? 'active' : ''}`}><item.icon size={17} /><span>{item.label}</span></Link>)}</div>)}{role === 'admin' && <div className="nav-group"><button className="nav-label nav-toggle" onClick={() => setAdminOpen(value => !value)}>Hệ thống <ChevronDown size={14} className={adminOpen ? '' : 'rotate-[-90deg]'} /></button>{adminOpen && <Link to="/admin/backup" onClick={onClose} className={`nav-item ${location.pathname === '/admin/backup' ? 'active' : ''}`}><Shield size={17} /><span>Backup</span></Link>}</div>}</nav><div className="sidebar-footer"><div className="profile-row"><div className="avatar">{user?.name?.slice(0, 1).toUpperCase() || 'G'}</div><div><strong>{user?.name || 'GYMFIT user'}</strong><small>{role || 'member'}</small></div></div><button className="logout-button" onClick={() => void signOut()}><LogOut size={16} />Đăng xuất</button></div></aside>;
+  const contextLabel = role === 'admin' ? 'ADMIN CONTROL' : role === 'coach' ? 'COACH WORKSPACE' : role === 'seller' ? 'SELLER WORKSPACE' : 'MEMBER SPACE';
+  return (
+    <aside className="command-sidebar">
+      <div className="sidebar-brand">
+        <Link to="/" onClick={onClose} className="sidebar-brand-link" aria-label="Về trang chủ GymFit" title="Về trang chủ GymFit">
+          <div className="brand-mark">G</div>
+          <div className="sidebar-brand-copy"><strong>GYMFIT</strong><small>COMMAND CENTER</small></div>
+        </Link>
+        <div className="sidebar-actions">
+          {onToggleCollapse && <button
+            className="icon-button sidebar-collapse-button"
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+          </button>}
+          {onClose && <button className="icon-button mobile-close" type="button" onClick={onClose} aria-label="Đóng menu"><X size={18} aria-hidden="true" /></button>}
+        </div>
+      </div>
+      <div className="sidebar-context" title={contextLabel}><span className="status-dot" /><span className="sidebar-context-label">{contextLabel}</span></div>
+      <nav className="sidebar-nav" aria-label="Điều hướng chính">
+        {groups.map(group => <div className="nav-group" key={group.label}>
+          <span className="nav-label">{group.label}</span>
+          {group.items.filter(item => role && canAccess(role, item.to)).map(item => {
+            const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+            return <Link key={item.to} to={item.to} onClick={onClose} className={`nav-item ${active ? 'active' : ''}`} aria-label={item.label} title={collapsed ? item.label : undefined} aria-current={active ? 'page' : undefined}>
+              <item.icon size={17} aria-hidden="true" /><span>{item.label}</span>
+            </Link>;
+          })}
+        </div>)}
+        {role === 'admin' && <div className="nav-group">
+          <button className="nav-label nav-toggle" type="button" onClick={() => setAdminOpen(value => !value)} aria-expanded={adminOpen} title="Hệ thống"><span className="nav-toggle-label">Hệ thống</span><ChevronDown size={14} className={adminOpen ? '' : 'rotate-[-90deg]'} aria-hidden="true" /></button>
+          {adminOpen && <Link to="/admin/backup" onClick={onClose} className={`nav-item ${location.pathname === '/admin/backup' ? 'active' : ''}`} aria-label="Backup" title={collapsed ? 'Backup' : undefined} aria-current={location.pathname === '/admin/backup' ? 'page' : undefined}><Shield size={17} aria-hidden="true" /><span>Backup</span></Link>}
+        </div>}
+      </nav>
+      <div className="sidebar-footer">
+        <div className="profile-row"><div className="avatar" aria-hidden="true">{user?.name?.slice(0, 1).toUpperCase() || 'G'}</div><div className="profile-copy"><strong>{user?.name || 'GYMFIT user'}</strong><small>{role || 'member'}</small></div></div>
+        <button className="logout-button" type="button" onClick={() => void signOut()} aria-label="Đăng xuất" title={collapsed ? 'Đăng xuất' : undefined}><LogOut size={16} aria-hidden="true" /><span>Đăng xuất</span></button>
+      </div>
+    </aside>
+  );
 }

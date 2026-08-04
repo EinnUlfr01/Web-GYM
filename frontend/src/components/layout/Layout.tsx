@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const location = useLocation();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -57,8 +58,13 @@ export default function Layout() {
   }, [mobileOpen]);
 
   return (
-    <div className="app-shell">
-      <aside className="desktop-sidebar"><Sidebar /></aside>
+    <div className={`app-shell ${desktopCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className={`desktop-sidebar ${desktopCollapsed ? 'is-collapsed' : ''}`} aria-label="Điều hướng tài khoản">
+        <Sidebar
+          collapsed={desktopCollapsed}
+          onToggleCollapse={() => setDesktopCollapsed(value => !value)}
+        />
+      </aside>
       {mobileOpen && (
         <div id="authenticated-navigation" className="mobile-drawer" role="dialog" aria-modal="true" aria-label="Menu tài khoản">
           <div className="drawer-backdrop" aria-hidden="true" onClick={closeMobileMenu} />
@@ -86,7 +92,15 @@ export default function Layout() {
             <div className="topbar-section"><span>GYMFIT / {title}</span><strong>{title}</strong></div>
           </div>
           <div className="topbar-tools">
-            <button className="icon-button" type="button" aria-label="Tìm kiếm"><Search size={18} /></button>
+            <button
+              className="icon-button topbar-search-button"
+              type="button"
+              aria-label="Mở tìm kiếm nhanh"
+              onClick={() => window.dispatchEvent(new Event('open-command-menu'))}
+            >
+              <Search size={18} aria-hidden="true" />
+              <span className="topbar-search-hint">Ctrl K</span>
+            </button>
             <span className="topbar-date">{new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
           </div>
         </header>

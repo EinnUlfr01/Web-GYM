@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { DashboardPageHeader, DashboardPanel, QuickAction, QuickStartCard } from '../../components/dashboard/DashboardPrimitives';
 
 export default function SellerFoundationPage(){
   const user=useAuthStore(state=>state.user);
@@ -10,9 +11,10 @@ export default function SellerFoundationPage(){
     {to:'/seller/revenue',label:'Doanh thu',description:'Xem dữ liệu đối soát từ backend'},
     {to:'/seller/complaints',label:'Khiếu nại',description:'Theo dõi complaint của Shop'},
   ];
-  return <section className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
-    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 md:p-8"><p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Kênh người bán</p><h1 className="mt-3 text-3xl font-bold">Chào mừng {user?.name}</h1><p className="mt-3 max-w-2xl text-slate-300">Tài khoản Seller của bạn đã có một Shop riêng.</p></div>
-    <div><h2 className="text-xl font-semibold">Lối tắt</h2><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{shortcuts.map(shortcut=><Link className="rounded-xl border border-slate-800 bg-slate-950 p-4 transition hover:border-emerald-500/60 hover:bg-slate-900" key={shortcut.to} to={shortcut.to}><strong className="text-emerald-400">{shortcut.label}</strong><span className="mt-1 block text-sm text-slate-400">{shortcut.description}</span></Link>)}</div></div>
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6"><h2 className="text-xl font-semibold">Quản lý Shop</h2><p className="mt-2 text-slate-400">Cập nhật hồ sơ và mở trang Shop công khai.</p><div className="mt-5 flex flex-wrap gap-4"><Link className="text-emerald-400 hover:underline" to="/seller/shop">Hồ sơ Shop</Link><Link className="text-emerald-400 hover:underline" to="/seller/apply">Hồ sơ đã duyệt</Link></div></div>
-  </section>;
+  return <div className="dashboard-page seller-dashboard">
+    <DashboardPageHeader eyebrow="KÊNH NGƯỜI BÁN" title={`Chào mừng ${user?.name || 'Seller'}`} description="Quản lý Shop, Product và đơn hàng trong một workspace rõ ràng." action={<Link className="primary-button" to="/seller/products/new">Thêm sản phẩm</Link>} />
+    <QuickStartCard title="Bắt đầu bán hàng" description="Hoàn thiện nền tảng rồi theo dõi các luồng vận hành có sẵn." steps={[{ to:'/seller/shop', title:'Hoàn thiện hồ sơ Shop', description:'Cập nhật thông tin và trang Shop công khai.' }, { to:'/seller/products/new', title:'Thêm sản phẩm', description:'Tạo Product DRAFT theo form hiện có.' }, { to:'/seller/orders', title:'Kiểm tra đơn hàng', description:'Theo dõi Shop orders từ backend.' }]} />
+    <DashboardPanel title="Lối tắt" description="Các khu vực Seller thường dùng"><div className="quick-grid">{shortcuts.map(shortcut=><QuickAction key={shortcut.to} to={shortcut.to} title={shortcut.label} description={shortcut.description} icon={<span aria-hidden="true">→</span>} />)}</div></DashboardPanel>
+    <DashboardPanel title="Quản lý Shop" description="Cập nhật hồ sơ và mở trang Shop công khai."><div className="header-links"><Link className="secondary-button" to="/seller/shop">Hồ sơ Shop</Link><Link className="secondary-button" to="/seller/apply">Hồ sơ đã duyệt</Link></div></DashboardPanel>
+  </div>;
 }
