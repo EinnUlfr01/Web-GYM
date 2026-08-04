@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LineChart, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, UserCheck, Users, Wallet, X } from 'lucide-react';
+import { BarChart3, Boxes, Calendar, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileText, Gift, LayoutDashboard, LineChart, LogOut, Package, Settings, Shield, ShoppingCart, Star, Store, Ticket, UserCheck, UserCircle, Users, Wallet, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { canAccess } from '../../auth/accessPolicy';
@@ -23,18 +23,21 @@ const member: NavItem[] = [
   { to: '/referral', label: 'Giới thiệu', icon: Gift },
 ];
 const coach: NavItem[] = [
-  { to: '/coach', label: 'Coach Dashboard', icon: LayoutDashboard },
+  { to: '/coach', label: 'Tổng quan Coach', icon: LayoutDashboard },
+  { to: '/coach/profile', label: 'Hồ sơ Coach', icon: UserCircle },
   { to: '/coach/appointments', label: 'Lịch hẹn học viên', icon: Calendar },
-  { to: '/coach/exercises', label: 'Exercise Library', icon: Dumbbell },
-  { to: '/coach/workout-programs', label: 'My Programs', icon: ClipboardList },
-  { to: '/coach/members', label: 'My Members', icon: Users },
-  { to: '/coach/assignments', label: 'Assignments', icon: ClipboardList },
+  { to: '/coach/exercises', label: 'Thư viện bài tập', icon: Dumbbell },
+  { to: '/coach/workout-programs', label: 'Chương trình của tôi', icon: ClipboardList },
+  { to: '/coach/members', label: 'Học viên của tôi', icon: Users },
+  { to: '/coach/assignments', label: 'Phân công chương trình', icon: ClipboardList },
   { to: '/coach/schedules', label: 'Lịch workout', icon: CalendarClock },
+  { to: '/coach/sessions', label: 'Lịch sử session', icon: CalendarClock },
+  { to: '/coach/progress', label: 'Tiến độ học viên', icon: LineChart },
   { to: '/reviews', label: 'Đánh giá của tôi', icon: Star },
   { to: '/orders', label: 'Đơn hàng của tôi', icon: ShoppingCart },
   { to: '/complaints', label: 'Khiếu nại sản phẩm', icon: Ticket },
-  { to: '/members', label: 'Học viên', icon: Users },
-  { to: '/crm', label: 'CRM', icon: ClipboardList },
+  { to: '/tickets', label: 'Hỗ trợ', icon: Ticket },
+  { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 const admin: NavItem[] = [
   { to: '/admin/coaches', label: 'Quản lý Coach', icon: Users },
@@ -74,7 +77,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const [adminOpen, setAdminOpen] = useState(true);
   const role = user?.role as Role | undefined;
-  const groups = role === 'admin' ? [{ label: 'Quản trị', items: admin }] : role === 'coach' ? [{ label: 'Không gian Coach', items: coach }, { label: 'Chung', items: common }] : role === 'seller' ? [{ label: 'Kênh người bán', items: seller }] : [{ label: 'Cá nhân', items: member }, { label: 'Chung', items: common }];
+  const groups = role === 'admin' ? [{ label: 'Quản trị', items: admin }] : role === 'coach' ? [{ label: 'Không gian Coach', items: coach }] : role === 'seller' ? [{ label: 'Kênh người bán', items: seller }] : [{ label: 'Cá nhân', items: member }, { label: 'Chung', items: common }];
   const signOut = async () => { await logout(); window.location.replace('/login'); };
   return <aside className="command-sidebar"><div className="sidebar-brand"><Link to="/" onClick={onClose} className="sidebar-brand-link" aria-label="Về trang chủ GymFit"><div className="brand-mark">G</div><div><strong>GYMFIT</strong><small>COMMAND CENTER</small></div></Link>{onClose && <button className="icon-button mobile-close" onClick={onClose} aria-label="Đóng menu"><X size={18} /></button>}</div><div className="sidebar-context"><span className="status-dot" /> {role === 'admin' ? 'ADMIN CONTROL' : role === 'coach' ? 'COACH WORKSPACE' : role === 'seller' ? 'SELLER WORKSPACE' : 'MEMBER SPACE'}</div><nav className="sidebar-nav" aria-label="Điều hướng chính">{groups.map(group => <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{group.items.filter(item => role && canAccess(role, item.to)).map(item => <Link key={item.to} to={item.to} onClick={onClose} className={`nav-item ${location.pathname === item.to || location.pathname.startsWith(`${item.to}/`) ? 'active' : ''}`}><item.icon size={17} /><span>{item.label}</span></Link>)}</div>)}{role === 'admin' && <div className="nav-group"><button className="nav-label nav-toggle" onClick={() => setAdminOpen(value => !value)}>Hệ thống <ChevronDown size={14} className={adminOpen ? '' : 'rotate-[-90deg]'} /></button>{adminOpen && <Link to="/admin/backup" onClick={onClose} className={`nav-item ${location.pathname === '/admin/backup' ? 'active' : ''}`}><Shield size={17} /><span>Backup</span></Link>}</div>}</nav><div className="sidebar-footer"><div className="profile-row"><div className="avatar">{user?.name?.slice(0, 1).toUpperCase() || 'G'}</div><div><strong>{user?.name || 'GYMFIT user'}</strong><small>{role || 'member'}</small></div></div><button className="logout-button" onClick={() => void signOut()}><LogOut size={16} />Đăng xuất</button></div></aside>;
 }

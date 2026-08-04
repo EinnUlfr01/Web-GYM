@@ -1,8 +1,8 @@
 # GymFit Coach Module Handover
 
-Status: `PARTIALLY_COMPLETE`
+Status: `FULL_COACH_MODULE_COMPLETE`
 
-The Coach/Member/Admin Coach implementation is verified through code review, migration status, builds, TypeScript, lint and isolated Admin–Coach–Member acceptance. Real visual browser verification remains blocked because the available browser runtime is missing its required entry point. This document is the single current handover for the Coach, Member Workout and Admin Coach slices.
+The Coach/Member/Admin Coach and Coach Appointment implementation is verified through migration evidence, builds, TypeScript, lint, isolated runtime acceptance and the required browser checklist. This document is the single current handover for the Coach, Member Workout, Admin Coach and appointment slices.
 
 ## 1. Current status
 
@@ -11,7 +11,7 @@ The Coach/Member/Admin Coach implementation is verified through code review, mig
 - Admin Coach Management: implemented with Admin-only list/detail/status and Member assign/reassign.
 - Admin Exercise Library: implemented against the existing `Exercises` schema.
 - Admin Workout Governance: implemented as read-only visibility.
-- Browser verdict: `BROWSER_VERIFICATION_BLOCKED`; no visual PASS is claimed.
+- Browser verdict: `PASS` for Guest, Member, Coach and Admin flows at `375x812`, `768x1024` and `1440x900`.
 - Admin Program Builder: intentionally blocked because the existing ownership model is Coach-owned only.
 - Full-project clean install: blocked by the pre-existing Marketplace/Seller migration `0100` conflict; this is outside Coach scope.
 
@@ -19,14 +19,15 @@ The Coach/Member/Admin Coach implementation is verified through code review, mig
 
 Repository: `https://github.com/EinnUlfr01/Web-GYM`
 
-Current branch: `coach1`
+Current branch: `coach`
 
 Relevant implementation history:
 
 - Implementation: `232df83e4dfc5766b65289e925f25cf8d4f6914d` — Admin Coach Management.
 - Verification: `4f4d7134e79db47570880e03fb65d956882cba96` — final Coach verification fixes and evidence.
 - Cleanup: `d1523a29896c4b47a0ea73fab213ca2dbf65d9dd` — temporary prompt/package removal and stale reassignment comment.
-- Current branch tip before this documentation cleanup: `3ed26100f867ccd96cca8b23f19c1b35d1360db0`.
+- Implementation audit baseline: `47417e26452cf4646ed51ec03a2891410e304823`.
+- Final task commit: recorded in the task handoff after documentation and verification.
 
 The final documentation-cleanup commit is recorded in the final terminal report after the explicit commits for this task.
 
@@ -120,7 +121,7 @@ Admin Governance:
 - `0008_member_workout_flow.sql`: additive Member session, snapshot and Set Log tables.
 - `0009_admin_coach_management.sql`: bounded Coach status fields, constraint and index.
 
-Canonical `GYMFIT_DB` verification before the appointment addition recorded `21 applied`, `0 pending` and `0 checksum mismatches`; `0007`, `0008` and `0009` have matching checksums. The current read-only status has `0010_coach_profiles.sql` pending. Acceptance databases are disposable and use guarded names only.
+Canonical `GYMFIT_DB` remains read-only at `21 applied`, `1 pending` (`0010_coach_profiles.sql`) and `0 checksum mismatches`; `0007`, `0008` and `0009` have matching checksums. On isolated Coach Booking database `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823`, migration `0010` applied transactionally and verification reported `22 applied`, `0 pending`, `0 checksum mismatches`, with the unique Coach profile key present. Acceptance databases are disposable and use guarded names only.
 
 Migration `0100_seller_application_role_foundation.sql` is separately blocked on a fresh baseline because `SellerApplications` already exists. That Marketplace/Seller issue is documented in `docs/marketplace/MIGRATION_0100_BASELINE_CONFLICT.md` and is not fixed here.
 
@@ -165,7 +166,7 @@ The isolated Admin acceptance verified:
 
 ## 17. Build and TypeScript
 
-Latest verification on `coach1`:
+Latest verification on `coach`:
 
 - Backend build: PASS.
 - Backend lint: PASS with `0` errors and existing warnings.
@@ -174,15 +175,14 @@ Latest verification on `coach1`:
 
 ## 18. Acceptance
 
-`backend/src/scripts/admin-coach-acceptance.ts` passed on isolated database `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_20260804_012600`. It covered RBAC, Admin Exercise CRUD/status, Coach Program/Day/Exercise, assign/duplicate, Member Start Session/Set/Complete, Governance reads, IDOR, Set Log denial, reassignment, concurrency, history preservation, scope transfer and suspended Coach denial. Cleanup and database drop were verified.
+Runtime acceptance passed on disposable databases: Coach Role `GYMFIT_DB_COACH_ACCEPTANCE_20260804215000`, Coach Member E2E `GYMFIT_DB_COACH_E2E_FIX_20260804215500`, Admin Coach `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_20260804220000`, Coach Booking `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823`, regression-02 and regression-03. Coverage includes RBAC, immutable workout snapshots, assignment/schedule/session concurrency, IDOR, suspended Coach denial, Booking DTO normalization, overlap/state transitions, Coach self-profile and booking toggle. Cleanup and database drop were verified.
 
 ## 19. Browser verification
 
-Visual browser verification is blocked, not passed. The required Browser runtime entry point is missing and the repository has no Playwright package. The fallback started backend/frontend locally and verified API health `200`, Guest Admin API `401`, and direct frontend route responses `200`. Loading/empty/error/retry, dialogs, keyboard focus, console and responsive layout remain visually unverified at `375x812`, `768x1024` and `1440x900`.
+Browser acceptance passed against the isolated Coach Booking fixture. Guest `/`, `/coaches`, search, detail and login guard passed; Member created a real booking, viewed detail and cancelled it; Coach confirmed a pending booking, inspected detail, edited self-profile and toggled public booking off/on; Coach/Member/Admin workspace routes rendered. Responsive checks passed at `375x812`, `768x1024` and `1440x900` with no horizontal overflow. Console contained only React Router future-flag warnings and no errors.
 
 ## 20. Known limitations
 
-- Browser visual verification requires a working approved browser runtime.
 - Full-project clean install remains blocked at Marketplace/Seller migration `0100`.
 - Backend lint has existing warnings, but zero errors.
 - Admin detail displays specialization/experience as unavailable because those fields are not in the current schema.
@@ -193,12 +193,12 @@ No Coach task adds or changes Marketplace, Seller, Video, Auth architecture, pay
 
 ## 22. Final verdict
 
-`PARTIALLY_COMPLETE`.
+`FULL_COACH_MODULE_COMPLETE`.
 
 ## 23. Coach appointment implementation update
 
-The public Coach and appointment work is now implemented on top of the existing Coach/Member/Workout architecture. Canonical Coach queries, real pending bookings, fixed 60-minute Vietnam-time slots, conflict/concurrency checks, ownership-safe status transitions, Member appointment pages and Coach appointment pages are in the active source tree. `CoachProfiles` is additive migration `0010`; Workout Schedule and Coach Appointment remain separate concerns.
+The public Coach and appointment work is implemented on top of the existing Coach/Member/Workout architecture. Canonical Coach queries, real pending bookings, fixed 60-minute `Asia/Ho_Chi_Minh` slots, conflict/concurrency checks, ownership-safe status transitions, normalized Booking DTOs, Member appointment pages, Coach appointment pages and Coach self-profile are in the active source tree. `CoachProfiles` is additive migration `0010`; Workout Schedule and Coach Appointment remain separate concerns.
 
-Verification completed: backend build, backend lint with existing warnings only, frontend TypeScript, frontend build, `git diff --check`, and `COACH_BOOKING_UNIT PASS`. Guarded database acceptance and browser acceptance still require the approved isolated environment, so the verdict remains `PARTIALLY_COMPLETE` until those checks are run.
+Verification completed: backend build/lint/unit, frontend TypeScript/build, migration verification, Coach Role, Member E2E, Admin Coach, Coach Booking, regression-02/03, browser acceptance and `git diff --check`.
 
-The pre-existing Coach module implementation, migrations `0007`–`0009`, builds, TypeScript, acceptance and cleanup are verified. The new booking acceptance remains guarded until an isolated database is available. `FULL_COACH_MODULE_COMPLETE` is not claimed because browser visual verification is not available in this environment.
+The pre-existing Coach module and migrations `0007`–`0009` remain unchanged. Migration `0010` was applied only to the approved isolated acceptance database; canonical production migration is intentionally a separate deployment step.

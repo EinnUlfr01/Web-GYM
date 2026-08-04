@@ -9,8 +9,12 @@ import {
   intervalsOverlap,
   isFutureLocalDateTime,
   isValidBookingTransition,
+  normalizeSqlDate,
+  normalizeSqlDateTime,
+  normalizeSqlTime,
   timeToMinutes,
 } from '../utils/coachBooking';
+import { mapBooking } from '../modules/bookings/bookings.controller';
 import { todayInTimeZone } from '../utils/timezone';
 
 const now = new Date('2026-08-04T03:00:00.000Z'); // 10:00 in Asia/Ho_Chi_Minh
@@ -38,5 +42,47 @@ assert.equal(isValidBookingTransition('pending', 'confirmed'), true);
 assert.equal(isValidBookingTransition('pending', 'completed'), false);
 assert.equal(isValidBookingTransition('confirmed', 'completed'), true);
 assert.equal(isValidBookingTransition('completed', 'cancelled'), false);
+
+assert.equal(normalizeSqlTime('09:30:00.0000000'), '09:30');
+assert.equal(normalizeSqlTime(34_200_000), '09:30');
+assert.equal(normalizeSqlTime(new Date('1970-01-01T09:30:00.000Z')), '09:30');
+assert.throws(() => normalizeSqlTime('not-a-time'));
+assert.equal(normalizeSqlDate(new Date('2026-08-04T00:00:00.000Z')), '2026-08-04');
+assert.equal(normalizeSqlDate('2026-08-04T00:00:00.000Z'), '2026-08-04');
+assert.equal(normalizeSqlDateTime('2026-08-04 03:00:00.000'), '2026-08-04T03:00:00.000Z');
+assert.equal(normalizeSqlDateTime(new Date('2026-08-04T03:00:00.000Z')), '2026-08-04T03:00:00.000Z');
+assert.throws(() => normalizeSqlDate('2026-02-30'));
+assert.throws(() => normalizeSqlDateTime('not-a-datetime'));
+
+const dto = mapBooking({
+  id: 9,
+  coach_id: 2,
+  member_id: 3,
+  booking_date: new Date('2026-08-04T00:00:00.000Z'),
+  start_time: '09:00:00',
+  end_time: 36_000_000,
+  status: 'pending',
+  notes: null,
+  created_at: new Date('2026-08-03T04:00:00.000Z'),
+  updated_at: '2026-08-03 04:00:00.000',
+  member_name: 'Member',
+  coach_name: 'Coach',
+  coach_avatar_url: null,
+});
+assert.deepEqual(dto, {
+  id: 9,
+  coach_id: 2,
+  member_id: 3,
+  booking_date: '2026-08-04',
+  start_time: '09:00',
+  end_time: '10:00',
+  status: 'pending',
+  notes: null,
+  created_at: '2026-08-03T04:00:00.000Z',
+  updated_at: '2026-08-03T04:00:00.000Z',
+  member_name: 'Member',
+  coach_name: 'Coach',
+  coach_avatar_url: null,
+});
 
 console.log('COACH_BOOKING_UNIT PASS');

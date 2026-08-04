@@ -10,6 +10,8 @@ import {
   BookingStatus,
   isFutureLocalDateTime,
   isValidBookingTransition,
+  normalizeSqlDate,
+  normalizeSqlDateTime,
   normalizeSqlTime,
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
@@ -25,7 +27,7 @@ interface NormalizedCreateBooking {
   notes?: string;
 }
 
-interface BookingRow {
+export interface BookingRow {
   id: number;
   coach_id: number;
   member_id: number;
@@ -41,6 +43,22 @@ interface BookingRow {
   coach_avatar_url?: string | null;
 }
 
+export interface BookingDto {
+  id: number;
+  coach_id: number;
+  member_id: number;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  member_name?: string | null;
+  coach_name?: string | null;
+  coach_avatar_url?: string | null;
+}
+
 interface CoachRow { id: number }
 
 function sqlConflict(error: unknown): boolean {
@@ -48,9 +66,26 @@ function sqlConflict(error: unknown): boolean {
   return diagnostic.number === 2601 || diagnostic.number === 2627;
 }
 
-function dbDateToString(value: string | Date): string {
-  if (typeof value === 'string') return value.slice(0, 10);
-  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+export function mapBooking(row: BookingRow): BookingDto {
+  const status = row.status;
+  if (!['pending', 'confirmed', 'completed', 'cancelled', 'no_show'].includes(status)) {
+    throw new AppError(500, 'Invalid booking status');
+  }
+  return {
+    id: Number(row.id),
+    coach_id: Number(row.coach_id),
+    member_id: Number(row.member_id),
+    booking_date: normalizeSqlDate(row.booking_date),
+    start_time: normalizeSqlTime(row.start_time),
+    end_time: normalizeSqlTime(row.end_time),
+    status,
+    notes: row.notes ?? null,
+    created_at: normalizeSqlDateTime(row.created_at),
+    updated_at: normalizeSqlDateTime(row.updated_at),
+    ...(row.member_name !== undefined ? { member_name: row.member_name ?? null } : {}),
+    ...(row.coach_name !== undefined ? { coach_name: row.coach_name ?? null } : {}),
+    ...(row.coach_avatar_url !== undefined ? { coach_avatar_url: row.coach_avatar_url ?? null } : {}),
+  };
 }
 
 function bookingSelect(scope: string): string {
@@ -136,7 +171,7 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
            VALUES(@coachId,@memberId,@bookingDate,@startTime,@endTime,N'pending',@notes,SYSUTCDATETIME(),SYSUTCDATETIME())`,
         );
       await tx.commit();
-      sendSuccess(res, inserted.recordset[0], 'Booking created', 201);
+      sendSuccess(res, mapBooking(inserted.recordset[0]), 'Booking created', 201);
     } catch (error) {
       try { await tx.rollback(); } catch { /* preserve the original error */ }
       if (sqlConflict(error)) throw new AppError(409, 'The selected appointment slot is no longer available');
@@ -163,7 +198,7 @@ export async function getMyBookings(req: Request, res: Response, next: NextFunct
       { ...params, ...(status ? { status } : {}), offset, limit },
     );
     const total = await query<{ total: number }>(`SELECT COUNT(*) AS total FROM dbo.Bookings b WHERE ${clause}${statusFilter}`, { ...params, ...(status ? { status } : {}) });
-    sendSuccess(res, list.recordset, 'Bookings fetched', 200, { pagination: { page, limit, total: Number(total.recordset[0]?.total ?? 0), totalPages: Math.ceil(Number(total.recordset[0]?.total ?? 0) / limit) } });
+    sendSuccess(res, list.recordset.map(mapBooking), 'Bookings fetched', 200, { pagination: { page, limit, total: Number(total.recordset[0]?.total ?? 0), totalPages: Math.ceil(Number(total.recordset[0]?.total ?? 0) / limit) } });
   } catch (error) {
     next(error);
   }
@@ -176,7 +211,7 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
     const { clause, params } = scopeForRole(req.user!.role, req.user!.userId);
     const result = await query<BookingRow>(`${bookingSelect(`b.id=@id AND ${clause}`)}`, { id, ...params });
     if (!result.recordset[0]) throw new AppError(404, 'Booking not found');
-    sendSuccess(res, result.recordset[0]);
+    sendSuccess(res, mapBooking(result.recordset[0]));
   } catch (error) {
     next(error);
   }
@@ -202,7 +237,7 @@ export async function updateBookingStatus(req: Request, res: Response, next: Nex
       if (role === 'member' && requestedStatus !== 'cancelled') throw new AppError(403, 'Members may only cancel their own bookings');
       if (!isValidBookingTransition(currentStatus, requestedStatus)) throw new AppError(409, 'Invalid booking status transition');
 
-      const date = dbDateToString(booking.booking_date);
+      const date = normalizeSqlDate(booking.booking_date);
       const startTime = normalizeSqlTime(booking.start_time);
       const endTime = normalizeSqlTime(booking.end_time);
       if (requestedStatus === 'confirmed' && !isFutureLocalDateTime(date, startTime)) throw new AppError(409, 'Past bookings cannot be confirmed');
@@ -222,7 +257,7 @@ export async function updateBookingStatus(req: Request, res: Response, next: Nex
         );
       if (!update.recordset[0]) throw new AppError(409, 'Booking was changed by another request');
       await tx.commit();
-      sendSuccess(res, update.recordset[0], 'Booking updated');
+      sendSuccess(res, mapBooking(update.recordset[0]), 'Booking updated');
     } catch (error) {
       try { await tx.rollback(); } catch { /* preserve the original error */ }
       if (sqlConflict(error)) throw new AppError(409, 'Booking was changed by another request');

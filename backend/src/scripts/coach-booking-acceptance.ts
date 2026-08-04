@@ -8,12 +8,14 @@ if (process.env.COACH_BOOKING_ACCEPTANCE !== '1' || !process.env.DB_NAME?.starts
 }
 
 const base = process.env.COACH_API_BASE || 'http://localhost:5000/api';
-const suffix = `${Date.now()}`;
-const password = `CoachBook#${suffix.slice(-8)}`;
+const suffix = process.env.COACH_BOOKING_FIXTURE_SUFFIX || `${Date.now()}`;
+const password = process.env.COACH_BOOKING_PASSWORD || `CoachBook#${suffix.slice(-8)}`;
 const emails = {
   coachA: `coach-booking-a-${suffix}@example.test`,
   coachB: `coach-booking-b-${suffix}@example.test`,
   suspended: `coach-booking-suspended-${suffix}@example.test`,
+  inactive: `coach-booking-inactive-${suffix}@example.test`,
+  disabled: `coach-booking-disabled-${suffix}@example.test`,
   memberA: `member-booking-a-${suffix}@example.test`,
   memberB: `member-booking-b-${suffix}@example.test`,
   admin: `admin-booking-${suffix}@example.test`,
@@ -50,22 +52,24 @@ async function seed(): Promise<void> {
   await cleanup();
   const hash = await bcrypt.hash(password, 10);
   const roles: Record<AccountKey, string> = {
-    coachA: 'coach', coachB: 'coach', suspended: 'coach', memberA: 'member', memberB: 'member', admin: 'admin', seller: 'seller',
+    coachA: 'coach', coachB: 'coach', suspended: 'coach', inactive: 'coach', disabled: 'coach', memberA: 'member', memberB: 'member', admin: 'admin', seller: 'seller',
   };
   for (const key of Object.keys(emails) as AccountKey[]) {
     const result = await query<{ id: number }>(
       `INSERT dbo.Users(email,password,name,role,is_active,email_verified,token_version,coach_status)
-       OUTPUT INSERTED.id VALUES(@email,@password,@name,@role,1,1,0,@coachStatus)`,
-      { email: emails[key], password: hash, name: `Booking ${key}`, role: roles[key], coachStatus: key === 'suspended' ? 'SUSPENDED' : roles[key] === 'coach' ? 'ACTIVE' : null },
+       OUTPUT INSERTED.id VALUES(@email,@password,@name,@role,@isActive,1,0,@coachStatus)`,
+      { email: emails[key], password: hash, name: `Booking ${key}`, role: roles[key], isActive: key === 'inactive' ? 0 : 1, coachStatus: key === 'suspended' ? 'SUSPENDED' : key === 'inactive' ? 'INACTIVE' : roles[key] === 'coach' ? 'ACTIVE' : null },
     );
     accounts[key].id = Number(result.recordset[0].id);
   }
   await query(
-    `INSERT dbo.CoachProfiles(coach_id,specialty,bio,experience_years,session_mode,location,booking_enabled)
-     VALUES(@coachA,N'Strength',N'Acceptance Coach A',5,N'BOTH',N'GYMFIT',1),
-           (@coachB,N'Mobility',N'Acceptance Coach B',4,N'ONLINE',N'Online',1),
-           (@suspended,N'Suspended',N'Not publicly bookable',3,N'IN_PERSON',N'GYMFIT',1)`,
-    { coachA: accounts.coachA.id, coachB: accounts.coachB.id, suspended: accounts.suspended.id },
+     `INSERT dbo.CoachProfiles(coach_id,specialty,bio,experience_years,session_mode,location,booking_enabled)
+      VALUES(@coachA,N'Strength',N'Acceptance Coach A',5,N'BOTH',N'GYMFIT',1),
+            (@coachB,N'Mobility',N'Acceptance Coach B',4,N'ONLINE',N'Online',1),
+            (@suspended,N'Suspended',N'Not publicly bookable',3,N'IN_PERSON',N'GYMFIT',1),
+            (@inactive,N'Inactive',N'Not publicly visible',2,N'ONLINE',N'Online',1),
+            (@disabled,N'Booking disabled',N'Visible but not bookable',6,N'BOTH',N'GYMFIT',0)`,
+    { coachA: accounts.coachA.id, coachB: accounts.coachB.id, suspended: accounts.suspended.id, inactive: accounts.inactive.id, disabled: accounts.disabled.id },
   );
 }
 
@@ -90,16 +94,25 @@ async function login(account: Account): Promise<void> {
 
 async function run(): Promise<void> {
   await seed();
-  await Promise.all([accounts.coachA, accounts.coachB, accounts.suspended, accounts.memberA, accounts.memberB, accounts.admin, accounts.seller].map(login));
+  await Promise.all([accounts.coachA, accounts.coachB, accounts.suspended, accounts.disabled, accounts.memberA, accounts.memberB, accounts.admin, accounts.seller].map(login));
 
   const bookingDate = datePlus(2);
   const secondDate = datePlus(3);
   const list = await call('GET', '/coaches');
   check(list.status === 200 && list.data.data.coaches.some((coach: any) => Number(coach.id) === accounts.coachA.id), 'public list returns active Coach');
   check(!list.data.data.coaches.some((coach: any) => Number(coach.id) === accounts.suspended.id), 'suspended Coach is hidden from public list');
+  check(!list.data.data.coaches.some((coach: any) => Number(coach.id) === accounts.inactive.id), 'inactive Coach is hidden from public list');
+  check(list.data.data.coaches.some((coach: any) => Number(coach.id) === accounts.disabled.id && coach.bookingEnabled === false), 'booking-disabled Coach remains visible with bookingEnabled=false');
   check((await call('GET', `/coaches/${accounts.suspended.id}`)).status === 404, 'suspended Coach detail is 404');
+  check((await call('GET', `/coaches/${accounts.inactive.id}`)).status === 404, 'inactive Coach detail is 404');
+  const paged = await call('GET', '/coaches?page=1&limit=1');
+  check(paged.status === 200 && paged.data.data.pagination.page === 1 && paged.data.data.pagination.limit === 1 && paged.data.data.pagination.totalPages >= 1 && paged.data.data.coaches.length <= 1, 'public Coach list returns server pagination metadata');
+  const searched = await call('GET', '/coaches?search=Mobility&page=1&limit=10');
+  check(searched.status === 200 && searched.data.data.coaches.length === 1 && Number(searched.data.data.coaches[0].id) === accounts.coachB.id, 'public Coach search is server-side');
+  check((await call('GET', '/coaches/not-an-id')).status === 400, 'invalid Coach ID is rejected');
   const availability = await call('GET', `/coaches/${accounts.coachA.id}/availability?date=${bookingDate}`);
   check(availability.status === 200 && availability.data.data.duration_minutes === 60 && availability.data.data.timezone === COACH_BOOKING_TIME_ZONE, 'availability uses canonical timezone and duration');
+  check((await call('GET', `/coaches/${accounts.coachA.id}/availability?date=2026-02-31`)).status === 400, 'invalid availability date is rejected');
 
   check((await call('POST', '/bookings', undefined, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 401, 'guest cannot create booking');
   check((await call('POST', '/bookings', accounts.coachA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 403, 'Coach cannot create member booking');
@@ -108,12 +121,22 @@ async function run(): Promise<void> {
 
   const created = await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00', note: 'Real pending booking' });
   check(created.status === 201 && created.data.data.status === 'pending' && created.data.data.end_time.slice(0, 5) === '11:00', 'member creates a pending 60-minute booking');
+  check(typeof created.data.data.booking_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(created.data.data.booking_date)
+    && typeof created.data.data.start_time === 'string' && typeof created.data.data.end_time === 'string'
+    && typeof created.data.data.created_at === 'string' && typeof created.data.data.updated_at === 'string', 'create response uses normalized Booking DTO strings');
   const bookingId = Number(created.data.data.id);
+  const memberList = await call('GET', '/bookings?limit=10', accounts.memberA);
+  check(memberList.status === 200 && Array.isArray(memberList.data.data) && memberList.data.data.every((item: any) => typeof item.booking_date === 'string' && typeof item.start_time === 'string' && typeof item.created_at === 'string'), 'list response uses normalized Booking DTO');
+  const memberDetail = await call('GET', `/bookings/${bookingId}`, accounts.memberA);
+  check(memberDetail.status === 200 && typeof memberDetail.data.data.updated_at === 'string', 'detail response uses normalized Booking DTO');
   check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 409, 'exact duplicate/Coach overlap is rejected');
   check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.suspended.id, date: bookingDate, startTime: '10:00' })).status === 404, 'suspended Coach cannot be booked');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 201, 'Member can book a different active Coach');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '11:00' })).status === 409, 'Member overlap is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.disabled.id, date: bookingDate, startTime: '10:00' })).status === 404, 'booking-disabled Coach cannot be booked');
+  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 201, 'Member can book a different active Coach');
+  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 409, 'Member overlap is rejected');
   check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '13:00', note: 'x'.repeat(501) })).status === 400, 'oversized note is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: '2026-02-31', startTime: '10:00' })).status === 400, 'invalid booking date is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:30' })).status === 400, 'unsupported booking slot is rejected');
 
   const concurrent = await Promise.all([
     call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00' }),
@@ -128,6 +151,7 @@ async function run(): Promise<void> {
   check((await call('PUT', `/bookings/${bookingId}/status`, accounts.coachA, { status: 'completed' })).status === 409, 'future booking cannot be completed');
   const confirmed = await call('PUT', `/bookings/${bookingId}/status`, accounts.coachA, { status: 'confirmed' });
   check(confirmed.status === 200 && confirmed.data.data.status === 'confirmed', 'owner Coach confirms pending booking');
+  check(typeof confirmed.data.data.booking_date === 'string' && typeof confirmed.data.data.start_time === 'string' && typeof confirmed.data.data.updated_at === 'string', 'status update response uses normalized Booking DTO');
   check((await call('PUT', `/bookings/${bookingId}/status`, accounts.coachA, { status: 'confirmed' })).status === 409, 'duplicate state transition is rejected');
 
   const legacy = await call('POST', '/bookings', accounts.memberB, { coach_id: accounts.coachA.id, booking_date: secondDate, start_time: '13:00', end_time: '14:00' });
@@ -135,6 +159,16 @@ async function run(): Promise<void> {
   const cancelled = await call('PUT', `/bookings/${Number(legacy.data.data.id)}/status`, accounts.memberB, { status: 'cancelled' });
   check(cancelled.status === 200 && cancelled.data.data.status === 'cancelled', 'Member cancels own booking');
   check((await call('PUT', `/bookings/${Number(legacy.data.data.id)}/status`, accounts.coachA, { status: 'confirmed' })).status === 409, 'terminal cancelled booking cannot be confirmed');
+
+  const profileRead = await call('GET', '/coach/profile', accounts.coachA);
+  check(profileRead.status === 200 && profileRead.data.data.coachId === accounts.coachA.id && profileRead.data.data.bookingEnabled === true, 'Coach can read own self-profile');
+  const profileUpdate = await call('PATCH', '/coach/profile', accounts.coachA, { specialty: '  Strength updated  ', bio: '  Profile acceptance  ', experienceYears: 8, sessionMode: 'ONLINE', location: '  Online  ', bookingEnabled: false });
+  check(profileUpdate.status === 200 && profileUpdate.data.data.specialty === 'Strength updated' && profileUpdate.data.data.bio === 'Profile acceptance' && profileUpdate.data.data.location === 'Online' && profileUpdate.data.data.bookingEnabled === false, 'Coach self-profile trims fields and toggles booking atomically');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: datePlus(4), startTime: '10:00' })).status === 404, 'self-profile booking toggle blocks new booking');
+  const profileClear = await call('PATCH', '/coach/profile', accounts.coachA, { specialty: '', bio: '', experienceYears: null, sessionMode: null, location: '', bookingEnabled: true });
+  check(profileClear.status === 200 && profileClear.data.data.specialty === null && profileClear.data.data.bio === null && profileClear.data.data.location === null && profileClear.data.data.bookingEnabled === true, 'Coach self-profile empty strings normalize to null');
+  check((await call('GET', '/coach/profile', accounts.memberA)).status === 403, 'Member cannot read Coach self-profile');
+  check((await call('PATCH', '/coach/profile', accounts.coachA, { coachId: accounts.coachB.id })).status === 400, 'Coach self-profile rejects client identity fields');
 
   await query(
     `INSERT dbo.Bookings(coach_id,member_id,booking_date,start_time,end_time,status,notes)
@@ -144,7 +178,7 @@ async function run(): Promise<void> {
   const past = await query<{ id: number }>('SELECT TOP 1 id FROM dbo.Bookings WHERE coach_id=@coach AND member_id=@member AND booking_date=@pastDate ORDER BY id DESC', { coach: accounts.coachA.id, member: accounts.memberB.id, pastDate: datePlus(-2) });
   check((await call('PUT', `/bookings/${Number(past.recordset[0].id)}/status`, accounts.coachA, { status: 'completed' })).status === 200, 'confirmed past booking can be completed');
 
-  console.log(JSON.stringify({ verdict: 'PASS', database: process.env.DB_NAME, bookingId, seededAccountKeys: Object.keys(accounts) }));
+  console.log(JSON.stringify({ verdict: 'PASS', database: process.env.DB_NAME, bookingId, seededEmails: emails }));
 }
 
 if (process.argv.includes('--cleanup')) {

@@ -1,5 +1,15 @@
 export const COACH_BOOKING_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 
+export type CoachBookingAction = 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+
+export const bookingStatusLabel: Record<'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show', string> = {
+  pending: 'Chờ xác nhận',
+  confirmed: 'Đã xác nhận',
+  completed: 'Đã hoàn thành',
+  cancelled: 'Đã hủy',
+  no_show: 'Vắng mặt',
+};
+
 function partsForDate(value: Date): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: COACH_BOOKING_TIME_ZONE,
@@ -30,4 +40,27 @@ export function coachDateOptions(days = 14, now = new Date()): Array<{ value: st
     });
     return { value, label };
   });
+}
+
+export function localCoachDateTimeMs(date: string, time: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^(?:[01]\d|2[0-3]):[0-5]\d/.test(time)) return Number.NaN;
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
+  return Date.UTC(year, month - 1, day, hours, minutes) - 7 * 60 * 60 * 1000;
+}
+
+export function isCoachActionAllowed(action: CoachBookingAction, status: keyof typeof bookingStatusLabel, date: string, startTime: string, endTime: string, now = new Date()): boolean {
+  if (action === 'cancelled') return status === 'pending' || status === 'confirmed';
+  if (action === 'confirmed') return status === 'pending' && localCoachDateTimeMs(date, startTime) > now.getTime();
+  if (action === 'completed') return status === 'confirmed' && localCoachDateTimeMs(date, startTime) <= now.getTime();
+  return status === 'confirmed' && localCoachDateTimeMs(date, endTime) <= now.getTime();
+}
+
+export function displayCoachDate(value: string): string {
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: COACH_BOOKING_TIME_ZONE });
+}
+
+export function displayCoachTime(value: string): string {
+  return value.slice(0, 5);
 }

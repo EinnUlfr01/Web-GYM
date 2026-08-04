@@ -28,6 +28,7 @@ import CoachSessionDetailPage from './pages/coaches/CoachSessionDetailPage';
 import CoachProgressPage from './pages/coaches/CoachProgressPage';
 import CoachListPage from './pages/coaches/CoachListPage';
 import CoachProfilePage from './pages/coaches/CoachProfilePage';
+import CoachSelfProfilePage from './pages/coaches/CoachSelfProfilePage';
 import MembersPage from './pages/members/MembersPage';
 import ReferralPage from './pages/referral/ReferralPage';
 import CouponPage from './pages/coupon/CouponPage';
@@ -208,8 +209,11 @@ export default function App() {
           <Route path="/admin/inventory" element={<AccessRoute path="/admin"><AdminInventoryPage /></AccessRoute>} />
           <Route path="/admin/products/:productId/variants" element={<AccessRoute path="/admin"><AdminProductVariantsPage /></AccessRoute>} />
           <Route path="/coach" element={<AccessRoute path="/coach"><CoachDashboard /></AccessRoute>} />
+          <Route path="/coach/profile" element={<AccessRoute path="/coach/profile"><CoachSelfProfilePage /></AccessRoute>} />
           <Route path="/coach/appointments" element={<AccessRoute path="/coach/appointments"><CoachAppointmentsPage /></AccessRoute>} />
           <Route path="/coach/appointments/:bookingId" element={<AccessRoute path="/coach/appointments"><CoachAppointmentDetailPage /></AccessRoute>} />
+          <Route path="/coach/sessions" element={<AccessRoute path="/coach/sessions"><Navigate to="/coach/members" replace /></AccessRoute>} />
+          <Route path="/coach/progress" element={<AccessRoute path="/coach/progress"><Navigate to="/coach/members" replace /></AccessRoute>} />
           <Route path="/coach/exercises" element={<AccessRoute path="/coach"><CoachExerciseLibraryPage /></AccessRoute>} />
           <Route path="/coach/exercises/:exerciseId" element={<AccessRoute path="/coach"><CoachExerciseDetailPage /></AccessRoute>} />
           <Route path="/coach/workout-programs" element={<AccessRoute path="/coach"><CoachProgramsPage /></AccessRoute>} />

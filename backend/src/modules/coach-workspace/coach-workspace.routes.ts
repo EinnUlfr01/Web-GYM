@@ -27,9 +27,19 @@ const transition = z.object({}).strict();
 const scheduleList = z.object({ page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).max(50).default(20), memberId: z.coerce.number().int().positive().optional(), fromDate: z.string().optional(), toDate: z.string().optional() }).strict();
 const generate = z.object({ fromDate: z.string().optional(), horizonDays: z.number().int().min(1).max(90).default(30) }).strict();
 const rescheduleSchema = z.object({ scheduledDate: z.string() }).strict();
+const coachProfile = z.object({
+  specialty: z.string().trim().max(200).nullable().optional(),
+  bio: z.string().trim().max(2000).nullable().optional(),
+  experienceYears: z.number().int().min(0).max(80).nullable().optional(),
+  sessionMode: z.enum(['ONLINE', 'IN_PERSON', 'BOTH']).nullable().optional(),
+  location: z.string().trim().max(255).nullable().optional(),
+  bookingEnabled: z.boolean().optional(),
+}).strict();
 
 router.use(authenticate, authorize(UserRole.COACH));
 router.get('/dashboard', controller.getDashboard);
+router.get('/profile', controller.getSelfProfile);
+router.patch('/profile', validate(coachProfile), controller.updateSelfProfile);
 router.get('/exercises', validate(exerciseList, 'query'), controller.listExercises);
 router.get('/exercises/:exerciseId', validate(z.object({ exerciseId: z.coerce.number().int().positive() }).strict(), 'params'), controller.getExercise);
 router.get('/workout-programs', validate(list, 'query'), controller.listPrograms);

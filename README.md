@@ -9,7 +9,7 @@ GymFit is a full-stack gym-management and commerce platform with Member, Coach, 
 - Admin: Coach status and Member scope management, shared Exercise Library and read-only Workout Governance.
 - Seller/Marketplace: maintained in the protected Marketplace documentation set and outside the Coach cleanup scope.
 
-Coach migrations `0007`, `0008` and `0009` are applied and checksum-verified on the canonical database. Admin Coach acceptance passes on isolated data. The final visual browser check is currently blocked by missing approved browser runtime; see [`docs/coach/COACH_MODULE_HANDOVER.md`](docs/coach/COACH_MODULE_HANDOVER.md).
+Coach migrations `0007`, `0008`, `0009` and the additive `0010_coach_profiles.sql` contract are verified on isolated acceptance databases. Coach Role, Member Workout, Admin Coach and Coach Booking runtime acceptance all pass; the browser checklist also passes at the required responsive viewports. The canonical `GYMFIT_DB` remains read-only with `0010` intentionally pending until an approved production migration window.
 
 ## Technology
 
@@ -40,7 +40,7 @@ Read [`docs/DATABASE_AND_MIGRATIONS.md`](docs/DATABASE_AND_MIGRATIONS.md) before
 
 ## Contribution and security
 
-Use explicit branches and explicit staging. Do not push automatically. Backend authorization is authoritative; frontend guards are navigation UX only. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/README.md`](docs/README.md).
+Use explicit branches and explicit staging. Backend authorization is authoritative; frontend guards are navigation UX only. The completed Coach work is on branch `coach`; see [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/README.md`](docs/README.md).
 
 ## Coach appointments
 
@@ -48,4 +48,4 @@ The public Coach catalog is backed by `GET /api/coaches` and `GET /api/coaches/:
 
 Member booking uses `POST /api/bookings` with `{ coachId, date, startTime, note }`. Appointments are fixed at 60 minutes in `Asia/Ho_Chi_Minh` and start as lowercase `pending`. Members use `/appointments`; Coaches use `/coach/appointments`. Appointment data is intentionally separate from Workout Schedule data.
 
-Apply `db/migrations/0010_coach_profiles.sql` on an isolated database before using the new public profile fields. The guarded checks are `npm run test:coach-booking-unit` and `npm run acceptance:coach-booking`; the latter requires `COACH_BOOKING_ACCEPTANCE=1`, an isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API.
+Apply `db/migrations/0010_coach_profiles.sql` on an isolated or explicitly approved database before using the new public profile fields. The guarded checks are `npm run test:coach-booking-unit`, `npm run verify:coach-migration` and `npm run acceptance:coach-booking`; the latter requires `COACH_BOOKING_ACCEPTANCE=1`, an isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API. Booking remains a 60-minute `Asia/Ho_Chi_Minh` appointment with lowercase `pending`/`confirmed`/`cancelled`/`completed`/`no_show` states, separate from Workout Schedule and without implicit Coach–Member assignment.

@@ -7,6 +7,8 @@ const numberParam = (req: Request, key: string) => Number(req.params[key]);
 const run = (handler: (req: Request) => Promise<unknown>, statusCode = 200) => async (req: Request, res: Response, next: NextFunction) => { try { sendSuccess(res, await handler(req), 'Success', statusCode); } catch (error) { next(error); } };
 
 export const getDashboard = run(req => service.dashboard(actor(req)));
+export const getSelfProfile = run(req => service.getSelfProfile(actor(req)));
+export const updateSelfProfile = run(req => service.updateSelfProfile(actor(req), req.body));
 export const listExercises = run(req => service.listExercises({ q: req.query.q as string | undefined, muscleGroup: req.query.muscleGroup as string | undefined, difficulty: req.query.difficulty as string | undefined, equipment: req.query.equipment as string | undefined, page: Number(req.query.page), limit: Number(req.query.limit), sort: String(req.query.sort) }));
 export const getExercise = run(req => service.getExercise(numberParam(req, 'exerciseId')));
 export const listPrograms = run(req => service.listPrograms(actor(req), Number(req.query.page), Number(req.query.limit), req.query.q as string | undefined));

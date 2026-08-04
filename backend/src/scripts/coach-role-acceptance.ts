@@ -25,8 +25,6 @@ async function cleanup() {
   await query(`DELETE FROM dbo.Workouts WHERE coach_id IN (${ids.slice(0,2).join(',')||'-1'})`);
   await query(`DELETE FROM dbo.CRMCustomers WHERE user_id IN (${csv})`);
   await query(`DELETE FROM dbo.AuthSessions WHERE user_id IN (${csv})`);
-  await query(`DELETE FROM dbo.CartItems WHERE cart_id IN (SELECT id FROM dbo.Carts WHERE buyer_id IN (${csv}))`);
-  await query(`DELETE FROM dbo.Carts WHERE buyer_id IN (${csv})`);
   await query(`DELETE FROM dbo.Points WHERE user_id IN (${csv})`);
   await query(`DELETE FROM dbo.Users WHERE id IN (${csv})`);
 }

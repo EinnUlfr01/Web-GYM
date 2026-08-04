@@ -13,8 +13,8 @@ export interface Booking {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  member_name?: string;
-  coach_name?: string;
+  member_name?: string | null;
+  coach_name?: string | null;
   coach_avatar_url?: string | null;
 }
 

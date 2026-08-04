@@ -1,6 +1,6 @@
 # API Overview
 
-Catalog verified against `backend/src/app.ts` and current route files on 2026-08-03. `Auth` means JWT bearer authentication; role checks shown are backend checks.
+Catalog verified against `backend/src/app.ts` and current route files on 2026-08-04. `Auth` means JWT bearer authentication; role checks shown are backend checks.
 
 The six-actor authorization matrix and session/ownership rules are maintained in this document and the active module handover. `authenticate` validates the live session, token version, active user and current role on every protected request.
 
@@ -247,6 +247,13 @@ Public Coach endpoints are canonical:
 - `GET /api/coaches/:id` -> one active Coach; suspended/inactive IDs return 404.
 - `GET /api/coaches/:id/availability?date=YYYY-MM-DD` -> fixed 60-minute availability in `Asia/Ho_Chi_Minh`.
 
+Coach self-profile is Coach-only and derives the Coach ID from the JWT:
+
+- `GET /api/coach/profile` -> safe public-profile fields plus `bookingEnabled`.
+- `PATCH /api/coach/profile` -> trims nullable profile fields, validates experience/session mode and atomically updates `bookingEnabled`; identity, role, status and security fields are not writable.
+
 `/api/bookings/coaches` and `/api/bookings/coaches/:id/availability` are compatibility aliases to that same query/controller. `POST /api/bookings` is Member-only and accepts canonical `{ coachId, date, startTime, note }`; the legacy snake_case payload remains accepted during compatibility. The authenticated Member ID is always used; client-supplied `member_id` is ignored/rejected. New rows are `pending` and may transition only `pending -> confirmed/cancelled` or `confirmed -> completed/cancelled/no_show`.
 
 `GET /api/bookings` and `GET /api/bookings/:id` are scoped to the authenticated Member/Coach (Admin may view all). Status mutations enforce role, ownership, state and appointment time. Seller and other roles cannot create or operate Member bookings. These appointment permissions are backend-enforced; frontend access policy only controls navigation.
+
+Frontend surfaces are `/coaches`, `/coaches/:id`, `/coaches/:id/book`, `/appointments`, `/appointments/:id`, `/coach`, `/coach/profile`, `/coach/appointments` and `/coach/appointments/:id`. Booking DTO dates/times are normalized strings; no `Appointments` table is introduced and booking never creates a Coach–Member assignment.

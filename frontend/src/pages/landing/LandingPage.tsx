@@ -254,8 +254,8 @@ function CoachMarketplace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
-    listPublicCoaches()
-      .then(value => setCoaches(value.slice(0, 4)))
+    listPublicCoaches({ page: 1, limit: 4 })
+      .then(value => setCoaches(value.coaches))
       .catch(() => setError('Coach list could not be loaded.'))
       .finally(() => setLoading(false));
   }, []);

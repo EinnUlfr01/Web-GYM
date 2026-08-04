@@ -8,6 +8,8 @@ const suffix = 'fix20260803';
 const password = 'CoachMemberE2E#20260803';
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const addDays = (value: string, days: number) => { const date = new Date(`${value}T00:00:00Z`); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };
+const todayDayNumber = (() => { const day = new Date(`${today}T00:00:00Z`).getUTCDay(); return day === 0 ? 7 : day; })();
+const nextDayNumber = todayDayNumber === 7 ? 1 : todayDayNumber + 1;
 const emails = { coachA:`e2e-coach-a-${suffix}@example.test`, coachB:`e2e-coach-b-${suffix}@example.test`, memberA:`e2e-member-a-${suffix}@example.test`, memberB:`e2e-member-b-${suffix}@example.test` };
 type Key = keyof typeof emails;
 type Account = { id:number; email:string; password:string; token?:string };
@@ -40,8 +42,6 @@ async function cleanup() {
   await query('DELETE FROM dbo.Exercises WHERE slug=@slug',{slug:`coach-member-e2e-exercise-${suffix}`});
   await query(`DELETE FROM dbo.CRMCustomers WHERE user_id IN (${list})`);
   await query(`DELETE FROM dbo.AuthSessions WHERE user_id IN (${list})`);
-  await query(`DELETE FROM dbo.CartItems WHERE cart_id IN (SELECT id FROM dbo.Carts WHERE buyer_id IN (${list}))`);
-  await query(`DELETE FROM dbo.Carts WHERE buyer_id IN (${list})`);
   await query(`DELETE FROM dbo.Users WHERE id IN (${list})`);
 }
 
@@ -57,11 +57,11 @@ async function run() {
   check((await call('GET','/member/workouts/current',accounts.coachA)).status===403,'Coach denied Member Workout API');
   let exercise=await query<{id:number}>('SELECT TOP 1 id FROM dbo.Exercises WHERE is_active=1 ORDER BY id'); if(!exercise.recordset[0]) exercise=await query<{id:number}>(`INSERT dbo.Exercises(name,slug,description,instructions,muscle_group,equipment,difficulty,is_active) OUTPUT INSERTED.id VALUES(N'Member E2E Exercise',@slug,N'Acceptance exercise',N'Controlled form.',N'full_body',N'bodyweight',N'BEGINNER',1)`,{slug:`coach-member-e2e-exercise-${suffix}`}); check(Boolean(exercise.recordset[0]),'active exercise seed exists'); const exerciseId=Number(exercise.recordset[0].id);
   const program=await call('POST','/coach/workout-programs',accounts.coachA,{name:'Member E2E Program',description:'Acceptance program',goal:'STRENGTH',difficulty:'INTERMEDIATE',durationWeeks:1,daysPerWeek:2}); check(program.status===201,'Coach creates E2E program'); const programId=Number((bodyData<Json>(program)).id);
-  const dayOne=await call('POST',`/coach/workout-programs/${programId}/days`,accounts.coachA,{weekNumber:1,dayNumber:1,title:'Monday Strength'}); const dayTwo=await call('POST',`/coach/workout-programs/${programId}/days`,accounts.coachA,{weekNumber:1,dayNumber:2,title:'Tuesday Strength'}); check(dayOne.status===201&&dayTwo.status===201,'Coach creates two program days');
+  const dayOne=await call('POST',`/coach/workout-programs/${programId}/days`,accounts.coachA,{weekNumber:1,dayNumber:todayDayNumber,title:'Current Day Strength'}); const dayTwo=await call('POST',`/coach/workout-programs/${programId}/days`,accounts.coachA,{weekNumber:1,dayNumber:nextDayNumber,title:'Next Day Strength'}); check(dayOne.status===201&&dayTwo.status===201,'Coach creates two program days');
   const dayOneId=Number((bodyData<Json>(dayOne)).id); const dayTwoId=Number((bodyData<Json>(dayTwo)).id);
   const programExercise=await call('POST',`/coach/workout-program-days/${dayOneId}/exercises`,accounts.coachA,{exerciseId,targetSets:2,targetRepsMin:8,targetRepsMax:12,targetWeight:20,restSeconds:60}); const secondExercise=await call('POST',`/coach/workout-program-days/${dayTwoId}/exercises`,accounts.coachA,{exerciseId,targetSets:2,targetRepsMin:8,targetRepsMax:12,targetWeight:15,restSeconds:60}); check(programExercise.status===201&&secondExercise.status===201,'Coach adds snapshot source exercises'); const programExerciseId=Number((bodyData<Json>(programExercise)).id);
   const assignment=await call('POST','/coach/assignments',accounts.coachA,{memberId:accounts.memberA.id,programId,startDate:today,scheduleTimezone:'Asia/Ho_Chi_Minh',note:'E2E'}); check(assignment.status===201,'Coach assigns Member A in scope'); const assignmentId=Number((bodyData<Json>(assignment)).id);
-  const generated=await call('POST',`/coach/assignments/${assignmentId}/schedules/generate`,accounts.coachA,{fromDate:today,horizonDays:2}); check(generated.status===200&&Number((bodyData<Json>(generated)).inserted)===2,'Coach generates dated schedules');
+  const generated=await call('POST',`/coach/assignments/${assignmentId}/schedules/generate`,accounts.coachA,{fromDate:today,horizonDays:7}); check(generated.status===200&&Number((bodyData<Json>(generated)).inserted)===2,'Coach generates dated schedules');
   await query(`UPDATE dbo.CoachProgramSchedules SET scheduled_date=CONVERT(date,SYSUTCDATETIME()) WHERE assignment_id=@assignmentId AND program_day_id=@dayId`,{assignmentId,dayId:dayTwoId});
   await query(`INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date,status) VALUES(@assignmentId,@dayId,DATEADD(day,-1,CONVERT(date,SYSUTCDATETIME())),N'SCHEDULED')`,{assignmentId,dayId:dayOneId});
   const coachFutureSchedule=await query<{id:number}>(`INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date,status) OUTPUT INSERTED.id VALUES(@assignmentId,@dayId,DATEADD(day,2,CONVERT(date,SYSUTCDATETIME())),N'SCHEDULED')`,{assignmentId,dayId:dayOneId}); const coachFutureScheduleId=Number(coachFutureSchedule.recordset[0].id);

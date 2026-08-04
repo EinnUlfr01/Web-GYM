@@ -14,9 +14,10 @@ GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must n
 | `0007_coach_programs_assignments_schedules.sql` | Coach programs, days, exercises, assignments and schedules | Applied and checksum-valid |
 | `0008_member_workout_flow.sql` | Member session, immutable exercise snapshot and set-log tables | Applied and additive |
 | `0009_admin_coach_management.sql` | Bounded Coach status/reason fields and status index | Applied and checksum-valid |
+| `0010_coach_profiles.sql` | Additive Coach public profile and booking-enabled fields | Applied and checksum-valid on isolated Coach acceptance; pending on canonical by design |
 | `0100`–`0111` | Seller/Marketplace modules | Existing applied range; unchanged by Coach work |
 
-Before adding the Coach appointment migration, the verified canonical result was 21 applied migrations, 0 pending and 0 checksum mismatches. The current read-only result is 21 applied, 1 pending (`0010_coach_profiles.sql`) and 0 checksum mismatches; the pending migration must be applied only to an approved target. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
+The canonical read-only result remains 21 applied, 1 pending (`0010_coach_profiles.sql`) and 0 checksum mismatches; the canonical database was not mutated. On isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823`, the pre-migration ledger had 21 applied, 1 pending and 0 mismatches; the normal runner applied `0010` transactionally and `npm run verify:coach-migration` reported 22 applied, 0 pending, 0 checksum mismatches, `CoachProfiles` present and its unique Coach key present. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
 
 ## Coach/Member data model
 
@@ -44,4 +45,4 @@ Applied checksums are immutable. No reset, drop or manual migration is a fallbac
 
 Migration `0010_coach_profiles.sql` creates `dbo.CoachProfiles` only when it is absent. It stores public profile/booking-enabled fields, has a unique `coach_id` foreign key to `Users`, and does not create or replace the existing `Bookings` table or `UX_Bookings_ActiveSlot` filtered unique index. The full schema baseline includes the same additive table and Coach governance columns; existing databases must still be checked with `npm run db:migrate:status` before applying anything.
 
-Coach acceptance scripts refuse the canonical database. Use a disposable database name beginning `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_`, apply migrations there, start the API against that database, and run `npm run acceptance:coach-booking`. No Marketplace migration is part of this change.
+Coach acceptance scripts refuse the canonical database. Use a disposable database name beginning `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_`, apply migrations there, verify the ledger with `npm run verify:coach-migration`, start the API against that database, and run `npm run acceptance:coach-booking`. The acceptance environment guard also suppresses the unrelated order-expiration runner. No Marketplace migration is part of this change.

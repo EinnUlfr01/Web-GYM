@@ -36,13 +36,13 @@ Update README/status/API/database/security/limitations/handoff documents with ev
 
 ## Branch and handoff policy
 
-The current hardening branch is `fix/vinh-coach-e2e-hardening` from `21f69017b0c4f2f5933998b0382d0676b0e83a16`. Do not push directly to `main`, merge `main` during the task, force-push, or edit applied migrations. Inspect the route registration, module, consumer, schema and tests before changing a contract. Stage explicit paths only; never use `git add .` or `git add -A`.
+The completed Coach branch is `coach`, based on audited implementation commit `47417e26452cf4646ed51ec03a2891410e304823`. Do not push directly to `main`, merge `main` during the task, force-push, or edit applied migrations. Inspect the route registration, module, consumer, schema and tests before changing a contract. Stage explicit paths only; never use `git add .` or `git add -A`.
 
 Build/lint commands verified from package scripts: backend `npm run build` and `npm run lint`; frontend `npm run build` (TypeScript runs through the configured Vite build). Use targeted checks during implementation and the specification's Build Gates rather than rebuilding after every file.
 
 Handoff requires updated canonical docs, link/stale/secret scans, `git diff --check`, acceptance cleanup, reviewed staged paths, scoped commit, pushed branch and exact commit reporting. Never commit `.env`, raw logs, backups, uploads, browser profiles, acceptance artifacts, `node_modules` or `dist`.
 
-Auth/RBAC final closure records manual browser acceptance as PASS. Existing final build PASS was reused; API matrix, IDOR, concurrency and TASK-007 commerce checks were not rerun.
+Auth/RBAC final closure records manual browser acceptance as PASS only after the isolated runtime suites and responsive browser checklist pass. Coach completion evidence includes fresh API matrix, IDOR, concurrency, migration and browser results; protected commerce scope remains unchanged.
 
 Canonical `0006` migration and integrity closure are recorded separately. Smoke limitations must remain explicit; inconclusive refresh/logout results must not be reported as PASS.
 ### Dashboard UI
@@ -53,4 +53,4 @@ Dashboard browser acceptance must start Vite with an explicit `VITE_API_PROXY_TA
 
 ### Coach appointment checks
 
-From `backend/`, run `npm run build`, `npm run lint`, and `npm run test:coach-booking-unit`. Run `npm run acceptance:coach-booking` only with `COACH_BOOKING_ACCEPTANCE=1`, a disposable `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API. From `frontend/`, run `npx tsc --noEmit` and `npm run build`. Do not call a build-only result a frontend typecheck; do not claim full Coach completion until API and browser acceptance both pass.
+From `backend/`, run `npm run build`, `npm run lint`, `npm run test:coach-booking-unit` and `npm run verify:coach-migration`. Run `npm run acceptance:coach-booking` only with `COACH_BOOKING_ACCEPTANCE=1`, a disposable `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API. From `frontend/`, run `npx tsc --noEmit` and `npm run build`. Browser acceptance must exercise Guest, Member and Coach booking/profile flows plus Coach/Member/Admin workspace routes at `375x812`, `768x1024` and `1440x900`, then collect console errors. Do not call a build-only result a frontend typecheck; do not claim full Coach completion until migration, API, security and browser acceptance all pass.

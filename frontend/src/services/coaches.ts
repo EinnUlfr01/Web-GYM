@@ -2,6 +2,17 @@ import api from '../api/axios';
 
 export type CoachSessionMode = 'ONLINE' | 'IN_PERSON' | 'BOTH';
 
+export interface CoachSelfProfile {
+  coachId: number;
+  name: string;
+  specialty: string | null;
+  bio: string | null;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string | null;
+  bookingEnabled: boolean;
+}
+
 export interface Coach {
   id: number;
   name: string;
@@ -26,11 +37,12 @@ export interface CoachAvailability {
 }
 
 interface ApiResponse<T> { data: T }
-interface CoachListData { coaches: Coach[]; pagination: { page: number; limit: number; total: number; totalPages: number } }
+export interface CoachPagination { page: number; limit: number; total: number; totalPages: number }
+export interface CoachListResult { coaches: Coach[]; pagination: CoachPagination }
 
-export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }): Promise<Coach[]> {
-  const response = await api.get<ApiResponse<CoachListData>>('/coaches', { params });
-  return response.data.data.coaches;
+export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }): Promise<CoachListResult> {
+  const response = await api.get<ApiResponse<CoachListResult>>('/coaches', { params });
+  return response.data.data;
 }
 
 export async function getPublicCoach(coachId: number | string): Promise<Coach> {
@@ -40,6 +52,23 @@ export async function getPublicCoach(coachId: number | string): Promise<Coach> {
 
 export async function getCoachAvailability(coachId: number | string, date: string): Promise<CoachAvailability> {
   const response = await api.get<ApiResponse<CoachAvailability>>(`/coaches/${coachId}/availability`, { params: { date } });
+  return response.data.data;
+}
+
+export async function getMyCoachProfile(): Promise<CoachSelfProfile> {
+  const response = await api.get<ApiResponse<CoachSelfProfile>>('/coach/profile');
+  return response.data.data;
+}
+
+export async function updateMyCoachProfile(input: {
+  specialty: string;
+  bio: string;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string;
+  bookingEnabled: boolean;
+}): Promise<CoachSelfProfile> {
+  const response = await api.patch<ApiResponse<CoachSelfProfile>>('/coach/profile', input);
   return response.data.data;
 }
 

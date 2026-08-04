@@ -4,6 +4,145 @@ import { getProgress as getMemberProgress, getSession as getMemberSession } from
 import { assertIanaTimeZone, todayInTimeZone } from '../../utils/timezone';
 
 export const MAX_PAGE_SIZE = 50;
+
+export type CoachSessionMode = 'ONLINE' | 'IN_PERSON' | 'BOTH';
+
+export interface CoachSelfProfile {
+  coachId: number;
+  name: string;
+  specialty: string | null;
+  bio: string | null;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string | null;
+  bookingEnabled: boolean;
+}
+
+interface CoachSelfProfileRow {
+  coachId: number;
+  name: string;
+  specialty: string | null;
+  bio: string | null;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string | null;
+  bookingEnabled: boolean;
+}
+
+const requestFor = (executor: sql.ConnectionPool | sql.Transaction) => executor instanceof sql.Transaction ? new sql.Request(executor) : executor.request();
+
+const nullableText = (value: unknown, maxLength: number): string | null => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (text.length > maxLength) throw new AppError(400, `Value must be at most ${maxLength} characters`);
+  return text || null;
+};
+
+function mapCoachSelfProfile(row: CoachSelfProfileRow): CoachSelfProfile {
+  return {
+    coachId: Number(row.coachId),
+    name: row.name,
+    specialty: row.specialty ?? null,
+    bio: row.bio ?? null,
+    experienceYears: row.experienceYears === null ? null : Number(row.experienceYears),
+    sessionMode: row.sessionMode ?? null,
+    location: row.location ?? null,
+    bookingEnabled: Boolean(row.bookingEnabled),
+  };
+}
+
+async function readCoachSelfProfile(coachId: number, executor: sql.ConnectionPool | sql.Transaction): Promise<CoachSelfProfile> {
+  const result = await requestFor(executor)
+    .input('coachId', sql.Int, coachId)
+    .query<CoachSelfProfileRow>(
+      `SELECT u.id AS coachId,u.name,
+              cp.specialty,cp.bio,cp.experience_years AS experienceYears,
+              cp.session_mode AS sessionMode,cp.location,
+              CAST(COALESCE(cp.booking_enabled,1) AS bit) AS bookingEnabled
+       FROM dbo.Users u
+       LEFT JOIN dbo.CoachProfiles cp ON cp.coach_id=u.id
+       WHERE u.id=@coachId AND u.role=N'coach'`,
+    );
+  if (!result.recordset[0]) throw new AppError(404, 'Coach profile not found');
+  return mapCoachSelfProfile(result.recordset[0]);
+}
+
+export async function getSelfProfile(coachId: number): Promise<CoachSelfProfile> {
+  return readCoachSelfProfile(coachId, await getPool());
+}
+
+export async function updateSelfProfile(coachId: number, input: {
+  specialty?: unknown;
+  bio?: unknown;
+  experienceYears?: unknown;
+  sessionMode?: unknown;
+  location?: unknown;
+  bookingEnabled?: unknown;
+}): Promise<CoachSelfProfile> {
+  const pool = await getPool();
+  const tx = pool.transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const owner = await new sql.Request(tx)
+      .input('coachId', sql.Int, coachId)
+      .query<{ id: number }>(`SELECT id FROM dbo.Users WITH (UPDLOCK,HOLDLOCK) WHERE id=@coachId AND role=N'coach'`);
+    if (!owner.recordset[0]) throw new AppError(404, 'Coach profile not found');
+
+    const current = await new sql.Request(tx)
+      .input('coachId', sql.Int, coachId)
+      .query<CoachSelfProfileRow>(
+        `SELECT u.id AS coachId,u.name,cp.specialty,cp.bio,cp.experience_years AS experienceYears,
+                cp.session_mode AS sessionMode,cp.location,
+                CAST(COALESCE(cp.booking_enabled,1) AS bit) AS bookingEnabled
+         FROM dbo.Users u LEFT JOIN dbo.CoachProfiles cp ON cp.coach_id=u.id
+         WHERE u.id=@coachId`,
+      );
+    const before = current.recordset[0];
+    const experienceYears = input.experienceYears === undefined
+      ? (before.experienceYears === null ? null : Number(before.experienceYears))
+      : input.experienceYears === null || input.experienceYears === ''
+        ? null
+        : Number(input.experienceYears);
+    if (experienceYears !== null && (!Number.isInteger(experienceYears) || experienceYears < 0 || experienceYears > 80)) {
+      throw new AppError(400, 'experienceYears must be an integer between 0 and 80');
+    }
+    const sessionMode = input.sessionMode === undefined ? before.sessionMode : input.sessionMode === null || input.sessionMode === '' ? null : String(input.sessionMode);
+    if (sessionMode !== null && !['ONLINE', 'IN_PERSON', 'BOTH'].includes(sessionMode)) throw new AppError(400, 'sessionMode is invalid');
+    const bookingEnabled = input.bookingEnabled === undefined ? Boolean(before.bookingEnabled) : input.bookingEnabled === true;
+    const specialty = input.specialty === undefined ? before.specialty : nullableText(input.specialty, 200);
+    const bio = input.bio === undefined ? before.bio : nullableText(input.bio, 2000);
+    const location = input.location === undefined ? before.location : nullableText(input.location, 255);
+
+    const existing = await new sql.Request(tx).input('coachId', sql.Int, coachId).query<{ coach_id: number }>('SELECT coach_id FROM dbo.CoachProfiles WITH (UPDLOCK,HOLDLOCK) WHERE coach_id=@coachId');
+    if (existing.recordset[0]) {
+      await new sql.Request(tx)
+        .input('coachId', sql.Int, coachId)
+        .input('specialty', sql.NVarChar(200), specialty)
+        .input('bio', sql.NVarChar(2000), bio)
+        .input('experienceYears', sql.Int, experienceYears)
+        .input('sessionMode', sql.NVarChar(20), sessionMode)
+        .input('location', sql.NVarChar(255), location)
+        .input('bookingEnabled', sql.Bit, bookingEnabled)
+        .query(`UPDATE dbo.CoachProfiles SET specialty=@specialty,bio=@bio,experience_years=@experienceYears,session_mode=@sessionMode,location=@location,booking_enabled=@bookingEnabled,updated_at=SYSUTCDATETIME() WHERE coach_id=@coachId`);
+    } else {
+      await new sql.Request(tx)
+        .input('coachId', sql.Int, coachId)
+        .input('specialty', sql.NVarChar(200), specialty)
+        .input('bio', sql.NVarChar(2000), bio)
+        .input('experienceYears', sql.Int, experienceYears)
+        .input('sessionMode', sql.NVarChar(20), sessionMode)
+        .input('location', sql.NVarChar(255), location)
+        .input('bookingEnabled', sql.Bit, bookingEnabled)
+        .query(`INSERT dbo.CoachProfiles(coach_id,specialty,bio,experience_years,session_mode,location,booking_enabled) VALUES(@coachId,@specialty,@bio,@experienceYears,@sessionMode,@location,@bookingEnabled)`);
+    }
+    const profile = await readCoachSelfProfile(coachId, tx);
+    await tx.commit();
+    return profile;
+  } catch (error) {
+    try { await tx.rollback(); } catch { /* preserve original error */ }
+    throw error;
+  }
+}
 const dateOnly = (value: unknown): string => {
   const text = String(value ?? '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new AppError(400, 'Date must use YYYY-MM-DD');

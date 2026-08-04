@@ -109,10 +109,53 @@ export function isValidBookingTransition(current: BookingStatus, next: BookingSt
 }
 
 export function normalizeSqlTime(value: unknown): string {
-  if (typeof value === 'string') return value.slice(0, 5);
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new AppError(500, 'Invalid SQL time value');
+    return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'string') {
+    const text = value.trim();
+    const match = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(text);
+    if (match && Number(match[1]) < 24 && Number(match[2]) < 60) return `${match[1]}:${match[2]}`;
+    throw new AppError(500, 'Invalid SQL time value');
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const totalMinutes = Math.floor(value / 60000);
+    // SQL TIME values are normally strings, but drivers may expose milliseconds
+    // (or, for small values, seconds) from midnight. Reject out-of-range values
+    // instead of truncating a malformed value into a different appointment slot.
+    const milliseconds = value >= 86_400 ? value : value * 1000;
+    if (milliseconds < 0 || milliseconds >= 86_400_000) throw new AppError(500, 'Invalid SQL time value');
+    const totalMinutes = Math.floor(milliseconds / 60_000);
     return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
   }
-  return String(value ?? '').slice(0, 5);
+  throw new AppError(500, 'Invalid SQL time value');
+}
+
+export function normalizeSqlDate(value: unknown): string {
+  let text: string;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new AppError(500, 'Invalid SQL date value');
+    text = `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+  } else if (typeof value === 'string') {
+    text = value.trim().slice(0, 10);
+  } else {
+    throw new AppError(500, 'Invalid SQL date value');
+  }
+  if (!isDateString(text)) throw new AppError(500, 'Invalid SQL date value');
+  return text;
+}
+
+export function normalizeSqlDateTime(value: unknown): string {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new AppError(500, 'Invalid SQL datetime value');
+    return value.toISOString();
+  }
+  if (typeof value !== 'string' || !value.trim()) throw new AppError(500, 'Invalid SQL datetime value');
+  const text = value.trim();
+  const candidate = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text)
+    ? text
+    : `${text.replace(' ', 'T')}Z`;
+  const date = new Date(candidate);
+  if (Number.isNaN(date.getTime())) throw new AppError(500, 'Invalid SQL datetime value');
+  return date.toISOString();
 }
