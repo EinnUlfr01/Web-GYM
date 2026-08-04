@@ -16,7 +16,7 @@ GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must n
 | `0009_admin_coach_management.sql` | Bounded Coach status/reason fields and status index | Applied and checksum-valid |
 | `0100`–`0111` | Seller/Marketplace modules | Existing applied range; unchanged by Coach work |
 
-The verified canonical result is 21 applied migrations, 0 pending and 0 checksum mismatches. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
+Before adding the Coach appointment migration, the verified canonical result was 21 applied migrations, 0 pending and 0 checksum mismatches. The current read-only result is 21 applied, 1 pending (`0010_coach_profiles.sql`) and 0 checksum mismatches; the pending migration must be applied only to an approved target. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
 
 ## Coach/Member data model
 
@@ -39,3 +39,9 @@ Acceptance uses isolated names such as `GYMFIT_DB_COACH_E2E_FIX_<timestamp>` or 
 ## Integrity rules
 
 Applied checksums are immutable. No reset, drop or manual migration is a fallback. A checksum mismatch blocks completion. Existing Marketplace migrations and commerce invariants remain outside Coach scope and must be unchanged.
+
+## Coach appointment schema addition
+
+Migration `0010_coach_profiles.sql` creates `dbo.CoachProfiles` only when it is absent. It stores public profile/booking-enabled fields, has a unique `coach_id` foreign key to `Users`, and does not create or replace the existing `Bookings` table or `UX_Bookings_ActiveSlot` filtered unique index. The full schema baseline includes the same additive table and Coach governance columns; existing databases must still be checked with `npm run db:migrate:status` before applying anything.
+
+Coach acceptance scripts refuse the canonical database. Use a disposable database name beginning `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_`, apply migrations there, start the API against that database, and run `npm run acceptance:coach-booking`. No Marketplace migration is part of this change.

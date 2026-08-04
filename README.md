@@ -41,3 +41,11 @@ Read [`docs/DATABASE_AND_MIGRATIONS.md`](docs/DATABASE_AND_MIGRATIONS.md) before
 ## Contribution and security
 
 Use explicit branches and explicit staging. Do not push automatically. Backend authorization is authoritative; frontend guards are navigation UX only. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/README.md`](docs/README.md).
+
+## Coach appointments
+
+The public Coach catalog is backed by `GET /api/coaches` and `GET /api/coaches/:id`. Booking availability is served by `GET /api/coaches/:id/availability?date=YYYY-MM-DD`; the legacy `/api/bookings/coaches` paths delegate to the same controller/query.
+
+Member booking uses `POST /api/bookings` with `{ coachId, date, startTime, note }`. Appointments are fixed at 60 minutes in `Asia/Ho_Chi_Minh` and start as lowercase `pending`. Members use `/appointments`; Coaches use `/coach/appointments`. Appointment data is intentionally separate from Workout Schedule data.
+
+Apply `db/migrations/0010_coach_profiles.sql` on an isolated database before using the new public profile fields. The guarded checks are `npm run test:coach-booking-unit` and `npm run acceptance:coach-booking`; the latter requires `COACH_BOOKING_ACCEPTANCE=1`, an isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API.

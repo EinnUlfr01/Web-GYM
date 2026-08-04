@@ -41,6 +41,8 @@
     "acceptance:coach-role": "tsx src/scripts/coach-role-acceptance.ts",
     "acceptance:coach-member-e2e": "tsx src/scripts/coach-member-e2e-acceptance.ts",
     "acceptance:admin-coach": "tsx src/scripts/admin-coach-acceptance.ts",
+    "test:coach-booking-unit": "tsx src/scripts/coach-booking-unit.ts",
+    "acceptance:coach-booking": "tsx src/scripts/coach-booking-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",
     "integrity:regression-04": "tsx src/scripts/regression-04-seller-integrity.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",

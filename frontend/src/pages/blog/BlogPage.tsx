@@ -4,12 +4,12 @@ import { Calendar, User, ArrowRight, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const posts = [
-  { id: 1, title: '5 Tips to Start Your Fitness Journey', excerpt: 'Starting a fitness journey can be overwhelming. Here are 5 tips to help you get started.', author: 'Coach Alex', date: 'Mar 15, 2024', category: 'Tips' },
-  { id: 2, title: 'The Science of Muscle Growth', excerpt: 'Understanding how muscles grow can help you optimize your training for better results.', author: 'Coach Sarah', date: 'Mar 12, 2024', category: 'Science' },
-  { id: 3, title: 'Nutrition Fundamentals for Athletes', excerpt: 'What you eat matters as much as how you train. Learn the basics of sports nutrition.', author: 'Coach Mike', date: 'Mar 10, 2024', category: 'Nutrition' },
-  { id: 4, title: 'HIIT vs Steady State Cardio', excerpt: 'Which cardio method is better for fat loss? We break down the pros and cons.', author: 'Coach Sarah', date: 'Mar 8, 2024', category: 'Training' },
-  { id: 5, title: 'Recovery: The Secret Weapon', excerpt: 'Recovery is where the magic happens. Learn why rest days are essential.', author: 'Coach Alex', date: 'Mar 5, 2024', category: 'Recovery' },
-  { id: 6, title: 'Building a Home Gym on a Budget', excerpt: "You don't need expensive equipment to get in shape. Here's how to build a home gym.", author: 'Coach Emma', date: 'Mar 3, 2024', category: 'Equipment' }
+  { id: 1, title: '5 Tips to Start Your Fitness Journey', excerpt: 'Starting a fitness journey can be overwhelming. Here are 5 tips to help you get started.', author: 'GYMFIT Editorial', date: 'Mar 15, 2024', category: 'Tips' },
+  { id: 2, title: 'The Science of Muscle Growth', excerpt: 'Understanding how muscles grow can help you optimize your training for better results.', author: 'GYMFIT Editorial', date: 'Mar 12, 2024', category: 'Science' },
+  { id: 3, title: 'Nutrition Fundamentals for Athletes', excerpt: 'What you eat matters as much as how you train. Learn the basics of sports nutrition.', author: 'GYMFIT Editorial', date: 'Mar 10, 2024', category: 'Nutrition' },
+  { id: 4, title: 'HIIT vs Steady State Cardio', excerpt: 'Which cardio method is better for fat loss? We break down the pros and cons.', author: 'GYMFIT Editorial', date: 'Mar 8, 2024', category: 'Training' },
+  { id: 5, title: 'Recovery: The Secret Weapon', excerpt: 'Recovery is where the magic happens. Learn why rest days are essential.', author: 'GYMFIT Editorial', date: 'Mar 5, 2024', category: 'Recovery' },
+  { id: 6, title: 'Building a Home Gym on a Budget', excerpt: "You don't need expensive equipment to get in shape. Here's how to build a home gym.", author: 'GYMFIT Editorial', date: 'Mar 3, 2024', category: 'Equipment' }
 ];
 
 export default function BlogPage() {

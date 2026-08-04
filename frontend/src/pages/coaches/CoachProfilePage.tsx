@@ -1,201 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Star, MapPin, Calendar, Clock, CheckCircle, ArrowLeft, MessageSquare } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Calendar, Clock, Loader2, MapPin, UserCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { getCoachById, type CoachDetail } from '../../services/coaches';
+import { getPublicCoach, type Coach } from '../../services/coaches';
+import { useAuthStore } from '../../stores/authStore';
+
+function initials(name: string): string {
+  return name.split(/\s+/).map(part => part[0] ?? '').join('').toUpperCase().slice(0, 2);
+}
 
 export default function CoachProfilePage() {
-  const { id } = useParams();
-  const [coach, setCoach] = useState<CoachDetail | null>(null);
+  const { id } = useParams<{ id: string }>();
+  const user = useAuthStore(state => state.user);
+  const [coach, setCoach] = useState<Coach | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      setLoading(true);
-      getCoachById(id).then(data => {
-        setCoach(data);
-        setLoading(false);
-      }).catch(() => {
-        setError('Failed to load coach');
-        setLoading(false);
-      });
-    }
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try { setCoach(await getPublicCoach(id)); }
+    catch (reason: unknown) {
+      const value = reason as { response?: { data?: { message?: string } }; message?: string };
+      setError(value.response?.data?.message || value.message || 'Không thể tải hồ sơ Coach.');
+    } finally { setLoading(false); }
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#020617] py-20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading coach profile...</p>
-        </div>
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-[#020617] text-[#94a3b8]"><Loader2 className="mr-3 animate-spin text-[#2563eb]" />Đang tải hồ sơ Coach...</div>;
+  if (error || !coach) return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#020617] text-center"><p className="text-red-300">{error || 'Không tìm thấy Coach.'}</p><button onClick={() => void load()} className="rounded-lg bg-[#2563eb] px-5 py-2 text-white">Thử lại</button><Link to="/coaches" className="text-[#60a5fa]">Quay lại danh sách</Link></div>;
+
+  const canBook = coach.bookingEnabled && user?.role === 'member';
+
+  return <div className="min-h-screen bg-[#020617] py-20"><div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <Link to="/coaches" className="mb-8 inline-flex items-center gap-2 text-[#94a3b8] hover:text-white"><ArrowLeft size={16} /> Tất cả Coach</Link>
+    <section className="rounded-2xl border border-[#1e293b] bg-[#0f172a] p-6 sm:p-8">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+        {coach.avatarUrl ? <img src={coach.avatarUrl} alt={coach.name} className="h-28 w-28 rounded-full object-cover" /> : <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-[#2563eb] to-[#0ea5e9] text-3xl font-bold text-white">{initials(coach.name)}</div>}
+        <div className="flex-1"><h1 className="text-3xl font-bold text-white">{coach.name}</h1><p className="mt-2 text-lg text-[#60a5fa]">{coach.specialty || 'Coach thể hình'}</p><div className="mt-4 flex flex-wrap gap-4 text-sm text-[#94a3b8]">{coach.location && <span className="inline-flex items-center gap-2"><MapPin size={15} />{coach.location}</span>}{coach.experienceYears !== null && <span className="inline-flex items-center gap-2"><Clock size={15} />{coach.experienceYears} năm kinh nghiệm</span>}{coach.sessionMode && <span className="inline-flex items-center gap-2"><UserCircle size={15} />{coach.sessionMode === 'BOTH' ? 'Online & tại phòng tập' : coach.sessionMode === 'ONLINE' ? 'Online' : 'Tại phòng tập'}</span>}</div></div>
       </div>
-    );
-  }
-
-  if (error || !coach) {
-    return (
-      <div className="min-h-screen bg-[#020617] py-20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h2 className="text-2xl font-bold text-white mb-4">Coach Not Found</h2>
-          <Link to="/coaches" className="text-[#60a5fa] hover:text-[#93c5fd]">Back to Coaches</Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#020617] py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Link to="/coaches" className="mb-8 inline-flex items-center gap-2 text-[#94a3b8] hover:text-white transition-colors">
-          <ArrowLeft size={16} /> Back to All Coaches
-        </Link>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Main Coach Info */}
-          <div className="lg:col-span-2 space-y-8">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-[#1e293b] bg-[#0f172a] p-8">
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="h-32 w-32 flex-shrink-0 rounded-full bg-gradient-to-br from-[#2563eb] to-[#0ea5e9] flex items-center justify-center text-4xl font-bold text-white">
-                  {coach.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div className="flex-1">
-                  <h1 className="mb-2 text-3xl font-bold text-white">{coach.name}</h1>
-                  <p className="mb-3 text-lg text-[#60a5fa]">{coach.specialty}</p>
-                  <div className="flex flex-wrap gap-4 text-sm text-[#94a3b8]">
-                    <span className="flex items-center gap-1"><Star size={16} className="text-[#fbbf24]" /> {coach.rating} ({coach.reviews} reviews)</span>
-                    <span className="flex items-center gap-1"><MapPin size={16} /> {coach.location}</span>
-                    <span className="flex items-center gap-1"><Calendar size={16} /> {coach.experience}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 border-t border-[#1e293b] pt-6">
-                <h3 className="mb-3 text-lg font-semibold text-white">About</h3>
-                <p className="text-[#94a3b8] leading-relaxed">{coach.bio}</p>
-              </div>
-              <div className="mt-6">
-                <h3 className="mb-3 text-lg font-semibold text-white">Certifications</h3>
-                <div className="flex flex-wrap gap-2">
-                  {coach.certifications?.map(cert => (
-                    <span key={cert} className="inline-flex items-center gap-1 rounded-full bg-[#2563eb]/10 px-3 py-1 text-sm text-[#60a5fa]">
-                      <CheckCircle size={14} /> {cert}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Reviews Section */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-[#1e293b] bg-[#0f172a] p-8">
-              <h2 className="mb-6 text-2xl font-bold text-white">Reviews ({coach.reviews})</h2>
-              <div className="space-y-6">
-                {coach.reviewsList?.map((review, i) => (
-                  <div key={i} className="border-b border-[#1e293b] pb-6 last:border-0 last:pb-0">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-[#1e293b] flex items-center justify-center text-sm font-semibold text-white">
-                          {review.user.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{review.user}</p>
-                          <p className="text-xs text-[#64748b]">{review.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, j) => (
-                          <Star key={j} size={14} className={j < review.rating ? 'text-[#fbbf24]' : 'text-[#1e293b]'} />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-[#94a3b8]">{review.text}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Member Results */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-2xl border border-[#1e293b] bg-[#0f172a] p-8">
-              <h2 className="mb-6 text-2xl font-bold text-white">Member Results</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {coach.memberResults?.map((result, i) => (
-                  <div key={i} className="rounded-lg border border-[#1e293b] bg-[#020617] p-4">
-                    <div className="mb-2 flex items-center gap-2">
-                      <CheckCircle size={16} className="text-[#22c55e]" />
-                      <p className="font-medium text-white">{result.name}</p>
-                    </div>
-                    <p className="text-sm text-[#94a3b8]">{result.result}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Booking Sidebar */}
-          <div className="lg:col-span-1">
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="sticky top-24 rounded-2xl border border-[#1e293b] bg-[#0f172a] p-6">
-              <div className="mb-6 text-center">
-                <p className="mb-2 text-4xl font-bold text-white">${coach.price}</p>
-                <p className="text-[#94a3b8]">per session</p>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="mb-3 text-lg font-semibold text-white">Available Slots</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {coach.availableSlots?.map(slot => (
-                    <button
-                      key={slot}
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`rounded-lg border p-2 text-center text-sm transition-all ${
-                        selectedSlot === slot
-                          ? 'border-[#2563eb] bg-[#2563eb] text-white'
-                          : 'border-[#1e293b] bg-[#020617] text-[#94a3b8] hover:border-[#2563eb] hover:text-white'
-                      }`}
-                    >
-                      {slot}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowBookingModal(true)}
-                disabled={!selectedSlot}
-                className="w-full rounded-lg bg-[#2563eb] py-4 text-lg font-semibold text-white transition-all hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {coach.available ? 'Book Session' : 'Join Waitlist'}
-              </button>
-
-              <p className="mt-4 text-center text-sm text-[#64748b]">
-                <MessageSquare size={14} className="mr-1 inline" />
-                Free consultation included
-              </p>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Booking Modal */}
-        {showBookingModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md rounded-2xl border border-[#1e293b] bg-[#0f172a] p-6">
-              <h3 className="mb-4 text-xl font-bold text-white">Book Session with {coach.name}</h3>
-              <p className="mb-4 text-[#94a3b8]">Selected time: <span className="text-white">{selectedSlot}</span></p>
-              <p className="mb-6 text-[#94a3b8]">Price: <span className="text-white font-semibold">${coach.price}</span></p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowBookingModal(false)} className="flex-1 rounded-lg border border-[#1e293b] py-3 text-[#94a3b8] hover:text-white transition-colors">
-                  Cancel
-                </button>
-                <button className="flex-1 rounded-lg bg-[#2563eb] py-3 font-semibold text-white hover:bg-[#1d4ed8] transition-colors">
-                  Confirm Booking
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+      <div className="mt-8 border-t border-[#1e293b] pt-6"><h2 className="text-xl font-semibold text-white">Giới thiệu</h2><p className="mt-3 whitespace-pre-line leading-7 text-[#94a3b8]">{coach.bio || 'Coach chưa thêm phần giới thiệu.'}</p></div>
+      <div className="mt-8 flex flex-col gap-3 rounded-xl border border-[#1e293b] bg-[#020617]/60 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">Đặt lịch hẹn Coach</p><p className="mt-1 text-sm text-[#94a3b8]">Mỗi lịch hẹn có thời lượng cố định 60 phút, theo múi giờ Asia/Ho_Chi_Minh.</p></div>{!coach.bookingEnabled ? <span className="text-sm text-slate-500">Coach hiện chưa mở đặt lịch.</span> : canBook ? <Link to={`/coaches/${coach.id}/book`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-5 py-3 font-semibold text-white hover:bg-[#1d4ed8]"><Calendar size={17} /> Đặt lịch Coach</Link> : !user ? <Link to={`/coaches/${coach.id}/book`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-5 py-3 font-semibold text-white hover:bg-[#1d4ed8]"><Calendar size={17} /> Đăng nhập để đặt lịch</Link> : <span className="text-sm text-slate-500">Tài khoản này không thể tạo booking Member.</span>}</div>
+    </section>
+  </div></div>;
 }

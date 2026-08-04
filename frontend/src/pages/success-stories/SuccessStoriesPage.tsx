@@ -13,7 +13,7 @@ const stories = [
     weightLost: '30 lbs',
     quote: 'Gymer transformed my relationship with fitness. The coaches pushed me when I wanted to quit, and the community kept me accountable. I\'m stronger and happier than ever.',
     rating: 5,
-    coach: 'Coach Alex',
+    coach: 'GYMFIT Coaching Team',
   },
   {
     name: 'Mike Thompson',
@@ -24,7 +24,7 @@ const stories = [
     weightLost: '+18 lbs muscle',
     quote: 'The personalized workout plans were exactly what I needed. I went from struggling with basic lifts to deadlifting 315 lbs. The progress tracking kept me motivated.',
     rating: 5,
-    coach: 'Coach Sarah',
+    coach: 'GYMFIT Coaching Team',
   },
   {
     name: 'Emma Rodriguez',
@@ -35,7 +35,7 @@ const stories = [
     weightLost: 'Completed Marathon',
     quote: 'I never thought I\'d run a marathon at 42. The structured training plans and video library helped me build endurance gradually. Now I\'m training for my second!',
     rating: 5,
-    coach: 'Coach Mike',
+    coach: 'GYMFIT Coaching Team',
   },
   {
     name: 'David Park',
@@ -46,7 +46,7 @@ const stories = [
     weightLost: '-15% body fat',
     quote: 'As a competitive athlete, I needed specialized training. Gymer connected me with a coach who understood my sport-specific needs. My performance improved dramatically.',
     rating: 5,
-    coach: 'Coach Emma',
+    coach: 'GYMFIT Coaching Team',
   },
   {
     name: 'Lisa Chen',
@@ -57,7 +57,7 @@ const stories = [
     weightLost: '22 lbs',
     quote: 'The flexibility to train at home or at the gym with video guides was perfect for my busy schedule. The nutrition plans were a game-changer too.',
     rating: 5,
-    coach: 'Coach Alex',
+    coach: 'GYMFIT Coaching Team',
   },
   {
     name: 'James Wilson',
@@ -68,7 +68,7 @@ const stories = [
     weightLost: 'Lost 45 lbs',
     quote: 'After my doctor told me to get in shape, I was overwhelmed. Gymer made it simple with step-by-step guidance. My blood pressure is normal for the first time in years.',
     rating: 5,
-    coach: 'Coach Sarah',
+    coach: 'GYMFIT Coaching Team',
   },
 ];
 

@@ -50,3 +50,7 @@ Canonical `0006` migration and integrity closure are recorded separately. Smoke 
 Use the shared Command Center primitives and CSS tokens for role dashboards. Keep API response contracts explicit, use VND for Admin currency, and distinguish loading, unavailable, empty, and real-zero states. Do not add fake trend/activity data or duplicate RBAC policy in components.
 
 Dashboard browser acceptance must start Vite with an explicit `VITE_API_PROXY_TARGET`, use an isolated restored database and a fresh browser context, then prove direct backend login, frontend-origin proxy login and React form navigation in that order. Validate `/auth/me` through persisted-session reload, role-specific navigation, desktop/mobile overflow, account switching and unauthorized-route denial before cleanup.
+
+### Coach appointment checks
+
+From `backend/`, run `npm run build`, `npm run lint`, and `npm run test:coach-booking-unit`. Run `npm run acceptance:coach-booking` only with `COACH_BOOKING_ACCEPTANCE=1`, a disposable `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API. From `frontend/`, run `npx tsc --noEmit` and `npm run build`. Do not call a build-only result a frontend typecheck; do not claim full Coach completion until API and browser acceptance both pass.

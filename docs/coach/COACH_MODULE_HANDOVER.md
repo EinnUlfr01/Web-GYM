@@ -120,7 +120,7 @@ Admin Governance:
 - `0008_member_workout_flow.sql`: additive Member session, snapshot and Set Log tables.
 - `0009_admin_coach_management.sql`: bounded Coach status fields, constraint and index.
 
-Canonical `GYMFIT_DB` verification recorded `21 applied`, `0 pending` and `0 checksum mismatches`; `0007`, `0008` and `0009` have matching checksums. Acceptance databases are disposable and use guarded names only.
+Canonical `GYMFIT_DB` verification before the appointment addition recorded `21 applied`, `0 pending` and `0 checksum mismatches`; `0007`, `0008` and `0009` have matching checksums. The current read-only status has `0010_coach_profiles.sql` pending. Acceptance databases are disposable and use guarded names only.
 
 Migration `0100_seller_application_role_foundation.sql` is separately blocked on a fresh baseline because `SellerApplications` already exists. That Marketplace/Seller issue is documented in `docs/marketplace/MIGRATION_0100_BASELINE_CONFLICT.md` and is not fixed here.
 
@@ -195,4 +195,10 @@ No Coach task adds or changes Marketplace, Seller, Video, Auth architecture, pay
 
 `PARTIALLY_COMPLETE`.
 
-The Coach module implementation, migrations `0007`–`0009`, builds, TypeScript, acceptance and cleanup are verified. `FULL_COACH_MODULE_COMPLETE` is not claimed because browser visual verification is not available in this environment.
+## 23. Coach appointment implementation update
+
+The public Coach and appointment work is now implemented on top of the existing Coach/Member/Workout architecture. Canonical Coach queries, real pending bookings, fixed 60-minute Vietnam-time slots, conflict/concurrency checks, ownership-safe status transitions, Member appointment pages and Coach appointment pages are in the active source tree. `CoachProfiles` is additive migration `0010`; Workout Schedule and Coach Appointment remain separate concerns.
+
+Verification completed: backend build, backend lint with existing warnings only, frontend TypeScript, frontend build, `git diff --check`, and `COACH_BOOKING_UNIT PASS`. Guarded database acceptance and browser acceptance still require the approved isolated environment, so the verdict remains `PARTIALLY_COMPLETE` until those checks are run.
+
+The pre-existing Coach module implementation, migrations `0007`–`0009`, builds, TypeScript, acceptance and cleanup are verified. The new booking acceptance remains guarded until an isolated database is available. `FULL_COACH_MODULE_COMPLETE` is not claimed because browser visual verification is not available in this environment.

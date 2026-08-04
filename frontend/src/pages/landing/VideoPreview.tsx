@@ -30,7 +30,7 @@ export default function VideoPreview() {
             thumbnailUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&h=400&fit=crop',
             videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
             instructor_id: 2,
-            instructor_name: 'Coach Alex',
+            instructor_name: 'GYMFIT Coaching Team',
             isFree: true,
             isActive: true,
             created_at: new Date().toISOString()
@@ -45,7 +45,7 @@ export default function VideoPreview() {
             thumbnailUrl: 'https://images.unsplash.com/photo-1549576490-b0b4831ef60a?w=600&h=400&fit=crop',
             videoUrl: 'https://www.w3schools.com/html/movie.mp4',
             instructor_id: 2,
-            instructor_name: 'Coach Sarah',
+            instructor_name: 'GYMFIT Coaching Team',
             isFree: true,
             isActive: true,
             created_at: new Date().toISOString()

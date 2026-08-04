@@ -238,3 +238,15 @@ Coach session history/detail/progress now include Member-generated rows within t
 - `GET /api/shops/:shopSlug` returns an active Shop profile plus the same filtered/paginated Product card DTO. It accepts the Product filters except `shopSlug`; the Shop is locked to the path.
 - Public Product visibility is `Products.is_active = 1`, `moderation_status = PUBLISHED`, and owning `Shops.status = ACTIVE`. Invalid or unknown query fields return 400. Non-public Product/Shop detail returns 404 without existence disclosure.
 - Public DTOs exclude moderation/reviewer fields, Shop ownership and pickup fields, system keys, reserved Inventory, and auth/session data. Admin and Seller management endpoints keep their independent authorization scopes.
+
+## Coach appointment API contract
+
+Public Coach endpoints are canonical:
+
+- `GET /api/coaches` -> `{ coaches, pagination }` with `id`, `name`, `avatarUrl`, `specialty`, `bio`, `experienceYears`, `sessionMode`, `location` and `bookingEnabled` only.
+- `GET /api/coaches/:id` -> one active Coach; suspended/inactive IDs return 404.
+- `GET /api/coaches/:id/availability?date=YYYY-MM-DD` -> fixed 60-minute availability in `Asia/Ho_Chi_Minh`.
+
+`/api/bookings/coaches` and `/api/bookings/coaches/:id/availability` are compatibility aliases to that same query/controller. `POST /api/bookings` is Member-only and accepts canonical `{ coachId, date, startTime, note }`; the legacy snake_case payload remains accepted during compatibility. The authenticated Member ID is always used; client-supplied `member_id` is ignored/rejected. New rows are `pending` and may transition only `pending -> confirmed/cancelled` or `confirmed -> completed/cancelled/no_show`.
+
+`GET /api/bookings` and `GET /api/bookings/:id` are scoped to the authenticated Member/Coach (Admin may view all). Status mutations enforce role, ownership, state and appointment time. Seller and other roles cannot create or operate Member bookings. These appointment permissions are backend-enforced; frontend access policy only controls navigation.

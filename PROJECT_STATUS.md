@@ -7,7 +7,7 @@ Updated: 2026-08-04 (Asia/Saigon)
 - Working branch: `coach1`.
 - Cleanup baseline: `3ed26100f867ccd96cca8b23f19c1b35d1360db0`.
 - Canonical database: `GYMFIT_DB`.
-- Canonical migration status: `21 applied`, `0 pending`, `0 checksum mismatches`.
+- Canonical migration status before applying this change: `21 applied`, `0 pending`, `0 checksum mismatches`; current read-only status is `21 applied`, `1 pending` (`0010_coach_profiles.sql`), `0 checksum mismatches`.
 - Coach migrations `0007`, `0008` and `0009` are applied and checksum-valid.
 - Acceptance databases are disposable, guarded by prefix and must be dropped after use.
 - No acceptance fixtures remain in `GYMFIT_DB`.
@@ -45,3 +45,7 @@ Marketplace documentation under `docs/marketplace/**`, Marketplace/Seller backen
 ## Next action
 
 Run the visual browser checklist when the approved browser runtime is available. Resolve migration `0100` separately on a Marketplace-owned branch; do not alter it as part of Coach work.
+
+## Coach appointment update
+
+The implementation now includes canonical public Coach APIs, real Member booking, `/appointments`, `/coach/appointments`, fixed Asia/Ho_Chi_Minh slots, overlap/concurrency guards, IDOR-safe ownership and additive `CoachProfiles` migration `0010`. Backend build, frontend typecheck/build, lint (warnings only) and the unit contract test pass. Database/API acceptance remains guarded to isolated databases; browser acceptance has not been run in this environment, so the final status remains partial until those checks pass.

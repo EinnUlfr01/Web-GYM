@@ -30,3 +30,11 @@ Updated: 2026-08-04. Historical checkpoints are under `docs/archive/2026-08/` an
 - Resolve Marketplace migration `0100` only on a separate Marketplace-owned workstream.
 
 Marketplace, Seller, Video, Payment, Refund and Settlement remain protected/out of scope for Coach work.
+
+## Coach appointment delivery
+
+- Public Coach discovery now has one canonical data source and filters inactive or suspended Coaches.
+- Booking is a real pending appointment with fixed 60-minute slots, overlap/concurrency protection, ownership checks and lowercase state transitions.
+- Member appointment and Coach appointment routes are separate from Workout Schedule routes.
+- Migration `0010_coach_profiles.sql` is additive and must be applied only to a disposable/approved target after backup and status verification.
+- Browser acceptance is still a required follow-up before claiming a full Coach completion verdict.

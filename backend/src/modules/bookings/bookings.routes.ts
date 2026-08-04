@@ -1,21 +1,49 @@
 import { Router } from 'express';
-import { getCoaches, getCoachAvailability, createBooking, getMyBookings, updateBookingStatus } from './bookings.controller';
-import { authenticate } from '../../middleware/auth';
-import { authorize } from '../../middleware/auth';
+import { getCoaches, getCoachAvailability, createBooking, getMyBookings, getBookingById, updateBookingStatus } from './bookings.controller';
+import { authenticate, authorize } from '../../middleware/auth';
 import { UserRole } from '../../types';
 import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 
 const router = Router();
+const id = z.object({ id: z.coerce.number().int().positive() }).strict();
+const availabilityQuery = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).strict();
+const listQuery = z.object({
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no_show']).optional(),
+}).strict();
 
+const canonicalBooking = z.object({
+  coachId: z.coerce.number().int().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  note: z.string().trim().max(500).optional(),
+}).strict().transform(value => ({
+  coach_id: value.coachId,
+  booking_date: value.date,
+  start_time: value.startTime,
+  notes: value.note,
+}));
+
+// Short-lived compatibility for existing auth/RBAC callers. The controller enforces the same fixed 60-minute rule.
+const legacyBooking = z.object({
+  coach_id: z.coerce.number().int().positive(),
+  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  end_time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  notes: z.string().trim().max(500).optional(),
+}).strict();
+const booking = z.union([canonicalBooking, legacyBooking]);
+const status = z.object({ status: z.enum(['confirmed', 'completed', 'cancelled', 'no_show']) }).strict();
+
+// Legacy Coach discovery routes delegate to the canonical Coach controller/query.
 router.get('/coaches', getCoaches);
-const id=z.object({id:z.coerce.number().int().positive()});
-const booking=z.object({coach_id:z.number().int().positive(),booking_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),start_time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end_time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),notes:z.string().trim().max(500).optional()}).strict();
-const status=z.object({status:z.enum(['confirmed','completed','cancelled','no_show'])}).strict();
-router.get('/coaches/:id/availability', validate(id,'params'), getCoachAvailability);
+router.get('/coaches/:id/availability', validate(id, 'params'), validate(availabilityQuery, 'query'), getCoachAvailability);
 
 router.post('/', authenticate, authorize(UserRole.MEMBER), validate(booking), createBooking);
-router.get('/', authenticate, getMyBookings);
-router.put('/:id/status', authenticate, validate(id,'params'), validate(status), updateBookingStatus);
+router.get('/', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(listQuery, 'query'), getMyBookings);
+router.put('/:id/status', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(id, 'params'), validate(status), updateBookingStatus);
+router.get('/:id', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(id, 'params'), getBookingById);
 
 export default router;

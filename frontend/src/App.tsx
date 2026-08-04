@@ -44,6 +44,10 @@ import MembershipPlans from './pages/membership/MembershipPlans';
 import VideoLibrary from './pages/video/VideoLibrary';
 import VideosPreviewPage from './pages/video/VideosPreviewPage';
 import CoachBooking from './pages/booking/CoachBooking';
+import AppointmentsPage from './pages/appointments/AppointmentsPage';
+import AppointmentDetailPage from './pages/appointments/AppointmentDetailPage';
+import CoachAppointmentsPage from './pages/coaches/CoachAppointmentsPage';
+import CoachAppointmentDetailPage from './pages/coaches/CoachAppointmentDetailPage';
 import UserProfile from './pages/profile/UserProfile';
 import LandingPage from './pages/landing/LandingPage';
 import AboutPage from './pages/about/AboutPage';
@@ -118,6 +122,8 @@ export default function App() {
         <Route path="/membership" element={<MarketingHeaderWrapper><MembershipPlans /></MarketingHeaderWrapper>} />
         <Route path="/coaches" element={<MarketingHeaderWrapper><CoachListPage /></MarketingHeaderWrapper>} />
         <Route path="/coaches/:id" element={<MarketingHeaderWrapper><CoachProfilePage /></MarketingHeaderWrapper>} />
+        <Route path="/coaches/:id/book" element={<MarketingHeaderWrapper><CoachBooking /></MarketingHeaderWrapper>} />
+        <Route path="/booking" element={<Navigate to="/coaches" replace />} />
         <Route path="/videos" element={<MarketingHeaderWrapper><VideosPreviewPage /></MarketingHeaderWrapper>} />
         <Route path="/success-stories" element={<MarketingHeaderWrapper><SuccessStoriesPage /></MarketingHeaderWrapper>} />
         <Route path="/exercises" element={<MarketingHeaderWrapper><ExerciseLibraryPage /></MarketingHeaderWrapper>} />
@@ -152,7 +158,8 @@ export default function App() {
           <Route path="/invoices" element={<AccessRoute path="/invoices"><InvoicePage /></AccessRoute>} />
           <Route path="/crm" element={<AccessRoute path="/crm"><CRMPage /></AccessRoute>} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/booking" element={<AccessRoute path="/booking"><CoachBooking /></AccessRoute>} />
+          <Route path="/appointments" element={<AccessRoute path="/appointments"><AppointmentsPage /></AccessRoute>} />
+          <Route path="/appointments/:bookingId" element={<AccessRoute path="/appointments"><AppointmentDetailPage /></AccessRoute>} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/seller/apply" element={<AccessRoute path="/seller/apply"><SellerApplicationPage /></AccessRoute>} />
           <Route path="/seller" element={<AccessRoute path="/seller"><SellerFoundationPage /></AccessRoute>} />
@@ -201,6 +208,8 @@ export default function App() {
           <Route path="/admin/inventory" element={<AccessRoute path="/admin"><AdminInventoryPage /></AccessRoute>} />
           <Route path="/admin/products/:productId/variants" element={<AccessRoute path="/admin"><AdminProductVariantsPage /></AccessRoute>} />
           <Route path="/coach" element={<AccessRoute path="/coach"><CoachDashboard /></AccessRoute>} />
+          <Route path="/coach/appointments" element={<AccessRoute path="/coach/appointments"><CoachAppointmentsPage /></AccessRoute>} />
+          <Route path="/coach/appointments/:bookingId" element={<AccessRoute path="/coach/appointments"><CoachAppointmentDetailPage /></AccessRoute>} />
           <Route path="/coach/exercises" element={<AccessRoute path="/coach"><CoachExerciseLibraryPage /></AccessRoute>} />
           <Route path="/coach/exercises/:exerciseId" element={<AccessRoute path="/coach"><CoachExerciseDetailPage /></AccessRoute>} />
           <Route path="/coach/workout-programs" element={<AccessRoute path="/coach"><CoachProgramsPage /></AccessRoute>} />

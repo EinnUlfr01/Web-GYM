@@ -65,6 +65,7 @@ DROP TABLE IF EXISTS SellerApplicationStatusHistory;
 DROP TABLE IF EXISTS SellerApplications;
 DROP TABLE IF EXISTS AnalyticsRetention;
 DROP TABLE IF EXISTS AnalyticsDaily;
+DROP TABLE IF EXISTS CoachProfiles;
 DROP TABLE IF EXISTS Users;
 DROP TABLE IF EXISTS Inventory;
 DROP TABLE IF EXISTS Bookings;
@@ -91,14 +92,32 @@ CREATE TABLE Users (
   referred_by INT NULL,
   avatar_url NVARCHAR(500) NULL,
   is_active BIT NOT NULL DEFAULT 1,
+  coach_status NVARCHAR(20) NULL CONSTRAINT CK_Users_CoachStatus CHECK (coach_status IS NULL OR coach_status IN ('ACTIVE','SUSPENDED','INACTIVE')),
+  coach_status_reason NVARCHAR(500) NULL,
+  coach_status_updated_at DATETIME2 NULL,
   email_verified BIT NOT NULL DEFAULT 0,
   last_login_at DATETIME2 NULL,
   created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
   updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
   FOREIGN KEY (referred_by) REFERENCES Users(id)
-);
-CREATE INDEX IX_Users_Email ON Users(email);
-CREATE INDEX IX_Users_Role ON Users(role);
+ );
+ CREATE INDEX IX_Users_Email ON Users(email);
+ CREATE INDEX IX_Users_Role ON Users(role);
+ CREATE INDEX IX_Users_CoachStatus ON Users(role, coach_status, is_active, created_at DESC, id DESC);
+
+CREATE TABLE CoachProfiles (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  coach_id INT NOT NULL UNIQUE,
+  specialty NVARCHAR(200) NULL,
+  bio NVARCHAR(2000) NULL,
+  experience_years INT NULL CHECK (experience_years IS NULL OR experience_years >= 0),
+  session_mode NVARCHAR(20) NULL CHECK (session_mode IS NULL OR session_mode IN ('ONLINE','IN_PERSON','BOTH')),
+  location NVARCHAR(255) NULL,
+  booking_enabled BIT NOT NULL DEFAULT 1,
+  created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  FOREIGN KEY (coach_id) REFERENCES Users(id)
+ );
 
 CREATE TABLE SellerApplications (
   id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SellerApplications PRIMARY KEY,
