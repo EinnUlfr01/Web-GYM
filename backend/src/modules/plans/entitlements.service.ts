@@ -30,6 +30,11 @@ export interface ActiveMembershipPlan {
 
 const keys = new Set<PlanEntitlementKey>(['COACH_BOOKING_ENABLED', 'COACH_BOOKING_MONTHLY_LIMIT']);
 const types = new Set<PlanEntitlementValueType>(['BOOLEAN', 'INTEGER', 'UNLIMITED']);
+type SqlExecutor = sql.ConnectionPool | sql.Transaction;
+
+function requestFor(executor: SqlExecutor): sql.Request {
+  return executor instanceof sql.Transaction ? new sql.Request(executor) : executor.request();
+}
 
 function migrationError(error: unknown): never | null {
   if ((error as { number?: number }).number === 208) {
@@ -87,9 +92,11 @@ export async function getPlanEntitlements(planId: number): Promise<PlanEntitleme
   return grouped.get(planId) || [];
 }
 
-export async function getActiveMembershipPlan(userId: number): Promise<ActiveMembershipPlan | null> {
+async function readActiveMembershipPlan(executor: SqlExecutor, userId: number): Promise<ActiveMembershipPlan | null> {
   try {
-    const result = await query<{
+    const result = await requestFor(executor)
+      .input('userId', sql.Int, userId)
+      .query<{
       membership_id: number;
       plan_id: number;
       end_date: Date;
@@ -99,14 +106,14 @@ export async function getActiveMembershipPlan(userId: number): Promise<ActiveMem
       value_type: PlanEntitlementValueType | null;
       entitlement_created_at: Date | null;
       entitlement_updated_at: Date | null;
-    }>(`SELECT m.id AS membership_id, m.plan_id, m.end_date,
+      }>(`SELECT m.id AS membership_id, m.plan_id, m.end_date,
           e.id AS entitlement_id, e.entitlement_key, e.entitlement_value, e.value_type,
           e.created_at AS entitlement_created_at, e.updated_at AS entitlement_updated_at
-        FROM dbo.Memberships m
+        FROM dbo.Memberships m WITH (UPDLOCK,HOLDLOCK)
         LEFT JOIN dbo.PlanEntitlements e ON e.plan_id = m.plan_id
         WHERE m.user_id=@userId AND m.status=N'active'
           AND m.start_date <= SYSUTCDATETIME() AND m.end_date > SYSUTCDATETIME()
-        ORDER BY m.id DESC, e.entitlement_key`, { userId });
+        ORDER BY m.id DESC, e.entitlement_key`);
     const membershipIds = [...new Set(result.recordset.map(row => Number(row.membership_id)))];
     if (membershipIds.length > 1) throw new AppError(409, 'Membership data has more than one active record', 'MEMBERSHIP_DATA_CONFLICT');
     const first = result.recordset[0];
@@ -131,6 +138,14 @@ export async function getActiveMembershipPlan(userId: number): Promise<ActiveMem
     migrationError(error);
     throw error;
   }
+}
+
+export async function getActiveMembershipPlan(userId: number): Promise<ActiveMembershipPlan | null> {
+  return readActiveMembershipPlan(await getPool(), userId);
+}
+
+export async function getActiveMembershipPlanForTransaction(tx: sql.Transaction, userId: number): Promise<ActiveMembershipPlan | null> {
+  return readActiveMembershipPlan(tx, userId);
 }
 
 export async function replacePlanEntitlements(planId: number, value: unknown): Promise<PlanEntitlement[]> {

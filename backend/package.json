@@ -45,6 +45,7 @@
     "verify:coach-migration": "tsx src/scripts/coach-migration-verify.ts",
     "test:coach-booking-unit": "tsx src/scripts/coach-booking-unit.ts",
     "acceptance:coach-booking": "tsx src/scripts/coach-booking-acceptance.ts",
+    "acceptance:coach-booking-quota": "tsx src/scripts/coach-booking-quota-acceptance.ts",
     "acceptance:coach-membership": "tsx src/scripts/coach-membership-acceptance.ts",
     "acceptance:coach-entitlement": "tsx src/scripts/coach-entitlement-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",

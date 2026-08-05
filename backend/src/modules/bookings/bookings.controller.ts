@@ -8,6 +8,7 @@ import {
   assertBookingStartTime,
   assertFutureBooking,
   BookingStatus,
+  COACH_BOOKING_TIME_ZONE,
   isFutureLocalDateTime,
   isDateString,
   isValidBookingTransition,
@@ -17,6 +18,7 @@ import {
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
 import { assertBookableSlot } from '../coaches/coach-availability.service';
+import { getActiveMembershipPlan, getActiveMembershipPlanForTransaction } from '../plans/entitlements.service';
 import { todayInTimeZone } from '../../utils/timezone';
 
 export const getCoaches = getPublicCoaches;
@@ -129,6 +131,88 @@ function localTimeInTimeZone(timeZone: string, now = new Date()): string {
   return `${values.hour}:${values.minute}`;
 }
 
+export interface CoachBookingQuota {
+  included: boolean;
+  monthlyLimit: number | null;
+  used: number;
+  remaining: number | null;
+  bookingMonth: string;
+  timezone: string;
+  reason?: 'COACH_BOOKING_NOT_INCLUDED';
+}
+
+interface MonthBounds { start: string; next: string; label: string }
+
+function monthBounds(bookingDate: string): MonthBounds {
+  const [year, month] = bookingDate.split('-').map(Number);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  return {
+    start: `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`,
+    next: `${String(nextYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}-01`,
+    label: `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`,
+  };
+}
+
+function executorRequest(executor: sql.ConnectionPool | sql.Transaction): sql.Request {
+  return executor instanceof sql.Transaction ? new sql.Request(executor) : executor.request();
+}
+
+async function readCoachBookingQuota(
+  executor: sql.ConnectionPool | sql.Transaction,
+  memberId: number,
+  bookingDate: string,
+): Promise<CoachBookingQuota> {
+  const membershipPlan = executor instanceof sql.Transaction
+    ? await getActiveMembershipPlanForTransaction(executor, memberId)
+    : await getActiveMembershipPlan(memberId);
+  const bounds = monthBounds(bookingDate);
+  const notIncluded = (used = 0): CoachBookingQuota => ({
+    included: false,
+    monthlyLimit: 0,
+    used,
+    remaining: 0,
+    bookingMonth: bounds.label,
+    timezone: COACH_BOOKING_TIME_ZONE,
+    reason: 'COACH_BOOKING_NOT_INCLUDED',
+  });
+  if (!membershipPlan) return notIncluded();
+
+  const enabled = membershipPlan.entitlements.find(item => item.entitlement_key === 'COACH_BOOKING_ENABLED');
+  const limit = membershipPlan.entitlements.find(item => item.entitlement_key === 'COACH_BOOKING_MONTHLY_LIMIT');
+  const unlimited = limit?.value_type === 'UNLIMITED' && limit.entitlement_value === '-1';
+  const monthlyLimit = limit && limit.value_type === 'INTEGER' ? Number(limit.entitlement_value) : unlimited ? null : Number.NaN;
+  const finiteLimitValid = monthlyLimit !== null && Number.isInteger(monthlyLimit) && monthlyLimit >= 0;
+  if (enabled?.entitlement_value !== 'true' || (!unlimited && !finiteLimitValid)) return notIncluded();
+
+  const usedResult = await executorRequest(executor)
+    .input('quotaMemberId', sql.Int, memberId)
+    .input('quotaMonthStart', sql.Date, bounds.start)
+    .input('quotaNextMonth', sql.Date, bounds.next)
+    .query<{ used: number }>(`SELECT COUNT_BIG(*) AS used
+      FROM dbo.Bookings WITH (UPDLOCK,HOLDLOCK)
+      WHERE member_id=@quotaMemberId AND booking_date>=@quotaMonthStart AND booking_date<@quotaNextMonth`);
+  const used = Number(usedResult.recordset[0]?.used ?? 0);
+  return {
+    included: true,
+    monthlyLimit: unlimited ? null : Number(monthlyLimit),
+    used,
+    remaining: unlimited ? null : Math.max(Number(monthlyLimit) - used, 0),
+    bookingMonth: bounds.label,
+    timezone: COACH_BOOKING_TIME_ZONE,
+  };
+}
+
+export async function getBookingQuota(req: Request, res: Response, next: NextFunction) {
+  try {
+    const date = typeof req.query.date === 'string' && req.query.date ? req.query.date : todayInTimeZone(COACH_BOOKING_TIME_ZONE);
+    assertBookingDate(date);
+    sendSuccess(res, await readCoachBookingQuota(await getPool(), req.user!.userId, date), 'Coach booking quota fetched');
+  } catch (error) {
+    next(error);
+  }
+}
+
 /** Create a real pending appointment. Identity is always derived from the authenticated Member. */
 export async function createBooking(req: Request, res: Response, next: NextFunction) {
   const body = req.body as NormalizedCreateBooking;
@@ -144,6 +228,10 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
     const tx = (await getPool()).transaction();
     await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
     try {
+      const quota = await readCoachBookingQuota(tx, memberId, body.booking_date);
+      if (!quota.included) throw new AppError(403, 'Coach booking is not included in the active Membership', 'COACH_BOOKING_NOT_INCLUDED');
+      if (quota.remaining !== null && quota.remaining <= 0) throw new AppError(409, 'Monthly Coach booking quota has been reached', 'COACH_BOOKING_QUOTA_EXCEEDED');
+
       const coach = await new sql.Request(tx)
         .input('coachId', sql.Int, coachId)
         .query<CoachRow>(

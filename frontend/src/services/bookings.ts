@@ -30,6 +30,7 @@ interface BookingListResponse { data: Booking[]; pagination?: { page: number; li
 export interface BookingQuery { status?: BookingStatus | BookingStatus[]; fromDate?: string; toDate?: string; page?: number; limit?: number }
 export interface BookingPage { items: Booking[]; page: number; limit: number; total: number; totalPages: number }
 export interface BookingSummary { total: number; pending: number; confirmed: number; completed: number; cancelled: number; no_show: number; upcoming: number; today: number; asOfDate: string; timezone: string }
+export interface CoachBookingQuota { included: boolean; monthlyLimit: number | null; used: number; remaining: number | null; bookingMonth: string; timezone: string; reason?: 'COACH_BOOKING_NOT_INCLUDED' }
 
 export async function createBooking(payload: CreateBookingPayload): Promise<Booking> {
   const response = await api.post<ApiResponse<Booking>>('/bookings', payload);
@@ -72,6 +73,11 @@ export async function cancelMyBooking(id: number | string): Promise<Booking> {
 
 export async function getCoachAppointmentsPage(params?: BookingQuery): Promise<BookingPage> {
   return getBookingsPage(params);
+}
+
+export async function getCoachBookingQuota(date?: string): Promise<CoachBookingQuota> {
+  const response = await api.get<ApiResponse<CoachBookingQuota>>('/bookings/quota', { params: date ? { date } : undefined });
+  return response.data.data;
 }
 
 export async function getCoachAppointments(params?: BookingQuery): Promise<Booking[]> {

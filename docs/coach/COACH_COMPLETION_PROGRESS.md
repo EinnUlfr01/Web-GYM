@@ -65,6 +65,19 @@ Status: PASS (implementation, disposable migration/idempotency and API acceptanc
 
 Checks: backend build PASS; backend lint PASS with 0 errors and 458 repository-wide `no-explicit-any` warnings; frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; disposable entitlement acceptance PASS; canonical migration status remains read-only and `0012` is pending until approved deployment.
 
+## Phase 20 - Membership entitlement and monthly Coach booking quota
+
+Status: PASS (transactional enforcement, quota API, frontend messaging and disposable acceptance)
+
+- Booking creation now reads the authenticated Member's active Membership and structured Plan entitlement inside the same serializable transaction as availability, slot overlap and Booking insertion. Starter/no-Membership requests fail with `403 COACH_BOOKING_NOT_INCLUDED`; finite quota exhaustion fails with `409 COACH_BOOKING_QUOTA_EXCEEDED`.
+- Monthly usage counts every successfully inserted Booking in the requested `Asia/Ho_Chi_Minh` calendar month, including cancelled and no-show rows. The Member Membership range and indexed Booking month range are locked before the count/insert so concurrent last-quota requests cannot oversubscribe.
+- Added Member-only `GET /api/bookings/quota?date=YYYY-MM-DD`, returning `included`, `monthlyLimit`, `used`, `remaining`, `bookingMonth`, `timezone` and a stable exclusion reason. Elite uses `monthlyLimit=null`/`remaining=null` for unlimited.
+- Coach Booking UI now displays quota and a Membership upgrade link. Booking backend remains authoritative; Coach/Admin cannot use the Member quota or create route.
+- Added `acceptance:coach-booking-quota` covering Starter/no Membership, Pro 2-limit, cancellation no-refund, month boundary, Elite unlimited, RBAC and concurrent last-quota requests. Fresh disposable Booking regression also passed after seeding existing Booking fixtures with an Elite entitlement.
+- No migration was created. No Marketplace/Seller source or migration `0100`-`0111` changed.
+
+Checks: backend build PASS; targeted quota/controller lint PASS; frontend `npx tsc --noEmit` PASS; quota acceptance PASS; fresh `acceptance:coach-booking` PASS; disposable databases were dropped after testing. Query-plan/index review remains Phase 28.
+
 ## Scope guard
 
 - Target branch: `coach1`

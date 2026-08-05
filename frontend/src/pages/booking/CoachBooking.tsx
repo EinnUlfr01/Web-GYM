@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, Calendar, CheckCircle, ChevronRight, Clock, Loader2, MapPin } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getCoachAvailability, getPublicCoach, type Coach, type CoachAvailability, type CoachAvailabilitySlot, type CoachSessionMode } from '../../services/coaches';
-import { createBooking } from '../../services/bookings';
+import { createBooking, getCoachBookingQuota, type CoachBookingQuota } from '../../services/bookings';
 import { roleHome } from '../../auth/accessPolicy';
 import { useAuthStore } from '../../stores/authStore';
 import { coachDateOptions } from '../../utils/coachBooking';
@@ -36,6 +36,7 @@ export default function CoachBooking() {
   const navigate = useNavigate();
   const [coach, setCoach] = useState<Coach | null>(null);
   const [availability, setAvailability] = useState<CoachAvailability | null>(null);
+  const [quota, setQuota] = useState<CoachBookingQuota | null>(null);
   const [date, setDate] = useState('');
   const [slot, setSlot] = useState('');
   const [note, setNote] = useState('');
@@ -70,6 +71,17 @@ export default function CoachBooking() {
     return () => controller.abort();
   }, [id, date, coach?.bookingEnabled]);
 
+  useEffect(() => {
+    if (!user || user.role !== 'member') return;
+    let active = true;
+    const quotaDate = date || dates[0]?.value;
+    if (!quotaDate) return;
+    getCoachBookingQuota(quotaDate)
+      .then(value => { if (active) setQuota(value); })
+      .catch(() => { if (active) setQuota(null); });
+    return () => { active = false; };
+  }, [date, dates, user]);
+
   if (!initialized) return <div className="flex min-h-screen items-center justify-center bg-[#020617]"><Loader2 className="animate-spin text-[#2563eb]" /></div>;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   if (user.role !== 'member') return <Navigate to={roleHome(user.role)} replace />;
@@ -99,6 +111,8 @@ export default function CoachBooking() {
 
   return <div className="min-h-screen bg-[#020617] py-16"><div className="mx-auto max-w-3xl px-4 sm:px-6"><Link to={`/coaches/${coach.id}`} className="mb-6 inline-flex items-center gap-2 text-[#94a3b8]"><ArrowLeft size={16} /> Back to Coach</Link><div className="rounded-2xl border border-[#1e293b] bg-[#0f172a] p-6 sm:p-8"><h1 className="text-3xl font-bold text-white">Book with {coach.name}</h1><p className="mt-2 text-[#94a3b8]">Choose a real availability window in {availability?.timezone || 'Asia/Ho_Chi_Minh'}.</p><div className="mt-8 flex flex-wrap items-center gap-2 text-sm text-[#94a3b8]">{['Date', 'Slot', 'Confirm'].map((label, index) => <span key={label} className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full ${step >= index + 1 ? 'bg-[#2563eb] text-white' : 'bg-[#1e293b] text-slate-500'}`}>{index + 1}</span>{label}{index < 2 && <ChevronRight size={15} />}</span>)}</div>{error && <div className="mt-6 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200"><AlertCircle size={17} className="mt-0.5 shrink-0" />{error}</div>}
       {!coach.bookingEnabled && <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">This Coach is not accepting new bookings right now.</div>}
+      {quota && !quota.included && <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">Coach booking is not included in your active Membership. <Link className="font-semibold underline" to="/membership">Review plans</Link>.</div>}
+      {quota?.included && <p className="mt-6 text-sm text-[#94a3b8]">Coach booking quota for {quota.bookingMonth}: {quota.monthlyLimit === null ? `${quota.used} used · Unlimited` : `${quota.used}/${quota.monthlyLimit} used · ${quota.remaining} remaining`}.</p>}
       <form onSubmit={submit} className="mt-8 space-y-7">
         {step === 1 && <div><label htmlFor="booking-date" className="block text-sm font-medium text-white">Appointment date</label><select id="booking-date" disabled={!coach.bookingEnabled} value={date} onChange={event => { setDate(event.target.value); setStep(2); }} className="mt-2 w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-3 text-white"><option value="">Choose a date</option>{dates.map(option => <option key={option.value} value={option.value}>{option.label} · {option.value}</option>)}</select></div>}
         {step >= 2 && <div><div className="flex items-center justify-between"><label className="block text-sm font-medium text-white">Available slots</label><button type="button" onClick={() => setStep(1)} className="text-xs text-[#60a5fa]">Change date</button></div>{slotsLoading ? <div className="mt-3 flex items-center gap-2 text-sm text-[#94a3b8]"><Loader2 size={15} className="animate-spin" />Loading real slots...</div> : slots.length === 0 ? <p className="mt-3 text-sm text-[#94a3b8]">No bookable slot is configured for this date.</p> : <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">{slots.map(value => <button type="button" key={`${value.start_time}-${value.mode}-${value.location || ''}`} onClick={() => { setSlot(value.start_time); setStep(3); }} className={`rounded-lg border p-3 text-left text-sm ${slot === value.start_time ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-[#334155] bg-[#020617] text-[#cbd5e1] hover:border-[#2563eb]'}`}><strong className="block"><Clock size={14} className="mr-1 inline" />{value.start_time}–{value.end_time}</strong><span className="mt-1 block text-xs opacity-80">{modeLabel(value.mode)}{value.location ? ` · ${value.location}` : ''}</span></button>)}</div>}</div>}

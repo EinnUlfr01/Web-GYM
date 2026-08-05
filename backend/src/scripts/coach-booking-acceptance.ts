@@ -45,6 +45,9 @@ async function cleanup(): Promise<void> {
   await query(`DELETE FROM dbo.CoachAvailabilityExceptions WHERE coach_id IN (${csv})`);
   await query(`DELETE FROM dbo.CoachAvailabilityRules WHERE coach_id IN (${csv})`);
   await query(`DELETE FROM dbo.Bookings WHERE coach_id IN (${csv}) OR member_id IN (${csv})`);
+  await query(`DELETE FROM dbo.Memberships WHERE user_id IN (${csv})`);
+  await query(`DELETE FROM dbo.Payments WHERE user_id IN (${csv})`);
+  await query(`DELETE FROM dbo.AuditLogs WHERE user_id IN (${csv})`);
   await query(`DELETE FROM dbo.CoachProfiles WHERE coach_id IN (${csv})`);
   await query(`DELETE FROM dbo.AuthSessions WHERE user_id IN (${csv})`);
   await query(`DELETE FROM dbo.Users WHERE id IN (${csv})`);
@@ -91,6 +94,14 @@ async function seed(): Promise<void> {
        (@coachB,6,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,6,N'13:00',N'18:00',N'ONLINE',N'Online',1),
        (@coachB,7,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,7,N'13:00',N'18:00',N'ONLINE',N'Online',1)`,
     { coachA: accounts.coachA.id, coachB: accounts.coachB.id },
+  );
+  const elitePlan = await query<{ id: number }>('SELECT TOP (1) id FROM dbo.Plans WHERE is_active=1 AND sort_order=3 ORDER BY id');
+  if (!elitePlan.recordset[0]) throw new Error('Coach booking acceptance requires migration 0012 and an Elite entitlement seed');
+  await query(
+    `INSERT dbo.Memberships(user_id,plan_id,start_date,end_date,status,auto_renew,created_at)
+     VALUES(@memberA,@planId,SYSUTCDATETIME(),DATEADD(day,365,SYSUTCDATETIME()),N'active',0,SYSUTCDATETIME()),
+           (@memberB,@planId,SYSUTCDATETIME(),DATEADD(day,365,SYSUTCDATETIME()),N'active',0,SYSUTCDATETIME())`,
+    { memberA: accounts.memberA.id, memberB: accounts.memberB.id, planId: Number(elitePlan.recordset[0].id) },
   );
 }
 
