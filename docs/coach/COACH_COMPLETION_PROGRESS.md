@@ -12,6 +12,18 @@ Status: PASS (migration, API, RBAC/IDOR and concurrency acceptance)
 
 Checks: backend build PASS; Phase 21 ESLint PASS with one acceptance fixture `no-explicit-any` warning; frontend `npx tsc --noEmit` PASS; `git diff --check` PASS; disposable `acceptance:coach-member-context` PASS.
 
+## Phase 22 - Coach Member Context editor UI
+
+Status: PASS (frontend implementation, browser QA and API contract verification)
+
+- Rebuilt `CoachMemberDetailPage` around the Phase 21 context API. The editor includes Goal, Limitations, private note and next-review date, with explicit Save, dirty/saved state, loading/empty/error states and a browser `beforeunload` warning for unsaved changes.
+- The form sends `expectedUpdatedAt` and preserves the draft on `409 COACH_CONTEXT_CONFLICT`; the Coach can explicitly reload the latest server version before retrying. A reassigned historical context is rendered read-only when the API exposes that state, and private-note copy is explicitly Coach-only.
+- No per-keystroke PATCH is issued. Disabled controls and role route policy remain UI affordances only; backend ownership and privacy checks remain authoritative. Monitoring links retain the existing Coach scope and source-aware session routes.
+- Browser QA on disposable `GYMFIT_DB_COACH_ACCEPTANCE_PHASE22_BROWSER` verified Coach sign-in, Member Detail rendering, Goal dirty-state transition, Save success and reset to synchronized/disabled state. A temporary `VITE_COACH_QA` harness bypassed only the unrelated Buyer cart bootstrap for the fixture and was removed before checkpoint; no Marketplace/Seller source changed.
+- No migration was created in this phase. The Phase 21 `0013` context migration and typed API are the only database/API dependencies.
+
+Checks: frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; browser QA PASS; temporary frontend/backend processes and disposable database were stopped/dropped; `git diff --check` PASS.
+
 ## Phase 15 — Coach Availability database model
 
 Status: PASS (migration created and statically reviewed; canonical database intentionally not changed)
