@@ -118,6 +118,18 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted ESLint PASS with two pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS; booking unit PASS. No migration was created.
 
+## Phase 09 — Program Builder integrity and save semantics
+
+Status: PASS (implementation and compile checks)
+
+- Reworked the Coach Program Builder Exercise editor to keep edits local until an explicit `Save targets` action; PATCH is no longer sent for every keystroke.
+- Added visible fields for target weight, duration, tempo and Coach note alongside sets/reps/rest, with dirty/saved/saving states and server-backed validation.
+- Added client validation for the reps/duration requirement and min/max ordering while retaining the route's Zod validation and existing SQL columns from migration `0007`.
+- A per-Exercise revision guard prevents a late save response from clearing a newer local draft. Double submit is disabled while a save is active.
+- Program Day add/reorder/delete, Exercise add/reorder/delete and Program detail save remain available; the UI only touches Coach-owned resources through existing endpoints.
+
+Checks: backend build PASS; targeted backend ESLint PASS; frontend typecheck/build PASS; booking unit PASS. No migration was created.
+
 ## Phase 08 — Assignment lifecycle and transition concurrency
 
 Status: PASS (implementation and compile checks)
