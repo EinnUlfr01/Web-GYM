@@ -1,5 +1,5 @@
 import api from '../api/axios';
-import type { CoachAssignment, CoachDashboardData, CoachExercise, CoachMember, CoachMemberDetail, CoachProgram, CoachProgramDay, CoachProgramExercise, CoachProgress, CoachSchedule, CoachSessionDetail, CoachSessionHistoryItem } from '../types/coachWorkspace';
+import type { CoachAssignment, CoachDashboardData, CoachExercise, CoachMember, CoachMemberContextResponse, CoachMemberDetail, CoachProgram, CoachProgramDay, CoachProgramExercise, CoachProgress, CoachSchedule, CoachSessionDetail, CoachSessionHistoryItem } from '../types/coachWorkspace';
 
 export type Page<T> = { items:T[]; page:number; limit:number; total:number; totalPages:number };
 const data = <T,>(response:{data:{data:T}}) => response.data.data;
@@ -24,6 +24,8 @@ export const deleteProgramExercise = async (id:number) => api.delete(`${coach}/w
 export const reorderProgramExercises = async (dayId:number, ids:number[]) => api.post(`${coach}/workout-program-days/${dayId}/exercises/reorder`, { ids });
 export const listMembers = async (params:Record<string,unknown>) => page<CoachMember>(await api.get(`${coach}/members`, { params }));
 export const getMember = async (id:number) => data<CoachMemberDetail>(await api.get(`${coach}/members/${id}`));
+export const getMemberContext = async (id:number) => data<CoachMemberContextResponse>(await api.get(`${coach}/members/${id}/context`));
+export const updateMemberContext = async (id:number, body:Record<string,unknown>) => data<CoachMemberContextResponse>(await api.patch(`${coach}/members/${id}/context`, body));
 export const listAssignments = async (params:Record<string,unknown>) => page<CoachAssignment>(await api.get(`${coach}/assignments`, { params }));
 export const createAssignment = async (body:Record<string,unknown>) => data<CoachAssignment>(await api.post(`${coach}/assignments`, body));
 export const getAssignment = async (id:number) => data<CoachAssignment>(await api.get(`${coach}/assignments/${id}`));

@@ -13,6 +13,13 @@ const programId = id;
 const dayId = z.object({ dayId: z.coerce.number().int().positive() }).strict();
 const programExerciseId = z.object({ programExerciseId: z.coerce.number().int().positive() }).strict();
 const memberId = z.object({ memberId: z.coerce.number().int().positive() }).strict();
+const memberContext = z.object({
+  goal: z.string().trim().max(2000).nullable().optional(),
+  limitations: z.string().trim().max(2000).nullable().optional(),
+  privateNote: z.string().trim().max(4000).nullable().optional(),
+  nextReviewDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  expectedUpdatedAt: z.string().trim().min(19).max(33).nullable().optional(),
+}).strict();
 const assignmentId = z.object({ assignmentId: z.coerce.number().int().positive() }).strict();
 const scheduleId = z.object({ scheduleId: z.coerce.number().int().positive() }).strict();
 const sourceSessionId = z.object({ memberId: z.coerce.number().int().positive(), source: z.enum(['legacy', 'member']), sessionId: z.coerce.number().int().positive() }).strict();
@@ -94,6 +101,8 @@ router.patch('/workout-program-exercises/:programExerciseId', validate(programEx
 router.delete('/workout-program-exercises/:programExerciseId', validate(programExerciseId, 'params'), controller.deleteProgramExercise);
 router.get('/members', validate(list, 'query'), controller.listMembers);
 router.get('/members/:memberId', validate(memberId, 'params'), controller.getMember);
+router.get('/members/:memberId/context', validate(memberId, 'params'), controller.getMemberContext);
+router.patch('/members/:memberId/context', validate(memberId, 'params'), validate(memberContext), controller.updateMemberContext);
 router.get('/assignments', validate(list.extend({ memberId: z.coerce.number().int().positive().optional() }), 'query'), controller.listAssignments);
 router.post('/assignments', validate(assignment), controller.createAssignment);
 router.get('/assignments/:assignmentId', validate(assignmentId, 'params'), controller.getAssignment);

@@ -48,6 +48,7 @@
     "acceptance:coach-booking-quota": "tsx src/scripts/coach-booking-quota-acceptance.ts",
     "acceptance:coach-membership": "tsx src/scripts/coach-membership-acceptance.ts",
     "acceptance:coach-entitlement": "tsx src/scripts/coach-entitlement-acceptance.ts",
+    "acceptance:coach-member-context": "tsx src/scripts/coach-member-context-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",
     "integrity:regression-04": "tsx src/scripts/regression-04-seller-integrity.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",

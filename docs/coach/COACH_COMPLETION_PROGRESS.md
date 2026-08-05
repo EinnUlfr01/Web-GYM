@@ -1,5 +1,17 @@
 # Coach1 Completion Progress
 
+## Phase 21 - Coach Member goals and private context API
+
+Status: PASS (migration, API, RBAC/IDOR and concurrency acceptance)
+
+- Added `db/migrations/0013_coach_member_context.sql` as an additive, idempotent Coach-only context table with `(coach_id, member_id)` uniqueness, User foreign keys, bounded private fields, next-review date and updated timestamp/index coverage. The migration does not reuse `CRMNotes` and does not modify Marketplace/Seller migrations.
+- Added Coach-only `GET/PATCH /api/coach/members/:memberId/context`. Ownership is derived from the authenticated Coach and the current `CRMCustomers.assigned_coach_id`; Member/Admin routes are denied. A previous Coach may read its historical context after reassignment but receives read-only behavior, while the new Coach starts with a separate context row.
+- PATCH uses serializable transaction scope and `expectedUpdatedAt` optimistic concurrency. Stale writes return `409 COACH_CONTEXT_CONFLICT`; a previous Coach write returns `403 COACH_CONTEXT_READ_ONLY`. Private notes are never returned through Member-facing or Admin-facing routes.
+- Added `acceptance:coach-member-context`, covering guest/member/admin RBAC, cross-Coach read/write IDOR, context creation/round-trip, concurrent optimistic-lock updates, reassignment read-only policy and new-Coach isolation. Disposable migration `0010`-`0013` passed twice with zero checksum mismatch; database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE21` was dropped after testing.
+- No frontend editor was added in this phase; Phase 22 consumes the typed API contract. No Marketplace/Seller source or migration `0100`-`0111` changed.
+
+Checks: backend build PASS; Phase 21 ESLint PASS with one acceptance fixture `no-explicit-any` warning; frontend `npx tsc --noEmit` PASS; `git diff --check` PASS; disposable `acceptance:coach-member-context` PASS.
+
 ## Phase 15 — Coach Availability database model
 
 Status: PASS (migration created and statically reviewed; canonical database intentionally not changed)

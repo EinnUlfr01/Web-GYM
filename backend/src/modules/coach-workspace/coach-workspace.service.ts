@@ -20,6 +20,24 @@ export interface CoachSelfProfile {
   bookingEnabled: boolean;
 }
 
+export interface CoachMemberContext {
+  id: number;
+  coach_id: number;
+  member_id: number;
+  goal: string | null;
+  limitations: string | null;
+  private_note: string | null;
+  next_review_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CoachMemberContextRow extends Omit<CoachMemberContext, 'id' | 'coach_id' | 'member_id'> {
+  id: number;
+  coach_id: number;
+  member_id: number;
+}
+
 interface CoachSelfProfileRow {
   coachId: number;
   name: string;
@@ -563,6 +581,124 @@ export async function getMember(coachId: number, memberId: number) {
     query(`SELECT (SELECT COUNT(*) FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId)+(SELECT COUNT(*) FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId WHERE ms.member_id=@memberId) AS count`, { memberId, coachId }),
   ]);
   return { ...member, currentAssignment: assignment.recordset[0] ?? null, sessionCount: Number(sessionCount.recordset[0].count), sessionDataAvailable: true };
+}
+
+function mapCoachMemberContext(row: CoachMemberContextRow): CoachMemberContext {
+  return {
+    id: Number(row.id),
+    coach_id: Number(row.coach_id),
+    member_id: Number(row.member_id),
+    goal: row.goal ?? null,
+    limitations: row.limitations ?? null,
+    private_note: row.private_note ?? null,
+    next_review_date: row.next_review_date ? String(row.next_review_date).slice(0, 10) : null,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  };
+}
+
+async function readContext(executor: sql.ConnectionPool | sql.Transaction, coachId: number, memberId: number): Promise<CoachMemberContextRow | null> {
+  const result = await requestFor(executor)
+    .input('contextCoachId', sql.Int, coachId)
+    .input('contextMemberId', sql.Int, memberId)
+    .query<CoachMemberContextRow>(`SELECT id,coach_id,member_id,goal,limitations,private_note,
+        CONVERT(NVARCHAR(10),next_review_date,23) AS next_review_date,
+        CONVERT(NVARCHAR(33),created_at,126) AS created_at,
+        CONVERT(NVARCHAR(33),updated_at,126) AS updated_at
+      FROM dbo.CoachMemberContexts
+      WHERE coach_id=@contextCoachId AND member_id=@contextMemberId`);
+  return result.recordset[0] ?? null;
+}
+
+async function currentMemberCoach(executor: sql.ConnectionPool | sql.Transaction, memberId: number): Promise<{ assigned_coach_id: number | null } | null> {
+  const result = await requestFor(executor)
+    .input('contextMemberId', sql.Int, memberId)
+    .query<{ assigned_coach_id: number | null }>(`SELECT c.assigned_coach_id
+      FROM dbo.CRMCustomers c WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Users u ON u.id=c.user_id
+      WHERE c.user_id=@contextMemberId AND u.role=N'member' AND u.is_active=1`);
+  return result.recordset[0] ? { assigned_coach_id: result.recordset[0].assigned_coach_id === null ? null : Number(result.recordset[0].assigned_coach_id) } : null;
+}
+
+export async function getMemberContext(coachId: number, memberId: number) {
+  const pool = await getPool();
+  const current = await currentMemberCoach(pool, memberId);
+  const context = await readContext(pool, coachId, memberId);
+  if (!current || (!context && current.assigned_coach_id !== coachId)) throw new AppError(404, 'Member context not found');
+  return {
+    context: context ? mapCoachMemberContext(context) : null,
+    readOnly: current.assigned_coach_id !== coachId,
+    currentCoachId: current.assigned_coach_id,
+  };
+}
+
+export async function updateMemberContext(coachId: number, memberId: number, input: {
+  goal?: unknown;
+  limitations?: unknown;
+  privateNote?: unknown;
+  nextReviewDate?: unknown;
+  expectedUpdatedAt?: unknown;
+}) {
+  const pool = await getPool();
+  const tx = pool.transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const current = await currentMemberCoach(tx, memberId);
+    if (!current) throw new AppError(404, 'Member not found');
+    if (current.assigned_coach_id !== coachId) {
+      const oldContext = await readContext(tx, coachId, memberId);
+      if (oldContext) throw new AppError(403, 'Previous Coach context is read-only after reassignment', 'COACH_CONTEXT_READ_ONLY');
+      throw new AppError(404, 'Member not found');
+    }
+
+    const existing = await readContext(tx, coachId, memberId);
+    const goal = input.goal === undefined ? existing?.goal ?? null : nullableText(input.goal, 2000);
+    const limitations = input.limitations === undefined ? existing?.limitations ?? null : nullableText(input.limitations, 2000);
+    const privateNote = input.privateNote === undefined ? existing?.private_note ?? null : nullableText(input.privateNote, 4000);
+    const nextReviewDate = input.nextReviewDate === undefined
+      ? existing?.next_review_date ?? null
+      : input.nextReviewDate === null || input.nextReviewDate === '' ? null : dateOnly(input.nextReviewDate);
+    const expectedUpdatedAt = input.expectedUpdatedAt === undefined || input.expectedUpdatedAt === null
+      ? null
+      : String(input.expectedUpdatedAt).trim();
+
+    if (existing) {
+      if (!expectedUpdatedAt) throw new AppError(409, 'Context version is required for update', 'COACH_CONTEXT_VERSION_REQUIRED');
+      const updated = await new sql.Request(tx)
+        .input('contextId', sql.Int, existing.id)
+        .input('expectedUpdatedAt', sql.NVarChar(33), expectedUpdatedAt)
+        .input('goal', sql.NVarChar(2000), goal)
+        .input('limitations', sql.NVarChar(2000), limitations)
+        .input('privateNote', sql.NVarChar(4000), privateNote)
+        .input('nextReviewDate', sql.Date, nextReviewDate)
+        .query(`UPDATE dbo.CoachMemberContexts
+          SET goal=@goal,limitations=@limitations,private_note=@privateNote,next_review_date=@nextReviewDate,updated_at=SYSUTCDATETIME()
+          WHERE id=@contextId AND CONVERT(NVARCHAR(33),updated_at,126)=@expectedUpdatedAt`);
+      if (updated.rowsAffected[0] !== 1) throw new AppError(409, 'Member context was changed by another request', 'COACH_CONTEXT_CONFLICT');
+    } else {
+      if (expectedUpdatedAt) throw new AppError(409, 'Member context was created by another request', 'COACH_CONTEXT_CONFLICT');
+      try {
+        await new sql.Request(tx)
+          .input('contextCoachId', sql.Int, coachId)
+          .input('contextMemberId', sql.Int, memberId)
+          .input('goal', sql.NVarChar(2000), goal)
+          .input('limitations', sql.NVarChar(2000), limitations)
+          .input('privateNote', sql.NVarChar(4000), privateNote)
+          .input('nextReviewDate', sql.Date, nextReviewDate)
+          .query(`INSERT dbo.CoachMemberContexts(coach_id,member_id,goal,limitations,private_note,next_review_date)
+            VALUES(@contextCoachId,@contextMemberId,@goal,@limitations,@privateNote,@nextReviewDate)`);
+      } catch (error) {
+        if (isUniqueConstraintError(error)) throw new AppError(409, 'Member context was created by another request', 'COACH_CONTEXT_CONFLICT');
+        throw error;
+      }
+    }
+    const saved = await readContext(tx, coachId, memberId);
+    await tx.commit();
+    if (!saved) throw new AppError(500, 'Member context could not be read after save');
+    return { context: mapCoachMemberContext(saved), readOnly: false, currentCoachId: coachId };
+  } catch (error) {
+    try { await tx.rollback(); } catch { /* preserve original error */ }
+    throw error;
+  }
 }
 
 export async function listAssignments(coachId: number, page: number, limit: number, memberId?: number) {

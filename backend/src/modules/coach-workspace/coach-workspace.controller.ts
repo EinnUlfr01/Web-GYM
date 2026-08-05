@@ -27,6 +27,8 @@ export const deleteProgramExercise = run(async req => { await service.deleteProg
 export const reorderProgramExercises = run(async req => { await service.reorderProgramExercises(actor(req), numberParam(req, 'dayId'), req.body.ids); return { reordered: true }; });
 export const listMembers = run(req => service.listMembers(actor(req), Number(req.query.page), Number(req.query.limit), req.query.q as string | undefined));
 export const getMember = run(req => service.getMember(actor(req), numberParam(req, 'memberId')));
+export const getMemberContext = run(req => service.getMemberContext(actor(req), numberParam(req, 'memberId')));
+export const updateMemberContext = run(req => service.updateMemberContext(actor(req), numberParam(req, 'memberId'), req.body));
 export const listAssignments = run(req => service.listAssignments(actor(req), Number(req.query.page), Number(req.query.limit), req.query.memberId ? Number(req.query.memberId) : undefined));
 export const createAssignment = run(req => service.createAssignment(actor(req), req.body), 201);
 export const getAssignment = run(async req => service.assertAssignment(actor(req), numberParam(req, 'assignmentId')));
