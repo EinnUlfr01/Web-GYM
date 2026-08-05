@@ -45,3 +45,15 @@ Status: PASS
 Added the canonical Coach domain contract and focused ADRs for Membership entitlement/quota, Availability and Program Versioning. The contract fixes Asia/Ho_Chi_Minh boundaries, reservation-based quota with no cancellation refund, explicit pending-payment confirmation, availability-versus-booking responsibilities, immutable snapshots, private context scope, notification limits and API error semantics.
 
 Runtime tests were not required for this documentation-only phase. `git diff --check` passed before checkpointing.
+
+## Phase 02 — Migration 0010 readiness and database guard
+
+Status: PASS
+
+- Canonical target: `GYMFIT_DB`.
+- `npm run db:migrate:status`: 22 applied, 0 pending, 0 checksum mismatches.
+- `0010_coach_profiles.sql`: APPLIED with matching checksum.
+- `COACH_MIGRATION_VERIFY`: PASS; `CoachProfiles` exists and has two unique indexes.
+- No migration file was created or rewritten. Migrations `0100`–`0111` were not changed.
+
+The existing verification script already supplied the required Coach migration evidence, so no script change was necessary in this phase.
