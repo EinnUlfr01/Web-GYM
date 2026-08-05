@@ -175,6 +175,7 @@ async function run(): Promise<void> {
   const programId = Number(dataOf<{ id: number }>(program).id);
   const day = await call('POST', `/coach/workout-programs/${programId}/days`, accounts.coachA, { weekNumber: 1, dayNumber: currentDay, title: 'Notification Day' });
   check(day.status === 201, 'Coach creates notification program day');
+  check((await call('POST', `/coach/workout-programs/${programId}/publish`, accounts.coachA, {})).status === 200, 'Coach publishes notification Program before Assignment');
   const assignment = await call('POST', '/coach/assignments', accounts.coachA, { memberId: accounts.member.id, programId, startDate: today, scheduleTimezone: 'Asia/Ho_Chi_Minh' });
   check(assignment.status === 201, 'Assignment trigger fixture creates active assignment');
   const assignmentId = Number(dataOf<{ id: number }>(assignment).id);
@@ -190,6 +191,7 @@ async function run(): Promise<void> {
   const programB = await call('POST', '/coach/workout-programs', accounts.coachB, { name: 'Reassignment Program', description: 'Acceptance', goal: 'GENERAL_FITNESS', difficulty: 'BEGINNER', durationWeeks: 1, daysPerWeek: 1 });
   check(programB.status === 201, 'New Coach creates reassignment program');
   const programBId = Number(dataOf<{ id: number }>(programB).id);
+  check((await call('POST', `/coach/workout-programs/${programBId}/publish`, accounts.coachB, {})).status === 200, 'New Coach publishes reassignment Program');
   const reassigned = await call('POST', `/admin/coaches/${accounts.coachA.id}/members/${accounts.member.id}/reassign`, accounts.admin, { newCoachId: accounts.coachB.id, programId: programBId, startDate: today, scheduleTimezone: 'Asia/Ho_Chi_Minh' });
   check(reassigned.status === 200, 'Admin reassignment trigger completes');
   const newAssignmentId = Number(dataOf<{ assignment: { id: number } }>(reassigned).assignment.id);

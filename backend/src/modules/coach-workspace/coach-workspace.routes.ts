@@ -89,6 +89,9 @@ router.get('/workout-programs', validate(list, 'query'), controller.listPrograms
 router.post('/workout-programs', validate(program), controller.createProgram);
 router.get('/workout-programs/:programId', validate(programId, 'params'), controller.getProgram);
 router.patch('/workout-programs/:programId', validate(programId, 'params'), validate(program), controller.updateProgram);
+router.post('/workout-programs/:programId/publish', validate(programId, 'params'), validate(transition), controller.publishProgram);
+router.post('/workout-programs/:programId/clone-version', validate(programId, 'params'), validate(transition), controller.cloneProgramVersion);
+router.post('/workout-programs/:programId/archive', validate(programId, 'params'), validate(transition), controller.archiveProgram);
 router.post('/workout-programs/:programId/activate', validate(programId, 'params'), validate(transition), controller.activateProgram);
 router.post('/workout-programs/:programId/deactivate', validate(programId, 'params'), validate(transition), controller.deactivateProgram);
 router.post('/workout-programs/:programId/days', validate(programId, 'params'), validate(day), controller.createDay);

@@ -17,6 +17,9 @@ export const createProgram = run(req => service.createProgram(actor(req), req.bo
 export const updateProgram = run(req => service.updateProgram(actor(req), numberParam(req, 'programId'), req.body));
 export const activateProgram = run(req => service.setProgramActive(actor(req), numberParam(req, 'programId'), true));
 export const deactivateProgram = run(req => service.setProgramActive(actor(req), numberParam(req, 'programId'), false));
+export const publishProgram = run(req => service.publishProgram(actor(req), numberParam(req, 'programId')));
+export const cloneProgramVersion = run(req => service.cloneProgramVersion(actor(req), numberParam(req, 'programId')), 201);
+export const archiveProgram = run(req => service.archiveProgram(actor(req), numberParam(req, 'programId')));
 export const createDay = run(req => service.createDay(actor(req), numberParam(req, 'programId'), req.body), 201);
 export const updateDay = run(req => service.updateDay(actor(req), numberParam(req, 'dayId'), req.body));
 export const deleteDay = run(async req => { await service.deleteDay(actor(req), numberParam(req, 'dayId')); return null; });
