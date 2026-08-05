@@ -451,10 +451,42 @@ export async function createAssignment(coachId: number, data: Record<string, unk
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
-const transitions: Record<string, string[]> = { PAUSED: ['ACTIVE'], ACTIVE: ['PAUSED', 'COMPLETED', 'CANCELLED'] };
+const transitions: Record<string, string[]> = { PAUSED: ['ACTIVE', 'COMPLETED', 'CANCELLED'], ACTIVE: ['PAUSED', 'COMPLETED', 'CANCELLED'] };
 export async function transitionAssignment(coachId: number, assignmentId: number, nextStatus: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED') {
-  const assignment = await assertAssignment(coachId, assignmentId); if (!transitions[assignment.status]?.includes(nextStatus)) throw new AppError(409, `Cannot transition ${assignment.status} to ${nextStatus}`);
-  const result = await query(`UPDATE dbo.CoachProgramAssignments SET status=@status,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@assignmentId AND coach_id=@coachId`, { status: nextStatus, assignmentId, coachId }); return result.recordset[0];
+  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const current = await new sql.Request(tx)
+      .input('assignmentId', sql.Int, assignmentId)
+      .input('coachId', sql.Int, coachId)
+      .query<{ id: number; member_id: number; status: string; schedule_timezone: string }>(`SELECT a.id,a.member_id,a.status,a.schedule_timezone
+        FROM dbo.CoachProgramAssignments a WITH (UPDLOCK,HOLDLOCK)
+        JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+        JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+        WHERE a.id=@assignmentId AND a.coach_id=@coachId`);
+    const assignment = current.recordset[0];
+    if (!assignment) throw new AppError(404, 'Assignment not found');
+    if (!transitions[assignment.status]?.includes(nextStatus)) throw new AppError(409, `Cannot transition ${assignment.status} to ${nextStatus}`);
+    if (nextStatus === 'ACTIVE') {
+      const other = await new sql.Request(tx)
+        .input('memberId', sql.Int, Number(assignment.member_id))
+        .input('assignmentId', sql.Int, assignmentId)
+        .query(`SELECT TOP 1 id FROM dbo.CoachProgramAssignments WITH (UPDLOCK,HOLDLOCK) WHERE member_id=@memberId AND status=N'ACTIVE' AND id<>@assignmentId`);
+      if (other.recordset[0]) throw new AppError(409, 'Member already has another active assignment');
+    }
+    const result = await new sql.Request(tx)
+      .input('status', sql.NVarChar(20), nextStatus)
+      .input('assignmentId', sql.Int, assignmentId)
+      .input('coachId', sql.Int, coachId)
+      .input('expectedStatus', sql.NVarChar(20), assignment.status)
+      .query(`UPDATE dbo.CoachProgramAssignments SET status=@status,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@assignmentId AND coach_id=@coachId AND status=@expectedStatus`);
+    if (!result.recordset[0]) throw new AppError(409, 'Assignment changed before transition completed');
+    if (nextStatus === 'COMPLETED' || nextStatus === 'CANCELLED') {
+      await new sql.Request(tx)
+        .input('assignmentId', sql.Int, assignmentId)
+        .query(`UPDATE dbo.CoachProgramSchedules SET status=N'CANCELLED',updated_at=SYSUTCDATETIME() WHERE assignment_id=@assignmentId AND status=N'SCHEDULED'`);
+    }
+    await tx.commit(); return result.recordset[0];
+  } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
 export async function listSchedules(coachId: number, page: number, limit: number, memberId?: number, fromDate?: string, toDate?: string) {

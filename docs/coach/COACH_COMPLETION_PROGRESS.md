@@ -117,3 +117,14 @@ Status: PASS (implementation and compile checks)
 - Source checks are ownership-scoped before data is returned. Acceptance fixtures cover the valid legacy route, valid member route, wrong-source 404 and unambiguous legacy compatibility route.
 
 Checks: backend build PASS; targeted ESLint PASS with two pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS; booking unit PASS. No migration was created.
+
+## Phase 08 — Assignment lifecycle and transition concurrency
+
+Status: PASS (implementation and compile checks)
+
+- The canonical transition map is now `ACTIVE → PAUSED|COMPLETED|CANCELLED` and `PAUSED → ACTIVE|COMPLETED|CANCELLED`; terminal states remain terminal.
+- Transition reads the scoped Assignment with `UPDLOCK,HOLDLOCK`, checks the expected current status, and performs `UPDATE ... WHERE id AND coach_id AND status=@expectedStatus` inside a serializable transaction. Resume rejects a second active Assignment for the same Member.
+- Completing or cancelling an Assignment conditionally closes its remaining `SCHEDULED` rows as `CANCELLED`; pausing prevents new Member Sessions through the existing assignment-status guard, while resume preserves the assignment's schedules.
+- Role acceptance now covers concurrent pause/resume/complete, invalid repeated transition and no remaining scheduled rows after terminal transition. Existing Admin reassignment remains transactional and separate.
+
+Checks: backend build PASS; targeted ESLint PASS with two pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS; booking unit PASS. No migration was created.
