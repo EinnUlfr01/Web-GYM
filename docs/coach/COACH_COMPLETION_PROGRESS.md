@@ -1,5 +1,46 @@
 # Coach1 Completion Progress
 
+## Phase 24 - In-app notification UI
+
+Status: PASS (implementation, API acceptance, browser QA and disposable cleanup; Phase 25 not started)
+
+Changed files:
+- `frontend/src/components/notifications/NotificationBell.tsx`: authenticated bell, bounded 60-second unread refresh, dropdown open/close behavior and full-page link.
+- `frontend/src/components/notifications/NotificationFeed.tsx`: loading/empty/error states, mark-read/read-all, load-more and safe relative action navigation. Replaced the Zustand object selector with stable primitive selectors after browser QA exposed a `getSnapshot` infinite-update loop.
+- `frontend/src/pages/notifications/NotificationsPage.tsx`, `frontend/src/services/notifications.ts`, `frontend/src/stores/notificationsStore.ts`: self-scoped notification page, typed API client and stale-request-safe state management.
+- `frontend/src/App.tsx`, `frontend/src/auth/accessPolicy.ts`, `frontend/src/components/layout/Layout.tsx`: authenticated route, role policy and bell integration.
+
+Database:
+- No Phase 24 migration was created.
+- Notification API dependency remained Phase 23 migration `0014`; canonical database was not changed.
+- Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE24_DEBUG` was stopped and dropped after QA.
+
+Tests:
+- `frontend: npx tsc --noEmit`: PASS.
+- `frontend: npm run build`: PASS; existing large-chunk warning remains.
+- `backend: npm run build`: PASS.
+- `backend: npm run lint`: PASS with 460 pre-existing `no-explicit-any` warnings and zero errors.
+- `git diff --check`: PASS.
+- `backend: npm run acceptance:coach-notifications` on the disposable fixture: PASS for Guest/RBAC, recipient self-scope, cross-Coach IDOR, unread/read lifecycle, concurrent deduplication and workflow triggers.
+
+Acceptance evidence:
+- Coach browser flow: bell/unread count, dropdown, safe action URL navigation, mark-read, full notification page and read-all: PASS.
+- Member browser flow: self-scoped empty state and Coach notification isolation: PASS.
+- Guest `/notifications` access redirected to `/login`: PASS.
+- Controlled backend outage rendered the notification error state and retry recovered successfully: PASS.
+- Responsive QA at `375x812`, `768x1024` and `1440x900`: PASS; no horizontal overflow.
+- Fresh browser console had no new error logs. The original timeout was isolated to the QA shell stdout lifecycle (`EPIPE`); the actual UI defect was the unstable Zustand object selector and is fixed.
+- Exact disposable backend/Vite processes were stopped and no migration was left running.
+
+Known limitations:
+- Existing React Router future-flag warnings and repository-wide ESLint `no-explicit-any` warnings remain; neither is a Phase 24 error.
+- Polling is intentionally bounded to 60 seconds; no WebSocket/realtime transport was added.
+
+Next phase prerequisites:
+- Phase 25 is selected in `COACH_PHASE_STATE.json` as `NOT_STARTED` and must not start in the current checkpoint.
+- Code checkpoint commit: `f4962ab feat(notifications): add coach and member notification UI`.
+- Documentation checkpoint commit is created after `COACH_PHASE_STATE.json` records the final code checkpoint hash.
+
 ## Phase 23 - Coach workflow in-app notification backend
 
 Status: PASS (additive migration, self-scoped API, transactional triggers and disposable acceptance)

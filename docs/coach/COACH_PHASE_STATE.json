@@ -1,0 +1,18 @@
+{
+  "branch": "coach1",
+  "activePhase": "25",
+  "activeStatus": "NOT_STARTED",
+  "lastCompletedPhase": "24",
+  "nextPhase": "25",
+  "checkpointDate": "2026-08-05",
+  "lastCommit": "f4962ab feat(notifications): add coach and member notification UI",
+  "blocker": null,
+  "scopeGuard": {
+    "marketplaceSellerExcluded": true,
+    "excludedMigrationRange": "0100-0111",
+    "canonicalDatabaseChanged": false,
+    "migrationRunning": false
+  },
+  "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint is pending.",
+  "safeToStartNextPhase": false
+}
