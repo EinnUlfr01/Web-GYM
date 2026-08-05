@@ -1,5 +1,17 @@
 # Coach1 Completion Progress
 
+## Phase 15 — Coach Availability database model
+
+Status: PASS (migration created and statically reviewed; canonical database intentionally not changed)
+
+- Added `db/migrations/0011_coach_availability.sql` with additive, idempotent creation of `CoachAvailabilityRules` and `CoachAvailabilityExceptions`.
+- Weekly rules enforce weekday, valid time range, supported mode, Coach FK, exact-duplicate protection and a Coach/day/active query index.
+- Date exceptions support the ADR-defined `BLOCK` and `OPEN` precedence, enforce all-day BLOCK versus ranged OPEN semantics, validate optional mode, add Coach FK, exact-duplicate protection and a Coach/date/active query index.
+- The migration does not create materialized slots and documents that overlap rejection remains a serializable service responsibility for Phase 16. It does not touch Marketplace/Seller source or migrations `0100`–`0111`.
+- No canonical migration apply was performed. Runtime idempotency and constraint checks remain to be run against the disposable acceptance database before Phase 16 API work.
+
+Checks: migration file reviewed for SQL Server types/constraints/indexes and `git diff --check` PASS. Canonical `db:migrate:status` remains the only permitted database operation for this phase; `0011` is expected to be pending until an approved disposable migration run.
+
 ## Scope guard
 
 - Target branch: `coach1`
