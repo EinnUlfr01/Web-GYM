@@ -39,5 +39,5 @@ export const generateSchedules = run(req => service.generateSchedules(actor(req)
 export const reschedule = run(req => service.reschedule(actor(req), numberParam(req, 'scheduleId'), req.body.scheduledDate));
 export const cancelSchedule = run(req => service.cancelSchedule(actor(req), numberParam(req, 'scheduleId')));
 export const listSessions = run(req => service.listSessions(actor(req), numberParam(req, 'memberId'), Number(req.query.page), Number(req.query.limit)));
-export const getSession = run(req => service.getSession(actor(req), numberParam(req, 'memberId'), numberParam(req, 'sessionId')));
+export const getSession = run(req => service.getSession(actor(req), numberParam(req, 'memberId'), numberParam(req, 'sessionId'), req.params.source as service.CoachSessionSource | undefined));
 export const getProgress = run(req => service.getProgress(actor(req), numberParam(req, 'memberId')));

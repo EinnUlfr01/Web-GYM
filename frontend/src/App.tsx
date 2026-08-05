@@ -228,6 +228,7 @@ export default function App() {
           <Route path="/coach/schedules" element={<AccessRoute path="/coach"><CoachSchedulesPage /></AccessRoute>} />
           <Route path="/coach/members/:memberId/schedule" element={<AccessRoute path="/coach"><CoachSchedulesPage /></AccessRoute>} />
           <Route path="/coach/members/:memberId/sessions" element={<AccessRoute path="/coach"><CoachSessionsPage /></AccessRoute>} />
+          <Route path="/coach/members/:memberId/sessions/:source/:sessionId" element={<AccessRoute path="/coach"><CoachSessionDetailPage /></AccessRoute>} />
           <Route path="/coach/members/:memberId/sessions/:sessionId" element={<AccessRoute path="/coach"><CoachSessionDetailPage /></AccessRoute>} />
           <Route path="/coach/members/:memberId/progress" element={<AccessRoute path="/coach"><CoachProgressPage /></AccessRoute>} />
           <Route path="/access-denied" element={<AccessDenied/>}/>

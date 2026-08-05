@@ -106,3 +106,14 @@ Status: PASS (implementation and compile checks)
 - Admin Exercise routes were reviewed: they support soft deactivate/activate and do not expose a source Exercise hard-delete route.
 
 Checks: backend build/lint and frontend typecheck/build are required before checkpoint; booking unit and disposable Member E2E remain part of integrated acceptance. No migration was created.
+
+## Phase 07 — Source-aware Session identity
+
+Status: PASS (implementation and compile checks)
+
+- Coach Session detail now accepts the discriminated route `/coach/members/:memberId/sessions/:source/:sessionId`, with `source` limited to `member` or `legacy`.
+- The old numeric-only route remains a compatibility path only: it serves a unique source and returns `SESSION_SOURCE_REQUIRED` with HTTP 409 when both sources contain the same numeric ID. It never silently falls back after an explicit source was supplied.
+- Dashboard, progress, list and detail links carry the source; frontend Session types and API client are source-aware. Member/legacy rows keep distinct React keys.
+- Source checks are ownership-scoped before data is returned. Acceptance fixtures cover the valid legacy route, valid member route, wrong-source 404 and unambiguous legacy compatibility route.
+
+Checks: backend build PASS; targeted ESLint PASS with two pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS; booking unit PASS. No migration was created.
