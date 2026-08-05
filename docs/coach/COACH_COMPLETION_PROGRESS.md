@@ -69,3 +69,16 @@ Status: PASS (implementation and compile checks)
 - The Coach role acceptance fixture now covers bounded range and supplemental generation preserving assignment-relative week numbers.
 
 Checks: backend build PASS; targeted ESLint PASS with two existing `no-explicit-any` warnings in the acceptance script; booking unit PASS; frontend typecheck/build PASS after the Schedule DTO/UI update. Disposable acceptance execution remains part of the integrated acceptance run.
+
+## Phase 04 — Overdue Schedule reconciliation
+
+Status: PASS (implementation and compile checks)
+
+- Added a bounded Coach overdue service and interval runner.
+- Only `SCHEDULED` rows older than the assignment timezone's current date are eligible.
+- Rows with a Member Workout Session are excluded; `IN_PROGRESS`, `COMPLETED` and `CANCELLED` are never changed.
+- Updates are conditional and idempotent; the runner has a single-flight guard, batch limit and error logging.
+- The runner is disabled for isolated Coach acceptance environments and does not alter the existing order-expiration runner.
+- Member E2E acceptance now verifies an overdue schedule becomes `SKIPPED` without a Session.
+
+Checks: backend build PASS; targeted ESLint PASS; acceptance fixture compiles. Disposable execution remains part of integrated acceptance because the script requires an isolated Coach E2E database.

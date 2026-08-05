@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import { closePool, query } from '../config/database';
 import { reassignMemberCoach } from '../modules/coach-workspace/coach-reassignment.service';
+import { reconcileOverdueSchedules } from '../modules/coach-workspace/coach-overdue.service';
 
 if (process.env.COACH_ACCEPTANCE !== '1' || !process.env.DB_NAME?.startsWith('GYMFIT_DB_COACH_E2E_FIX_')) throw new Error('Coach Member E2E acceptance requires COACH_ACCEPTANCE=1 and an isolated GYMFIT_DB_COACH_E2E_FIX_* database');
 const base = process.env.COACH_API_BASE || 'http://localhost:5000/api';
@@ -63,7 +64,7 @@ async function run() {
   const assignment=await call('POST','/coach/assignments',accounts.coachA,{memberId:accounts.memberA.id,programId,startDate:today,scheduleTimezone:'Asia/Ho_Chi_Minh',note:'E2E'}); check(assignment.status===201,'Coach assigns Member A in scope'); const assignmentId=Number((bodyData<Json>(assignment)).id);
   const generated=await call('POST',`/coach/assignments/${assignmentId}/schedules/generate`,accounts.coachA,{fromDate:today,horizonDays:7}); check(generated.status===200&&Number((bodyData<Json>(generated)).inserted)===2,'Coach generates dated schedules');
   await query(`UPDATE dbo.CoachProgramSchedules SET scheduled_date=CONVERT(date,SYSUTCDATETIME()) WHERE assignment_id=@assignmentId AND program_day_id=@dayId`,{assignmentId,dayId:dayTwoId});
-  await query(`INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date,status) VALUES(@assignmentId,@dayId,DATEADD(day,-1,CONVERT(date,SYSUTCDATETIME())),N'SCHEDULED')`,{assignmentId,dayId:dayOneId});
+  await query(`INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date,status) VALUES(@assignmentId,@dayId,DATEADD(day,-1,CONVERT(date,SYSUTCDATETIME())),N'SCHEDULED')`,{assignmentId,dayId:dayOneId}); const overdueBatch=await reconcileOverdueSchedules(); const overdueState=await query<{status:string}>(`SELECT status FROM dbo.CoachProgramSchedules WHERE assignment_id=@assignmentId AND program_day_id=@dayId AND scheduled_date=DATEADD(day,-1,CONVERT(date,SYSUTCDATETIME()))`,{assignmentId,dayId:dayOneId}); check(overdueBatch.skipped>=1&&overdueState.recordset[0]?.status==='SKIPPED','Overdue scheduled item is reconciled to SKIPPED without a session');
   const coachFutureSchedule=await query<{id:number}>(`INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date,status) OUTPUT INSERTED.id VALUES(@assignmentId,@dayId,DATEADD(day,2,CONVERT(date,SYSUTCDATETIME())),N'SCHEDULED')`,{assignmentId,dayId:dayOneId}); const coachFutureScheduleId=Number(coachFutureSchedule.recordset[0].id);
   const rescheduled=await call('POST',`/coach/schedules/${coachFutureScheduleId}/reschedule`,accounts.coachA,{scheduledDate:addDays(today,3)}); check(rescheduled.status===200&&String(bodyData<Json>(rescheduled).scheduled_date).slice(0,10)===addDays(today,3),'Coach reschedule uses assignment timezone');
   const cancelled=await call('POST',`/coach/schedules/${coachFutureScheduleId}/cancel`,accounts.coachA); check(cancelled.status===200&&bodyData<Json>(cancelled).status==='CANCELLED','Coach cancel uses assignment timezone');
