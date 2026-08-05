@@ -13,7 +13,7 @@ const borderMap = ['border-[#1e293b]', 'border-[#2563eb]/50', 'border-[#1e293b]'
 const comparisonFeatures = [
   { name: 'Gym Access', starter: '6am-10pm', pro: '24/7', elite: '24/7 + Family' },
   { name: 'Workout Programs', starter: 'Basic', pro: 'All programs', elite: 'All + Custom' },
-  { name: 'Personal Coach', starter: false, pro: '2x/month', elite: 'Unlimited' },
+  { name: 'Personal Coach', starter: 'Not configured', pro: 'Not configured', elite: 'Not configured' },
   { name: 'Nutrition Planning', starter: false, pro: true, elite: 'Custom meals' },
   { name: 'Video Library', starter: 'Basic', pro: 'Full access', elite: 'Full + Exclusive' },
   { name: 'Guest Passes', starter: '1/month', pro: '5/month', elite: 'Unlimited' },
@@ -37,7 +37,18 @@ export default function MembershipPlans() {
   }, []);
 
   const plansToShow = plans.length > 0 ? plans : [];
+  const comparisonPlans = plansToShow.slice(0, 3);
   const popularIndex = plansToShow.length >= 2 ? 1 : -1;
+  const coachBookingDisplay = (plan: Plan | undefined): string => {
+    if (!plan) return 'Not configured';
+    const enabled = plan.entitlements.find(item => item.entitlement_key === 'COACH_BOOKING_ENABLED');
+    const limit = plan.entitlements.find(item => item.entitlement_key === 'COACH_BOOKING_MONTHLY_LIMIT');
+    if (enabled?.entitlement_value !== 'true') return 'Not included';
+    if (!limit) return 'Not configured';
+    if (limit.value_type === 'UNLIMITED' && limit.entitlement_value === '-1') return 'Unlimited';
+    const monthlyLimit = Number(limit.entitlement_value);
+    return Number.isInteger(monthlyLimit) && monthlyLimit >= 0 ? `${monthlyLimit}x/month` : 'Not configured';
+  };
   const choosePlan = (planId: number) => {
     if (user?.role === 'member') {
       navigate(`/membership/checkout?plan_id=${planId}`);
@@ -157,30 +168,35 @@ export default function MembershipPlans() {
               <thead>
                 <tr className="border-b border-[#1e293b]">
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white">Feature</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-white">Starter</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-[#60a5fa]">Pro ★</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-white">Elite</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-white">{comparisonPlans[0]?.name || 'Plan 1'}</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-[#60a5fa]">{comparisonPlans[1] ? `${comparisonPlans[1].name} ★` : 'Plan 2'}</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-white">{comparisonPlans[2]?.name || 'Plan 3'}</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonFeatures.map((feature, i) => (
                   <tr key={i} className="border-b border-[#1e293b] last:border-0">
                     <td className="px-6 py-4 text-sm text-[#94a3b8]">{feature.name}</td>
-                    {(['starter', 'pro', 'elite'] as const).map(level => (
+                    {(['starter', 'pro', 'elite'] as const).map((level, levelIndex) => {
+                      const value = feature.name === 'Personal Coach'
+                        ? coachBookingDisplay(comparisonPlans[levelIndex])
+                        : feature[level];
+                      return (
                       <td key={level} className="px-6 py-4 text-center text-sm">
-                        {typeof feature[level] === 'boolean' ? (
-                          feature[level] ? (
+                        {typeof value === 'boolean' ? (
+                          value ? (
                             <Check size={16} className="mx-auto text-[#22c55e]" />
                           ) : (
                             <span className="text-[#64748b]">—</span>
                           )
                         ) : (
                           <span className={level === 'pro' ? 'text-[#60a5fa] font-medium' : 'text-[#94a3b8]'}>
-                            {feature[level] as string}
+                            {value as string}
                           </span>
                         )}
                       </td>
-                    ))}
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

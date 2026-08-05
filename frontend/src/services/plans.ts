@@ -2,6 +2,18 @@ import api from '../api/axios';
 
 export const PENDING_PLAN_STORAGE_KEY = 'gymfit_pending_plan_id';
 export type MembershipLifecycle = 'PENDING_PAYMENT' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
+export type PlanEntitlementKey = 'COACH_BOOKING_ENABLED' | 'COACH_BOOKING_MONTHLY_LIMIT';
+export type PlanEntitlementValueType = 'BOOLEAN' | 'INTEGER' | 'UNLIMITED';
+
+export interface PlanEntitlement {
+  id?: number;
+  plan_id?: number;
+  entitlement_key: PlanEntitlementKey;
+  entitlement_value: string;
+  value_type: PlanEntitlementValueType;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface Plan {
   id: number;
@@ -9,8 +21,9 @@ export interface Plan {
   description: string;
   price: number;
   durationDays: number;
-  type: 'monthly' | 'yearly';
+  type: 'monthly' | 'quarterly' | 'yearly' | 'custom';
   features: string[];
+  entitlements: PlanEntitlement[];
   sortOrder: number;
 }
 
@@ -23,6 +36,7 @@ interface PlanRaw {
   type: string;
   features: string | string[];
   sort_order: number;
+  entitlements?: PlanEntitlement[];
 }
 
 interface MembershipRaw {
@@ -79,8 +93,10 @@ function mapPlan(r: PlanRaw): Plan {
   return {
     id: r.id, name: r.name, description: r.description || '',
     price: r.price, durationDays: r.duration_days,
-    type: r.type as 'monthly' | 'yearly',
-    features, sortOrder: r.sort_order
+    type: r.type as Plan['type'],
+    features,
+    entitlements: Array.isArray(r.entitlements) ? r.entitlements : [],
+    sortOrder: r.sort_order
   };
 }
 

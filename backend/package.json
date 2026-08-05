@@ -46,6 +46,7 @@
     "test:coach-booking-unit": "tsx src/scripts/coach-booking-unit.ts",
     "acceptance:coach-booking": "tsx src/scripts/coach-booking-acceptance.ts",
     "acceptance:coach-membership": "tsx src/scripts/coach-membership-acceptance.ts",
+    "acceptance:coach-entitlement": "tsx src/scripts/coach-entitlement-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",
     "integrity:regression-04": "tsx src/scripts/regression-04-seller-integrity.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",

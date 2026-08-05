@@ -8,13 +8,20 @@ import { UserRole } from '../../types';
 
 const router = Router();
 
+const entitlementSchema = z.object({
+  entitlement_key: z.enum(['COACH_BOOKING_ENABLED', 'COACH_BOOKING_MONTHLY_LIMIT']),
+  entitlement_value: z.string().trim().min(1).max(50),
+  value_type: z.enum(['BOOLEAN', 'INTEGER', 'UNLIMITED']),
+});
+
 const planSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   price: z.number().positive(),
   duration_days: z.number().int().positive(),
-  type: z.enum(['monthly', 'yearly']),
+  type: z.enum(['monthly', 'quarterly', 'yearly', 'custom']),
   features: z.array(z.string()).optional(),
+  entitlements: z.array(entitlementSchema).optional(),
   sort_order: z.number().int().optional(),
   is_active: z.boolean().optional(),
 });

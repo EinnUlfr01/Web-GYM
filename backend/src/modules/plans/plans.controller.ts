@@ -3,31 +3,38 @@ import { query } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { sendSuccess } from '../../utils/response';
 import * as membershipService from './plans.service';
+import { listPlanEntitlements, replacePlanEntitlements } from './entitlements.service';
 
 export async function getPlans(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await query('SELECT id, name, description, price, duration_days, type, features, sort_order FROM Plans WHERE is_active = 1 ORDER BY sort_order');
-    sendSuccess(res, result.recordset);
+    const entitlements = await listPlanEntitlements(result.recordset.map((plan) => Number(plan.id)));
+    sendSuccess(res, result.recordset.map((plan) => ({
+      ...plan,
+      entitlements: entitlements.get(Number(plan.id)) || [],
+    })));
   } catch (err) { next(err); }
 }
 
 export async function createPlan(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, description, price, duration_days, type, features, sort_order } = req.body;
+    const { name, description, price, duration_days, type, features, sort_order, entitlements } = req.body;
     const result = await query(
       `INSERT INTO Plans (name, description, price, duration_days, type, features, sort_order, is_active)
        OUTPUT INSERTED.id, INSERTED.name, INSERTED.description, INSERTED.price, INSERTED.duration_days, INSERTED.type, INSERTED.features, INSERTED.sort_order, INSERTED.is_active
        VALUES (@name, @description, @price, @duration_days, @type, @features, @sort_order, 1)`,
       { name, description, price, duration_days, type, features: JSON.stringify(features || []), sort_order: sort_order || 99 }
     );
-    sendSuccess(res, result.recordset[0], 'Plan created', 201);
+    const plan = result.recordset[0];
+    const planEntitlements = entitlements === undefined ? [] : await replacePlanEntitlements(Number(plan.id), entitlements);
+    sendSuccess(res, { ...plan, entitlements: planEntitlements }, 'Plan created', 201);
   } catch (err) { next(err); }
 }
 
 export async function updatePlan(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const { name, description, price, duration_days, type, features, sort_order, is_active } = req.body;
+    const { name, description, price, duration_days, type, features, sort_order, is_active, entitlements } = req.body;
     const result = await query(
       `UPDATE Plans SET name=@name, description=@description, price=@price, duration_days=@duration_days, type=@type, features=@features, sort_order=@sort_order, is_active=@is_active
        OUTPUT INSERTED.*
@@ -35,7 +42,11 @@ export async function updatePlan(req: Request, res: Response, next: NextFunction
       { id, name, description, price, duration_days, type, features: JSON.stringify(features), sort_order, is_active }
     );
     if (result.recordset.length === 0) throw new AppError(404, 'Plan not found');
-    sendSuccess(res, result.recordset[0], 'Plan updated');
+    const plan = result.recordset[0];
+    const planEntitlements = entitlements === undefined
+      ? await listPlanEntitlements([Number(plan.id)]).then((groups) => groups.get(Number(plan.id)) || [])
+      : await replacePlanEntitlements(Number(plan.id), entitlements);
+    sendSuccess(res, { ...plan, entitlements: planEntitlements }, 'Plan updated');
   } catch (err) { next(err); }
 }
 

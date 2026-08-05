@@ -52,6 +52,19 @@ Status: PASS (implementation, disposable runtime acceptance and frontend checks)
 
 Checks: backend build PASS; backend lint PASS with 0 errors and the repository's existing `no-explicit-any` warnings; frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; `git diff --check` PASS. No Phase 18 migration was created or applied.
 
+## Phase 19 - Structured Coach booking entitlements
+
+Status: PASS (implementation, disposable migration/idempotency and API acceptance)
+
+- Added `db/migrations/0012_membership_entitlements.sql` with additive, idempotent `PlanEntitlements` storage, typed Coach Booking keys, FK/unique/check constraints and a lookup index. Existing `Plans.features` remains compatibility copy and is not parsed for authorization.
+- Seeded the first three active Plan slots by stable `sort_order` (the current Basic/Premium/VIP slots) as the Coach1 Starter/Pro/Elite contract: disabled/0, enabled/2 per Asia/Ho_Chi_Minh month, and enabled/unlimited `-1`. Display names are not used as identifiers and existing configured rows win on rerun.
+- Added entitlement normalization and transactional Admin Plan create/update support, plus public `GET /api/plans` structured entitlement DTOs. Missing migration fails closed with `PLAN_ENTITLEMENTS_MIGRATION_REQUIRED`; no entitlement decision is made from free-form feature text.
+- Updated frontend Plan types and Feature Comparison so Coach Booking rights are rendered from API entitlements. No hardcoded `2x/month` or `Unlimited` Coach values remain in the UI.
+- Added `acceptance:coach-entitlement`. Disposable migration `0010`-`0012` applied successfully, a second `db:migrate --through=0012` was a no-op with zero checksum mismatch, duplicate/invalid entitlement writes were rejected, the public Plans API returned structured rows, and disposable database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE19` was dropped afterward.
+- No Marketplace/Seller source or migration `0100`-`0111` changed. Monthly quota enforcement remains Phase 20 and is not included here.
+
+Checks: backend build PASS; backend lint PASS with 0 errors and 458 repository-wide `no-explicit-any` warnings; frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; disposable entitlement acceptance PASS; canonical migration status remains read-only and `0012` is pending until approved deployment.
+
 ## Scope guard
 
 - Target branch: `coach1`
