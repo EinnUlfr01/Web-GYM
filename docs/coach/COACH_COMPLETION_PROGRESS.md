@@ -95,3 +95,14 @@ Status: PASS (implementation and compile checks)
 - Member E2E acceptance now checks empty completion rejection.
 
 Checks: backend build PASS; targeted lint PASS; frontend typecheck/build PASS; booking unit PASS. Disposable Member E2E remains part of integrated acceptance.
+
+## Phase 06 — Immutable Exercise snapshot after source deactivation
+
+Status: PASS (implementation and compile checks)
+
+- Member Session start no longer filters `Exercises.is_active`; an Exercise already referenced by a Program Day is still copied into the immutable `MemberWorkoutSessionExercises` snapshot.
+- The selectable Coach/Admin catalog continues to require an active source Exercise, so deactivation does not make the Exercise available for new Program edits.
+- The Member E2E fixture now uses a dedicated Exercise slug, deactivates that source after the first Session, and verifies a later Session still receives the source name/id snapshot. Cleanup remains safe for reruns.
+- Admin Exercise routes were reviewed: they support soft deactivate/activate and do not expose a source Exercise hard-delete route.
+
+Checks: backend build/lint and frontend typecheck/build are required before checkpoint; booking unit and disposable Member E2E remain part of integrated acceptance. No migration was created.

@@ -237,8 +237,8 @@ export async function startSession(memberId: number, scheduleId: number) {
     if (datePart(schedule.scheduled_date) !== today) throw new AppError(409, 'Only today\'s scheduled workout can be started');
     const active = await new sql.Request(tx).input('memberId', sql.Int, memberId).query(`SELECT TOP 1 id FROM dbo.MemberWorkoutSessions WITH (UPDLOCK,HOLDLOCK) WHERE member_id=@memberId AND status=N'IN_PROGRESS'`);
     if (active.recordset[0]) throw new AppError(409, 'Member already has an in-progress session');
-    const exercises = await new sql.Request(tx).input('programDayId', sql.Int, Number(schedule.program_day_id)).query(`SELECT pe.id AS program_exercise_id,pe.exercise_id,pe.sort_order,pe.target_sets,pe.target_reps_min,pe.target_reps_max,pe.target_weight,pe.target_duration_seconds,pe.rest_seconds,pe.coach_note,e.name AS exercise_name FROM dbo.WorkoutProgramExercises pe JOIN dbo.Exercises e ON e.id=pe.exercise_id AND e.is_active=1 WHERE pe.program_day_id=@programDayId ORDER BY pe.sort_order,pe.id`);
-    if (exercises.recordset.length === 0) throw new AppError(409, 'Schedule has no active exercises');
+    const exercises = await new sql.Request(tx).input('programDayId', sql.Int, Number(schedule.program_day_id)).query(`SELECT pe.id AS program_exercise_id,pe.exercise_id,pe.sort_order,pe.target_sets,pe.target_reps_min,pe.target_reps_max,pe.target_weight,pe.target_duration_seconds,pe.rest_seconds,pe.coach_note,e.name AS exercise_name FROM dbo.WorkoutProgramExercises pe JOIN dbo.Exercises e ON e.id=pe.exercise_id WHERE pe.program_day_id=@programDayId ORDER BY pe.sort_order,pe.id`);
+    if (exercises.recordset.length === 0) throw new AppError(409, 'Schedule has no exercises');
     const session = await new sql.Request(tx).input('memberId', sql.Int, memberId).input('assignmentId', sql.Int, Number(schedule.assignment_id)).input('scheduleId', sql.Int, scheduleId).query(`INSERT dbo.MemberWorkoutSessions(member_id,assignment_id,schedule_id) OUTPUT INSERTED.id VALUES(@memberId,@assignmentId,@scheduleId)`);
     const sessionId = Number(session.recordset[0].id);
     for (const exercise of exercises.recordset) {
