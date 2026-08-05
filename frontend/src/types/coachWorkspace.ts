@@ -1,8 +1,9 @@
+export interface CoachAttentionItem { type: 'PENDING_BOOKING' | 'SKIPPED_SCHEDULES' | 'NO_WORKOUT_7D' | 'ASSIGNMENT_EXPIRING' | 'MISSING_FUTURE_SCHEDULE' | 'EMPTY_PROGRAM_DAY' | 'LOW_COMPLETION'; severity: 'HIGH' | 'MEDIUM' | 'LOW'; memberId: number; memberName: string; title: string; description: string; actionUrl: string; createdFrom: string; }
 export interface CoachDashboardData {
   counts: { assignedMembers: number; activeMembers: number; ownedPrograms: number; activeAssignments: number };
   upcomingSchedules: CoachSchedule[];
   recentSessions: CoachSession[];
-  attentionQueue: unknown[];
+  attentionQueue: CoachAttentionItem[];
   attentionQueueAvailable: boolean;
 }
 export interface CoachExercise { id:number; name:string; slug:string; description:string|null; instructions:string|null; muscle_group:string|null; equipment:string|null; difficulty:string|null; thumbnail_url:string|null; is_active:boolean; created_at:string; updated_at:string; }

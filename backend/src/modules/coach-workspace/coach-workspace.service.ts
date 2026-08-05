@@ -2,6 +2,7 @@ import { getPool, query, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getProgress as getMemberProgress, getSession as getMemberSession } from '../member-workout/member-workout.service';
 import { assertIanaTimeZone, todayInTimeZone } from '../../utils/timezone';
+import { COACH_BOOKING_TIME_ZONE } from '../../utils/coachBooking';
 
 export const MAX_PAGE_SIZE = 50;
 
@@ -243,6 +244,112 @@ async function assertSchedule(coachId: number, scheduleId: number) {
   return result.recordset[0];
 }
 
+export type CoachAttentionSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
+export interface CoachAttentionItem {
+  type: 'PENDING_BOOKING' | 'SKIPPED_SCHEDULES' | 'NO_WORKOUT_7D' | 'ASSIGNMENT_EXPIRING' | 'MISSING_FUTURE_SCHEDULE' | 'EMPTY_PROGRAM_DAY' | 'LOW_COMPLETION';
+  severity: CoachAttentionSeverity;
+  memberId: number;
+  memberName: string;
+  title: string;
+  description: string;
+  actionUrl: string;
+  createdFrom: string;
+}
+
+const attentionSeverityRank: Record<CoachAttentionSeverity, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+function attentionItem(input: Omit<CoachAttentionItem, 'memberId' | 'memberName' | 'createdFrom'> & { member_id: number; member_name: string; created_from: unknown }): CoachAttentionItem {
+  return {
+    type: input.type,
+    severity: input.severity,
+    memberId: Number(input.member_id),
+    memberName: String(input.member_name),
+    title: input.title,
+    description: input.description,
+    actionUrl: input.actionUrl,
+    createdFrom: datePart(input.created_from),
+  };
+}
+
+async function getAttentionQueue(coachId: number, timezones: Array<{ schedule_timezone: string }>): Promise<CoachAttentionItem[]> {
+  const params: Record<string, unknown> = { coachId, skippedStart: addDays(todayInTimeZone(COACH_BOOKING_TIME_ZONE), -30) };
+  const dateClauses = timezones.map((row, index) => {
+    const timeZone = String(row.schedule_timezone);
+    assertTimeZone(timeZone);
+    const today = todayInTimeZone(timeZone);
+    params[`attentionTimezone${index}`] = timeZone;
+    params[`attentionToday${index}`] = today;
+    params[`attentionExpiry${index}`] = addDays(today, 7);
+    params[`attentionFutureEnd${index}`] = addDays(today, 14);
+    params[`attentionPast${index}`] = addDays(today, -14);
+    return `(a.schedule_timezone=@attentionTimezone${index} AND s.scheduled_date>=@attentionToday${index} AND s.scheduled_date<=@attentionFutureEnd${index})`;
+  });
+  const activeDateClauses = timezones.map((row, index) => `(a.schedule_timezone=@attentionTimezone${index} AND a.end_date>=@attentionToday${index} AND a.end_date<=@attentionExpiry${index})`);
+  const historyDateClauses = timezones.map((row, index) => `(a.schedule_timezone=@attentionTimezone${index} AND s.scheduled_date>=@attentionPast${index} AND s.scheduled_date<@attentionToday${index})`);
+  const futureWindow = dateClauses.length ? `AND (${dateClauses.join(' OR ')})` : 'AND 1=0';
+  const activeWindow = activeDateClauses.length ? `AND (${activeDateClauses.join(' OR ')})` : 'AND 1=0';
+  const historyWindow = historyDateClauses.length ? `AND (${historyDateClauses.join(' OR ')})` : 'AND 1=0';
+  const scope = `JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+                 JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1`;
+  const [pending, skipped, noWorkout, expiring, missingFuture, emptyDay, lowCompletion] = await Promise.all([
+    query(`SELECT TOP 20 b.id AS booking_id,b.member_id,u.name AS member_name,b.created_at AS created_from
+           FROM dbo.Bookings b JOIN dbo.Users u ON u.id=b.member_id
+           JOIN dbo.CRMCustomers c ON c.user_id=b.member_id AND c.assigned_coach_id=@coachId
+           WHERE b.coach_id=@coachId AND b.status=N'pending' AND b.created_at<=DATEADD(hour,-24,SYSUTCDATETIME())
+           ORDER BY b.created_at,b.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,COUNT(*) AS skipped_count,MAX(s.scheduled_date) AS created_from
+           FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
+           ${scope}
+           WHERE s.status=N'SKIPPED'
+           GROUP BY a.id,a.member_id,u.name
+           HAVING COUNT(*)>=2
+           ORDER BY skipped_count DESC,created_from,a.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,a.updated_at AS created_from
+           FROM dbo.CoachProgramAssignments a ${scope}
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'
+             AND NOT EXISTS (SELECT 1 FROM dbo.MemberWorkoutSessions ms WHERE ms.member_id=a.member_id AND ms.started_at>=DATEADD(day,-7,SYSUTCDATETIME()))
+             AND NOT EXISTS (SELECT 1 FROM dbo.WorkoutSessions ws WHERE ws.user_id=a.member_id AND ws.started_at>=DATEADD(day,-7,SYSUTCDATETIME()))
+           ORDER BY a.updated_at,a.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,a.end_date AS created_from
+           FROM dbo.CoachProgramAssignments a ${scope}
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE' AND a.end_date IS NOT NULL ${activeWindow}
+           ORDER BY a.end_date,a.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,a.updated_at AS created_from
+           FROM dbo.CoachProgramAssignments a ${scope}
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'
+             AND NOT EXISTS (
+               SELECT 1 FROM dbo.CoachProgramSchedules s
+               WHERE s.assignment_id=a.id AND s.status=N'SCHEDULED' ${futureWindow}
+             )
+           ORDER BY a.updated_at,a.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,p.id AS program_id,d.id AS day_id,d.title AS day_title,d.created_at AS created_from
+           FROM dbo.CoachProgramAssignments a ${scope}
+           JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
+           JOIN dbo.WorkoutProgramDays d ON d.program_id=p.id
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'
+             AND NOT EXISTS (SELECT 1 FROM dbo.WorkoutProgramExercises pe WHERE pe.program_day_id=d.id)
+           ORDER BY d.created_at,d.id`, params),
+    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,MAX(s.scheduled_date) AS created_from,
+                  COUNT(*) AS due_count,SUM(CASE WHEN s.status=N'COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+           FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
+           ${scope}
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE' AND s.status IN (N'COMPLETED',N'SKIPPED') ${historyWindow}
+           GROUP BY a.id,a.member_id,u.name
+           HAVING COUNT(*)>=2 AND SUM(CASE WHEN s.status=N'COMPLETED' THEN 1 ELSE 0 END)*2<COUNT(*)
+           ORDER BY completed_count,created_from,a.id`, params),
+  ]);
+  const items: CoachAttentionItem[] = [
+    ...pending.recordset.map(row => attentionItem({ ...row, type: 'PENDING_BOOKING', severity: 'HIGH', title: 'Pending booking cần xử lý', description: 'Booking đã pending quá 24 giờ.', actionUrl: `/coach/appointments/${row.booking_id}` })),
+    ...skipped.recordset.map(row => attentionItem({ ...row, type: 'SKIPPED_SCHEDULES', severity: 'MEDIUM', title: 'Nhiều schedule bị bỏ qua', description: `${Number(row.skipped_count)} schedule gần đây ở trạng thái SKIPPED.`, actionUrl: `/coach/assignments/${row.assignment_id}` })),
+    ...noWorkout.recordset.map(row => attentionItem({ ...row, type: 'NO_WORKOUT_7D', severity: 'LOW', title: 'Chưa có workout trong 7 ngày', description: 'Member chưa có session workout mới trong 7 ngày gần nhất.', actionUrl: `/coach/members/${row.member_id}/sessions` })),
+    ...expiring.recordset.map(row => attentionItem({ ...row, type: 'ASSIGNMENT_EXPIRING', severity: 'HIGH', title: 'Assignment sắp hết hạn', description: `Assignment kết thúc vào ${datePart(row.created_from)}.`, actionUrl: `/coach/assignments/${row.assignment_id}` })),
+    ...missingFuture.recordset.map(row => attentionItem({ ...row, type: 'MISSING_FUTURE_SCHEDULE', severity: 'MEDIUM', title: 'Thiếu schedule sắp tới', description: 'Assignment active chưa có schedule SCHEDULED trong 14 ngày tới.', actionUrl: `/coach/members/${row.member_id}/schedule` })),
+    ...emptyDay.recordset.map(row => attentionItem({ ...row, type: 'EMPTY_PROGRAM_DAY', severity: 'HIGH', title: 'Program Day đang trống', description: `Day “${String(row.day_title)}” chưa có Exercise.`, actionUrl: `/coach/workout-programs/${row.program_id}` })),
+    ...lowCompletion.recordset.map(row => attentionItem({ ...row, type: 'LOW_COMPLETION', severity: 'MEDIUM', title: 'Completion thấp trong 14 ngày', description: `${Number(row.completed_count)}/${Number(row.due_count)} schedule gần đây đã hoàn thành.`, actionUrl: `/coach/members/${row.member_id}/progress` })),
+  ];
+  return items.sort((a, b) => attentionSeverityRank[a.severity] - attentionSeverityRank[b.severity] || a.createdFrom.localeCompare(b.createdFrom) || a.memberId - b.memberId || a.type.localeCompare(b.type)).slice(0, 10);
+}
+
 export async function dashboard(coachId: number) {
   const timezoneRows = await query<{ schedule_timezone: string }>(
     `SELECT DISTINCT a.schedule_timezone
@@ -261,7 +368,7 @@ export async function dashboard(coachId: number) {
     return `(a.schedule_timezone=@scheduleTimezone${index} AND s.scheduled_date>=@scheduleToday${index})`;
   });
   const futureScheduleFilter = futureScheduleClauses.length ? `AND (${futureScheduleClauses.join(' OR ')})` : 'AND 1=0';
-  const [members, activeMembers, programs, assignments, schedules, sessions] = await Promise.all([
+  const [members, activeMembers, programs, assignments, schedules, sessions, attentionQueue] = await Promise.all([
     query(`SELECT COUNT(*) AS count FROM dbo.CRMCustomers c JOIN dbo.Users u ON u.id=c.user_id WHERE c.assigned_coach_id=@coachId AND u.role=N'member' AND u.is_active=1`, { coachId }),
     query(`SELECT COUNT(DISTINCT a.member_id) AS count
            FROM dbo.CoachProgramAssignments a
@@ -277,7 +384,7 @@ export async function dashboard(coachId: number) {
            JOIN dbo.WorkoutPrograms p ON p.id=a.program_id JOIN dbo.WorkoutProgramDays d ON d.id=s.program_day_id
            WHERE s.status=N'SCHEDULED' ${futureScheduleFilter}
            ORDER BY s.scheduled_date,s.id`, scheduleParams),
-    query(`SELECT TOP 5 * FROM (
+    query(`SELECT TOP 5 id,member_id,member_name,started_at,completed_at,status,workout_name,source,set_count,completed_set_count FROM (
             SELECT ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name,CAST(N'legacy' AS NVARCHAR(10)) AS source,
                    CAST(NULL AS INT) AS set_count,CAST(NULL AS INT) AS completed_set_count
             FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
@@ -293,14 +400,15 @@ export async function dashboard(coachId: number) {
             JOIN dbo.CRMCustomers c ON c.user_id=ms.member_id AND c.assigned_coach_id=@coachId
             JOIN dbo.Users u ON u.id=ms.member_id AND u.role=N'member' AND u.is_active=1
           ) sessions ORDER BY started_at DESC,id DESC`, { coachId }),
+    getAttentionQueue(coachId, timezoneRows.recordset),
   ]);
   const upcomingSchedules = schedules.recordset;
   return {
     counts: { assignedMembers: Number(members.recordset[0].count), activeMembers: Number(activeMembers.recordset[0].count), ownedPrograms: Number(programs.recordset[0].count), activeAssignments: Number(assignments.recordset[0].count) },
     upcomingSchedules,
     recentSessions: sessions.recordset,
-    attentionQueue: [],
-    attentionQueueAvailable: false,
+    attentionQueue,
+    attentionQueueAvailable: true,
   };
 }
 

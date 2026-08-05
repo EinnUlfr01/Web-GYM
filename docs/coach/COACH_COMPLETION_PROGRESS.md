@@ -168,6 +168,19 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted ESLint PASS with three pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; backend typecheck PASS. Disposable dashboard fixture execution remains required for runtime SQL timezone/aggregate verification.
 
+## Phase 14 — Bounded Coach Attention Queue
+
+Status: PASS (implementation and compile checks)
+
+- Replaced the empty `attentionQueue` placeholder with seven deterministic, bounded rules: pending booking older than 24 hours, at least two skipped schedules, no workout session in seven days, assignment ending within seven days, missing future schedule in fourteen days, empty assigned Program Day, and low completion across at least two recent due schedules.
+- Each rule is scoped through the authenticated Coach, active CRM Member relationship and assignment ownership. The combined queue sorts by `HIGH`/`MEDIUM`/`LOW`, stable trigger date, Member and rule type, then returns at most 10 items.
+- Queue items expose only `type`, severity, Member identity, plain-language title/description, `actionUrl` and `createdFrom`. No diagnosis, treatment or health-risk inference is generated. Action URLs point to existing Coach routes and are not client-supplied.
+- SQL queries are bounded per rule (`TOP 20`) and aggregate/group in the database; no N+1 per Member query was added. Dashboard frontend renders loading, empty and actionable states with severity styling.
+- Role acceptance checks queue availability, maximum size, Coach-safe URLs and a scoped empty Program Day/no-workout signal after fixture generation.
+- No migration was created; no Marketplace/Seller source or migration `0100`–`0111` changed.
+
+Checks: backend targeted ESLint/typecheck PASS with five pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS with the existing large-chunk warning. Full disposable Coach role acceptance remains required for runtime SQL rule verification.
+
 ## Phase 10 — Safe Program Day editing
 
 Status: PASS (implementation and compile checks)
