@@ -1,6 +1,7 @@
 import { getPool, query, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { reassignMemberCoach } from '../coach-workspace/coach-reassignment.service';
+import { createNotification } from '../notifications/notifications.service';
 
 export type AdminCoachStatus = 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
 
@@ -181,6 +182,22 @@ export async function assignMember(coachId: number, memberId: number) {
       await new sql.Request(tx).input('memberId', sql.Int, memberId).input('coachId', sql.Int, coachId)
         .query('INSERT dbo.CRMCustomers(user_id,assigned_coach_id) VALUES(@memberId,@coachId)');
     }
+    await createNotification(tx, {
+      recipientUserId: memberId,
+      type: 'ASSIGNMENT_ASSIGNED',
+      title: 'Coach assigned',
+      message: 'A Coach is now assigned to your account.',
+      actionUrl: '/workouts',
+      deduplicationKey: `member:${memberId}:coach-assigned:${coachId}`,
+    });
+    await createNotification(tx, {
+      recipientUserId: coachId,
+      type: 'ASSIGNMENT_ASSIGNED',
+      title: 'Member assigned',
+      message: 'A Member was assigned to your Coach workspace.',
+      actionUrl: `/coach/members/${memberId}`,
+      deduplicationKey: `member:${memberId}:coach-assigned:${coachId}:coach`,
+    });
     await tx.commit();
     return memberResult(memberId);
   } catch (error) {

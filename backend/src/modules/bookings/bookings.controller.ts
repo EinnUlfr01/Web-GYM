@@ -20,6 +20,7 @@ import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachA
 import { assertBookableSlot } from '../coaches/coach-availability.service';
 import { getActiveMembershipPlan, getActiveMembershipPlanForTransaction } from '../plans/entitlements.service';
 import { todayInTimeZone } from '../../utils/timezone';
+import { createNotification } from '../notifications/notifications.service';
 
 export const getCoaches = getPublicCoaches;
 export const getCoachAvailability = getPublicCoachAvailability;
@@ -284,6 +285,14 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
            OUTPUT INSERTED.*
            VALUES(@coachId,@memberId,@bookingDate,@startTime,@endTime,N'pending',@notes,SYSUTCDATETIME(),SYSUTCDATETIME())`,
         );
+      await createNotification(tx, {
+        recipientUserId: coachId,
+        type: 'BOOKING_CREATED',
+        title: 'New Coach booking request',
+        message: `A Member requested a Coach appointment on ${body.booking_date} at ${body.start_time}.`,
+        actionUrl: '/coach/appointments',
+        deduplicationKey: `booking:${Number(inserted.recordset[0].id)}:created`,
+      });
       await tx.commit();
       sendSuccess(res, mapBooking(inserted.recordset[0]), 'Booking created', 201);
     } catch (error) {
@@ -408,6 +417,15 @@ export async function updateBookingStatus(req: Request, res: Response, next: Nex
            WHERE id=@id AND status=@currentStatus${ownership}`,
         );
       if (!update.recordset[0]) throw new AppError(409, 'Booking was changed by another request');
+      const recipientUserId = role === 'member' ? Number(booking.coach_id) : Number(booking.member_id);
+      await createNotification(tx, {
+        recipientUserId,
+        type: 'BOOKING_STATUS',
+        title: 'Coach booking updated',
+        message: `Your Coach appointment #${id} is now ${requestedStatus}.`,
+        actionUrl: role === 'member' ? '/coach/appointments' : '/appointments',
+        deduplicationKey: `booking:${id}:status:${requestedStatus}`,
+      });
       await tx.commit();
       sendSuccess(res, mapBooking(update.recordset[0]), 'Booking updated');
     } catch (error) {

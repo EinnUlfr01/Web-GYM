@@ -3,6 +3,7 @@ import { AppError } from '../../middleware/errorHandler';
 import { getProgress as getMemberProgress, getSession as getMemberSession } from '../member-workout/member-workout.service';
 import { assertIanaTimeZone, todayInTimeZone } from '../../utils/timezone';
 import { COACH_BOOKING_TIME_ZONE } from '../../utils/coachBooking';
+import { createNotification } from '../notifications/notifications.service';
 
 export const MAX_PAGE_SIZE = 50;
 
@@ -722,7 +723,16 @@ export async function createAssignment(coachId: number, data: Record<string, unk
     const program = await new sql.Request(tx).input('programId', sql.Int, Number(data.programId)).input('coachId', sql.Int, coachId).query(`SELECT id FROM dbo.WorkoutPrograms WHERE id=@programId AND owner_coach_id=@coachId AND is_active=1`);
     if (!program.recordset[0]) throw new AppError(400, 'Program must be active and owned by the current Coach');
     const result = await new sql.Request(tx).input('memberId', sql.Int, Number(data.memberId)).input('programId', sql.Int, Number(data.programId)).input('coachId', sql.Int, coachId).input('startDate', sql.Date, startDate).input('endDate', sql.Date, endDate).input('status', sql.NVarChar(20), 'ACTIVE').input('timezone', sql.NVarChar(64), String(data.scheduleTimezone)).input('note', sql.NVarChar(2000), data.note ?? null).query(`INSERT dbo.CoachProgramAssignments(member_id,program_id,coach_id,assigned_by,start_date,end_date,status,schedule_timezone,note) OUTPUT INSERTED.* VALUES(@memberId,@programId,@coachId,@coachId,@startDate,@endDate,@status,@timezone,@note)`);
-    await tx.commit(); return result.recordset[0];
+    const assignment = result.recordset[0];
+    await createNotification(tx, {
+      recipientUserId: Number(assignment.member_id),
+      type: 'ASSIGNMENT_CREATED',
+      title: 'New workout assignment',
+      message: 'Your Coach assigned a new workout program.',
+      actionUrl: '/workouts',
+      deduplicationKey: `assignment:${Number(assignment.id)}:created`,
+    });
+    await tx.commit(); return assignment;
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
@@ -760,6 +770,14 @@ export async function transitionAssignment(coachId: number, assignmentId: number
         .input('assignmentId', sql.Int, assignmentId)
         .query(`UPDATE dbo.CoachProgramSchedules SET status=N'CANCELLED',updated_at=SYSUTCDATETIME() WHERE assignment_id=@assignmentId AND status=N'SCHEDULED'`);
     }
+    await createNotification(tx, {
+      recipientUserId: Number(assignment.member_id),
+      type: 'ASSIGNMENT_STATUS',
+      title: 'Workout assignment updated',
+      message: `Your workout assignment is now ${nextStatus}.`,
+      actionUrl: '/workouts',
+      deduplicationKey: `assignment:${assignmentId}:status:${nextStatus}`,
+    });
     await tx.commit(); return result.recordset[0];
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
@@ -815,6 +833,16 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
       const wasInserted = Number(result.recordset[0].inserted);
       inserted += wasInserted;
       if (!wasInserted) skipped += 1;
+    }
+    if (inserted > 0) {
+      await createNotification(tx, {
+        recipientUserId: Number(assignment.member_id),
+        type: 'SCHEDULE_GENERATED',
+        title: 'Workout schedule updated',
+        message: `${inserted} new workout schedule item${inserted === 1 ? '' : 's'} is ready.`,
+        actionUrl: '/workouts',
+        deduplicationKey: `assignment:${assignmentId}:schedules:${from}:${boundedEnd}`,
+      });
     }
     await tx.commit();
     return {

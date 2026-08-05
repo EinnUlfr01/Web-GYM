@@ -1,5 +1,17 @@
 # Coach1 Completion Progress
 
+## Phase 23 - Coach workflow in-app notification backend
+
+Status: PASS (additive migration, self-scoped API, transactional triggers and disposable acceptance)
+
+- Added `db/migrations/0014_notifications.sql` as an additive/idempotent upgrade of the existing `dbo.Notifications` table. It adds `recipient_user_id`, `action_url`, `read_at` and `deduplication_key`, backfills recipient/read state from the legacy columns, preserves `user_id/is_read` compatibility and creates recipient/unread/dedup indexes. No second Notifications table was created.
+- Added authenticated self-scoped `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/:id/read` and `POST /api/notifications/read-all`. Cross-recipient reads/writes return the same not-found behavior without leaking notification existence; mark-read and mark-all are idempotent.
+- Added transactional Coach workflow triggers for Booking creation/status changes, Coach assignment creation/transitions, schedule generation, Admin assignment/reassignment and overdue schedule reconciliation. Notifications use bounded payloads, role-safe relative action URLs and stable deduplication keys; no email, WebSocket or realtime chat was added.
+- Added `acceptance:coach-notifications`, covering Guest/RBAC self-scope, unread/read lifecycle, cross-Coach IDOR, concurrent deduplication, Booking/Assignment/Schedule/Reassignment triggers and overdue batch retry idempotency. Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE23` applied `0010`-`0014`, reran migration with 0 pending/checksum mismatch, passed the full acceptance and was dropped afterward.
+- No frontend notification UI was added; Phase 24 consumes this API. No Marketplace/Seller source or migrations `0100`-`0111` changed.
+
+Checks: backend build PASS; targeted ESLint PASS with one acceptance fixture `no-explicit-any` warning; disposable migration/acceptance PASS; second `db:migrate --through=0014` was a no-op with 0 pending and 0 checksum mismatch; `git diff --check` PASS.
+
 ## Phase 21 - Coach Member goals and private context API
 
 Status: PASS (migration, API, RBAC/IDOR and concurrency acceptance)
