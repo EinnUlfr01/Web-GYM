@@ -152,6 +152,7 @@ const dateOnly = (value: unknown): string => {
   return text;
 };
 const datePart = (value: unknown): string => value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? '').slice(0, 10);
+const isUniqueConstraintError = (error: unknown): boolean => [2601, 2627].includes(Number((error as { number?: number })?.number));
 const addDays = (value: string, days: number) => {
   const date = new Date(`${value}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -183,8 +184,8 @@ export async function assertProgramOwner(coachId: number, programId: number) {
 }
 
 async function assertDayOwner(coachId: number, dayId: number) {
-  const result = await query<{ id: number; program_id: number }>(
-    `SELECT d.id,d.program_id FROM dbo.WorkoutProgramDays d
+  const result = await query<{ id: number; program_id: number; week_number: number; day_number: number }>(
+    `SELECT d.id,d.program_id,d.week_number,d.day_number FROM dbo.WorkoutProgramDays d
      JOIN dbo.WorkoutPrograms p ON p.id=d.program_id AND p.owner_coach_id=@coachId WHERE d.id=@dayId`,
     { coachId, dayId },
   );
@@ -352,14 +353,26 @@ export async function setProgramActive(coachId: number, programId: number, activ
 
 export async function createDay(coachId: number, programId: number, data: Record<string, unknown>) {
   await assertProgramOwner(coachId, programId);
-  const result = await query(`INSERT dbo.WorkoutProgramDays(program_id,week_number,day_number,title,description,sort_order) OUTPUT INSERTED.* SELECT @programId,@weekNumber,@dayNumber,@title,@description,COALESCE(MAX(sort_order),-1)+1 FROM dbo.WorkoutProgramDays WHERE program_id=@programId`, { programId, weekNumber: data.weekNumber, dayNumber: data.dayNumber, title: data.title, description: data.description ?? null });
-  return result.recordset[0];
+  const weekNumber = Number(data.weekNumber); const dayNumber = Number(data.dayNumber);
+  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 104 || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
+  try {
+    const result = await query(`INSERT dbo.WorkoutProgramDays(program_id,week_number,day_number,title,description,sort_order) OUTPUT INSERTED.* SELECT @programId,@weekNumber,@dayNumber,@title,@description,COALESCE(MAX(sort_order),-1)+1 FROM dbo.WorkoutProgramDays WHERE program_id=@programId`, { programId, weekNumber, dayNumber, title: data.title, description: data.description ?? null });
+    return result.recordset[0];
+  } catch (error) { if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
 }
 
 export async function updateDay(coachId: number, dayId: number, data: Record<string, unknown>) {
-  await assertDayOwner(coachId, dayId);
-  const result = await query(`UPDATE dbo.WorkoutProgramDays SET week_number=@weekNumber,day_number=@dayNumber,title=@title,description=@description,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@dayId`, { ...data, description: data.description ?? null, dayId });
-  return result.recordset[0];
+  const current = await assertDayOwner(coachId, dayId);
+  const weekNumber = Number(data.weekNumber); const dayNumber = Number(data.dayNumber);
+  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 104 || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
+  if (Number(current.week_number) !== weekNumber || Number(current.day_number) !== dayNumber) {
+    const scheduled = await query<{ count: number }>('SELECT COUNT(*) AS count FROM dbo.CoachProgramSchedules WHERE program_day_id=@dayId', { dayId });
+    if (Number(scheduled.recordset[0].count) > 0) throw new AppError(409, 'Program Day position is locked after scheduling', 'PROGRAM_DAY_POSITION_LOCKED');
+  }
+  try {
+    const result = await query(`UPDATE dbo.WorkoutProgramDays SET week_number=@weekNumber,day_number=@dayNumber,title=@title,description=@description,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@dayId`, { weekNumber, dayNumber, title: data.title, description: data.description ?? null, dayId });
+    return result.recordset[0];
+  } catch (error) { if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
 }
 
 export async function deleteDay(coachId: number, dayId: number) {

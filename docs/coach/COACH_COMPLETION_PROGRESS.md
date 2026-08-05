@@ -130,6 +130,18 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted backend ESLint PASS; frontend typecheck/build PASS; booking unit PASS. No migration was created.
 
+## Phase 10 — Safe Program Day editing
+
+Status: PASS (implementation and compile checks)
+
+- Backend Day create/update validates week 1–104 and day 1–7 even when called below the route layer.
+- SQL Server unique violations for `(program_id, week_number, day_number)` are normalized to HTTP 409 `PROGRAM_DAY_POSITION_CONFLICT` instead of leaking raw SQL errors.
+- A Day's week/day position cannot be changed after it has a Schedule reference; title and description metadata remain editable. Delete continues to map FK references to a stable 409.
+- Program Builder now exposes explicit Day week/day/title/description editing with a `Save Day` action, dirty/saved state and no per-keystroke PATCH. Add Day caps the local next-day suggestion at 7.
+- Role acceptance covers duplicate positions, invalid Day 8, scheduled position lock and safe metadata edit.
+
+Checks: backend build PASS; targeted ESLint PASS; frontend typecheck/build PASS; booking unit PASS. No migration was created.
+
 ## Phase 08 — Assignment lifecycle and transition concurrency
 
 Status: PASS (implementation and compile checks)
