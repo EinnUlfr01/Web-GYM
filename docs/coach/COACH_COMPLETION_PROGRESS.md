@@ -39,7 +39,7 @@ Known limitations:
 Next phase prerequisites:
 - Phase 25 is selected in `COACH_PHASE_STATE.json` as `NOT_STARTED` and must not start in the current checkpoint.
 - Code checkpoint commit: `f4962ab feat(notifications): add coach and member notification UI`.
-- Documentation checkpoint commit is created after `COACH_PHASE_STATE.json` records the final code checkpoint hash.
+- Documentation checkpoint commit: `e496929 docs(coach): checkpoint phase 24`.
 
 ## Phase 23 - Coach workflow in-app notification backend
 

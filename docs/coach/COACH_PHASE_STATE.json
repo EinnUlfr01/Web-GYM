@@ -13,6 +13,6 @@
     "canonicalDatabaseChanged": false,
     "migrationRunning": false
   },
-  "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint is pending.",
+  "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint committed in e496929.",
   "safeToStartNextPhase": false
 }
