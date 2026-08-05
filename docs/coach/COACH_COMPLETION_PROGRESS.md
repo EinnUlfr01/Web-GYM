@@ -156,6 +156,18 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted backend ESLint PASS with six pre-existing `no-explicit-any` warnings in the acceptance script; backend typecheck PASS; `test:coach-booking-unit` PASS; frontend typecheck/build PASS with the existing large-chunk warning. Full disposable Booking acceptance remains required for runtime SQL/date-summary verification.
 
+## Phase 13 — Dashboard metric correctness and future queries
+
+Status: PASS (implementation and compile checks)
+
+- `assignedMembers` remains the count of active Members assigned to the Coach, while `activeMembers` now counts distinct Members with an `ACTIVE` Coach Program Assignment. The previous duplicate query was removed.
+- Future Schedule filtering is now performed before `TOP 5` in SQL. Because assignments store IANA timezone names, the service builds a bounded OR predicate per distinct scoped assignment timezone and computes each timezone's local current date before querying. JavaScript no longer filters a `TOP 50` result.
+- Dashboard Schedule candidates are limited to active/paused assignment scopes and `SCHEDULED` state; the overdue reconciliation contract remains the source of truth for stale schedules. Recent Session rows keep explicit `legacy`/`member` source values and the existing source-aware links.
+- Coach acceptance now checks assigned-versus-active counts, future schedule filtering and the post-completion dashboard state.
+- No migration was created; no Marketplace/Seller source or migration `0100`–`0111` changed.
+
+Checks: backend build PASS; targeted ESLint PASS with three pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; backend typecheck PASS. Disposable dashboard fixture execution remains required for runtime SQL timezone/aggregate verification.
+
 ## Phase 10 — Safe Program Day editing
 
 Status: PASS (implementation and compile checks)

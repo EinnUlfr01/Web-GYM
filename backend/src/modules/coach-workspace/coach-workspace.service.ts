@@ -244,39 +244,57 @@ async function assertSchedule(coachId: number, scheduleId: number) {
 }
 
 export async function dashboard(coachId: number) {
+  const timezoneRows = await query<{ schedule_timezone: string }>(
+    `SELECT DISTINCT a.schedule_timezone
+     FROM dbo.CoachProgramAssignments a
+     JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+     JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+     WHERE a.coach_id=@coachId AND a.status IN (N'ACTIVE',N'PAUSED')`,
+    { coachId },
+  );
+  const scheduleParams: Record<string, unknown> = { coachId };
+  const futureScheduleClauses = timezoneRows.recordset.map((row, index) => {
+    const timeZone = String(row.schedule_timezone);
+    assertTimeZone(timeZone);
+    scheduleParams[`scheduleTimezone${index}`] = timeZone;
+    scheduleParams[`scheduleToday${index}`] = todayInTimeZone(timeZone);
+    return `(a.schedule_timezone=@scheduleTimezone${index} AND s.scheduled_date>=@scheduleToday${index})`;
+  });
+  const futureScheduleFilter = futureScheduleClauses.length ? `AND (${futureScheduleClauses.join(' OR ')})` : 'AND 1=0';
   const [members, activeMembers, programs, assignments, schedules, sessions] = await Promise.all([
     query(`SELECT COUNT(*) AS count FROM dbo.CRMCustomers c JOIN dbo.Users u ON u.id=c.user_id WHERE c.assigned_coach_id=@coachId AND u.role=N'member' AND u.is_active=1`, { coachId }),
-    query(`SELECT COUNT(*) AS count FROM dbo.CRMCustomers c JOIN dbo.Users u ON u.id=c.user_id WHERE c.assigned_coach_id=@coachId AND u.role=N'member' AND u.is_active=1`, { coachId }),
+    query(`SELECT COUNT(DISTINCT a.member_id) AS count
+           FROM dbo.CoachProgramAssignments a
+           JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+           JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'`, { coachId }),
     query(`SELECT COUNT(*) AS count FROM dbo.WorkoutPrograms WHERE owner_coach_id=@coachId AND is_active=1`, { coachId }),
     query(`SELECT COUNT(*) AS count FROM dbo.CoachProgramAssignments a JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId JOIN dbo.Users u ON u.id=a.member_id AND u.is_active=1 WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'`, { coachId }),
-     query(`SELECT TOP 50 s.id,s.scheduled_date,s.status,a.schedule_timezone,p.name AS program_name,u.id AS member_id,u.name AS member_name,d.title AS day_title
-            FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
-            JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
-            JOIN dbo.Users u ON u.id=a.member_id AND u.is_active=1 JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
-            JOIN dbo.WorkoutProgramDays d ON d.id=s.program_day_id
-             WHERE s.status=N'SCHEDULED'
-            ORDER BY s.scheduled_date,s.id`, { coachId }),
+    query(`SELECT TOP 5 s.id,s.scheduled_date,s.status,a.schedule_timezone,p.name AS program_name,u.id AS member_id,u.name AS member_name,d.title AS day_title
+           FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
+           JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+           JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+           JOIN dbo.WorkoutPrograms p ON p.id=a.program_id JOIN dbo.WorkoutProgramDays d ON d.id=s.program_day_id
+           WHERE s.status=N'SCHEDULED' ${futureScheduleFilter}
+           ORDER BY s.scheduled_date,s.id`, scheduleParams),
     query(`SELECT TOP 5 * FROM (
-             SELECT ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name,CAST(N'legacy' AS NVARCHAR(10)) AS source,
-                    CAST(NULL AS INT) AS set_count,CAST(NULL AS INT) AS completed_set_count
-             FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
-             JOIN dbo.CRMCustomers c ON c.user_id=ws.user_id AND c.assigned_coach_id=@coachId
-             JOIN dbo.Users u ON u.id=ws.user_id AND u.is_active=1
-             UNION ALL
-             SELECT ms.id,ms.member_id,u.name AS member_name,ms.started_at,ms.ended_at AS completed_at,ms.status,p.name AS workout_name,CAST(N'member' AS NVARCHAR(10)) AS source,
-                    (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
-                    (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count
-             FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId
-             JOIN dbo.CoachProgramSchedules cs ON cs.id=ms.schedule_id AND cs.assignment_id=a.id
-             JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
-             JOIN dbo.CRMCustomers c ON c.user_id=ms.member_id AND c.assigned_coach_id=@coachId
-             JOIN dbo.Users u ON u.id=ms.member_id AND u.is_active=1
-           ) sessions ORDER BY started_at DESC,id DESC`, { coachId }),
+            SELECT ws.id,ws.user_id AS member_id,u.name AS member_name,ws.started_at,ws.completed_at,ws.status,w.name AS workout_name,CAST(N'legacy' AS NVARCHAR(10)) AS source,
+                   CAST(NULL AS INT) AS set_count,CAST(NULL AS INT) AS completed_set_count
+            FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
+            JOIN dbo.CRMCustomers c ON c.user_id=ws.user_id AND c.assigned_coach_id=@coachId
+            JOIN dbo.Users u ON u.id=ws.user_id AND u.role=N'member' AND u.is_active=1
+            UNION ALL
+            SELECT ms.id,ms.member_id,u.name AS member_name,ms.started_at,ms.ended_at AS completed_at,ms.status,p.name AS workout_name,CAST(N'member' AS NVARCHAR(10)) AS source,
+                   (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
+                   (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count
+            FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId
+            JOIN dbo.CoachProgramSchedules cs ON cs.id=ms.schedule_id AND cs.assignment_id=a.id
+            JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
+            JOIN dbo.CRMCustomers c ON c.user_id=ms.member_id AND c.assigned_coach_id=@coachId
+            JOIN dbo.Users u ON u.id=ms.member_id AND u.role=N'member' AND u.is_active=1
+          ) sessions ORDER BY started_at DESC,id DESC`, { coachId }),
   ]);
-  const upcomingSchedules = schedules.recordset.filter(item => {
-    assertTimeZone(String(item.schedule_timezone));
-    return datePart(item.scheduled_date) >= todayInTimeZone(String(item.schedule_timezone));
-  }).slice(0, 5);
+  const upcomingSchedules = schedules.recordset;
   return {
     counts: { assignedMembers: Number(members.recordset[0].count), activeMembers: Number(activeMembers.recordset[0].count), ownedPrograms: Number(programs.recordset[0].count), activeAssignments: Number(assignments.recordset[0].count) },
     upcomingSchedules,
