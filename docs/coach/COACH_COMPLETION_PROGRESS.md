@@ -143,6 +143,19 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted backend ESLint PASS; frontend typecheck/build PASS; booking unit PASS. No migration was created.
 
+## Phase 12 — Booking filters and server-side summaries
+
+Status: PASS (implementation and compile checks)
+
+- `GET /api/bookings` now accepts server-side `status`, `fromDate`, `toDate`, `page` and `limit` filters. Status can remain a single value or use a validated comma-separated set for history tabs; date ranges reject invalid dates and `fromDate > toDate`.
+- Added role-scoped `GET /api/bookings/summary` with pending, confirmed, completed, cancelled, no-show, upcoming and today counts, plus `asOfDate` and `Asia/Ho_Chi_Minh` timezone metadata. Upcoming/today only count pending or confirmed bookings and use the same role/date scope.
+- Coach Appointments now requests the active tab on the server, has date filters, summary cards and pagination. Member Appointments uses the same server contract for upcoming/history tabs rather than fetching 100 rows and filtering locally.
+- Coach Dashboard gets summary data and bounded today/pending lists from the API. Member Dashboard gets summary data and a bounded upcoming list; no booking dashboard metric depends on client-side filtering.
+- Booking acceptance now covers server status/date filtering, invalid ranges and scoped summary metrics. Existing overlap, transition and IDOR protections remain unchanged.
+- No migration was created; no Marketplace/Seller source or migration `0100`–`0111` changed.
+
+Checks: backend build PASS; targeted backend ESLint PASS with six pre-existing `no-explicit-any` warnings in the acceptance script; backend typecheck PASS; `test:coach-booking-unit` PASS; frontend typecheck/build PASS with the existing large-chunk warning. Full disposable Booking acceptance remains required for runtime SQL/date-summary verification.
+
 ## Phase 10 — Safe Program Day editing
 
 Status: PASS (implementation and compile checks)

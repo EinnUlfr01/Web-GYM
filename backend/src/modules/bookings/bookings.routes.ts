@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getCoaches, getCoachAvailability, createBooking, getMyBookings, getBookingById, updateBookingStatus } from './bookings.controller';
+import { getCoaches, getCoachAvailability, createBooking, getMyBookings, getBookingSummary, getBookingById, updateBookingStatus } from './bookings.controller';
 import { authenticate, authorize } from '../../middleware/auth';
 import { UserRole } from '../../types';
 import { validate } from '../../middleware/validate';
@@ -11,7 +11,9 @@ const availabilityQuery = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$
 const listQuery = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
-  status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no_show']).optional(),
+  status: z.string().regex(/^(?:pending|confirmed|completed|cancelled|no_show)(?:,(?:pending|confirmed|completed|cancelled|no_show))*$/).optional(),
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 }).strict();
 
 const canonicalBooking = z.object({
@@ -43,6 +45,7 @@ router.get('/coaches/:id/availability', validate(id, 'params'), validate(availab
 
 router.post('/', authenticate, authorize(UserRole.MEMBER), validate(booking), createBooking);
 router.get('/', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(listQuery, 'query'), getMyBookings);
+router.get('/summary', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(listQuery.pick({ fromDate: true, toDate: true }), 'query'), getBookingSummary);
 router.put('/:id/status', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(id, 'params'), validate(status), updateBookingStatus);
 router.get('/:id', authenticate, authorize(UserRole.MEMBER, UserRole.COACH, UserRole.ADMIN), validate(id, 'params'), getBookingById);
 

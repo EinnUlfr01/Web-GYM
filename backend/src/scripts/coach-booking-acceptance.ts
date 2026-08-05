@@ -73,7 +73,7 @@ async function seed(): Promise<void> {
   );
 }
 
-type ApiResult = { status: number; data: { data?: any; message?: string } };
+type ApiResult = { status: number; data: { data?: any; message?: string; pagination?: { page: number; limit: number; total: number; totalPages: number } } };
 async function call(method: string, path: string, account?: Account, body?: unknown): Promise<ApiResult> {
   const response = await fetch(`${base}${path}`, {
     method,
@@ -153,6 +153,11 @@ async function run(): Promise<void> {
   check(confirmed.status === 200 && confirmed.data.data.status === 'confirmed', 'owner Coach confirms pending booking');
   check(typeof confirmed.data.data.booking_date === 'string' && typeof confirmed.data.data.start_time === 'string' && typeof confirmed.data.data.updated_at === 'string', 'status update response uses normalized Booking DTO');
   check((await call('PUT', `/bookings/${bookingId}/status`, accounts.coachA, { status: 'confirmed' })).status === 409, 'duplicate state transition is rejected');
+  const coachFiltered = await call('GET', `/bookings?status=confirmed&fromDate=${bookingDate}&toDate=${bookingDate}&page=1&limit=1`, accounts.coachA);
+  check(coachFiltered.status === 200 && coachFiltered.data.pagination?.page === 1 && coachFiltered.data.pagination?.limit === 1 && coachFiltered.data.data.length === 1 && coachFiltered.data.data[0].id === bookingId, 'Coach booking list filters status/date on the server');
+  check((await call('GET', `/bookings?fromDate=${secondDate}&toDate=${bookingDate}`, accounts.coachA)).status === 400, 'booking date range rejects fromDate after toDate');
+  const coachSummary = await call('GET', '/bookings/summary', accounts.coachA);
+  check(coachSummary.status === 200 && coachSummary.data.data.confirmed >= 1 && coachSummary.data.data.upcoming >= 1 && coachSummary.data.data.timezone === COACH_BOOKING_TIME_ZONE, 'Coach booking summary returns scoped upcoming metrics and timezone');
 
   const legacy = await call('POST', '/bookings', accounts.memberB, { coach_id: accounts.coachA.id, booking_date: secondDate, start_time: '13:00', end_time: '14:00' });
   check(legacy.status === 201 && legacy.data.data.status === 'pending', 'legacy snake_case create payload remains compatible');

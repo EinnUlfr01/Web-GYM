@@ -9,12 +9,14 @@ import {
   assertFutureBooking,
   BookingStatus,
   isFutureLocalDateTime,
+  isDateString,
   isValidBookingTransition,
   normalizeSqlDate,
   normalizeSqlDateTime,
   normalizeSqlTime,
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
+import { todayInTimeZone } from '../../utils/timezone';
 
 export const getCoaches = getPublicCoaches;
 export const getCoachAvailability = getPublicCoachAvailability;
@@ -104,6 +106,28 @@ function scopeForRole(role: string, userId: number): { clause: string; params: R
   throw new AppError(403, 'Forbidden');
 }
 
+function parseBookingFilters(req: Request): { statusFilter: string; dateFilter: string; params: Record<string, unknown> } {
+  const statusText = typeof req.query.status === 'string' ? req.query.status : '';
+  const statuses = statusText ? statusText.split(',').filter(Boolean) : [];
+  const validStatuses = new Set<BookingStatus>(['pending', 'confirmed', 'completed', 'cancelled', 'no_show']);
+  if (statuses.some(status => !validStatuses.has(status as BookingStatus))) throw new AppError(400, 'Invalid booking status filter');
+  const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : '';
+  const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : '';
+  if (fromDate && !isDateString(fromDate)) throw new AppError(400, 'fromDate must be a valid YYYY-MM-DD date');
+  if (toDate && !isDateString(toDate)) throw new AppError(400, 'toDate must be a valid YYYY-MM-DD date');
+  if (fromDate && toDate && fromDate > toDate) throw new AppError(400, 'fromDate must not be after toDate');
+  const statusParams = Object.fromEntries(statuses.map((status, index) => [`status${index}`, status]));
+  const statusFilter = statuses.length ? ` AND b.status IN (${statuses.map((_, index) => `@status${index}`).join(',')})` : '';
+  const dateFilter = `${fromDate ? ' AND b.booking_date>=@fromDate' : ''}${toDate ? ' AND b.booking_date<=@toDate' : ''}`;
+  return { statusFilter, dateFilter, params: { ...statusParams, ...(fromDate ? { fromDate } : {}), ...(toDate ? { toDate } : {}) } };
+}
+
+function localTimeInTimeZone(timeZone: string, now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+  return `${values.hour}:${values.minute}`;
+}
+
 /** Create a real pending appointment. Identity is always derived from the authenticated Member. */
 export async function createBooking(req: Request, res: Response, next: NextFunction) {
   const body = req.body as NormalizedCreateBooking;
@@ -186,19 +210,57 @@ export async function getMyBookings(req: Request, res: Response, next: NextFunct
   try {
     const role = req.user!.role;
     const { clause, params } = scopeForRole(role, req.user!.userId);
+    const filters = parseBookingFilters(req);
     const pageValue = Number(req.query.page);
     const limitValue = Number(req.query.limit);
     const page = Number.isSafeInteger(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isSafeInteger(limitValue) && limitValue > 0 ? Math.min(limitValue, 100) : 50;
     const offset = (page - 1) * limit;
-    const status = typeof req.query.status === 'string' ? req.query.status : '';
-    const statusFilter = status ? ' AND b.status=@status' : '';
     const list = await query<BookingRow>(
-      `${bookingSelect(`${clause}${statusFilter}`)} ORDER BY b.booking_date ASC,b.start_time ASC,b.id ASC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
-      { ...params, ...(status ? { status } : {}), offset, limit },
+      `${bookingSelect(`${clause}${filters.statusFilter}${filters.dateFilter}`)} ORDER BY b.booking_date ASC,b.start_time ASC,b.id ASC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
+      { ...params, ...filters.params, offset, limit },
     );
-    const total = await query<{ total: number }>(`SELECT COUNT(*) AS total FROM dbo.Bookings b WHERE ${clause}${statusFilter}`, { ...params, ...(status ? { status } : {}) });
+    const total = await query<{ total: number }>(`SELECT COUNT(*) AS total FROM dbo.Bookings b WHERE ${clause}${filters.statusFilter}${filters.dateFilter}`, { ...params, ...filters.params });
     sendSuccess(res, list.recordset.map(mapBooking), 'Bookings fetched', 200, { pagination: { page, limit, total: Number(total.recordset[0]?.total ?? 0), totalPages: Math.ceil(Number(total.recordset[0]?.total ?? 0) / limit) } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getBookingSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { clause, params } = scopeForRole(req.user!.role, req.user!.userId);
+    const filters = parseBookingFilters(req);
+    const today = todayInTimeZone('Asia/Ho_Chi_Minh');
+    const localTime = localTimeInTimeZone('Asia/Ho_Chi_Minh');
+    const result = await query<{
+      total: number; pending: number; confirmed: number; completed: number; cancelled: number; no_show: number; upcoming: number; today: number;
+    }>(
+      `SELECT COUNT_BIG(*) AS total,
+              SUM(CASE WHEN b.status=N'pending' THEN 1 ELSE 0 END) AS pending,
+              SUM(CASE WHEN b.status=N'confirmed' THEN 1 ELSE 0 END) AS confirmed,
+              SUM(CASE WHEN b.status=N'completed' THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN b.status=N'cancelled' THEN 1 ELSE 0 END) AS cancelled,
+              SUM(CASE WHEN b.status=N'no_show' THEN 1 ELSE 0 END) AS no_show,
+              SUM(CASE WHEN b.status IN (N'pending',N'confirmed') AND (b.booking_date>@today OR (b.booking_date=@today AND CONVERT(char(5),b.start_time,108)>=@localTime)) THEN 1 ELSE 0 END) AS upcoming,
+              SUM(CASE WHEN b.status IN (N'pending',N'confirmed') AND b.booking_date=@today THEN 1 ELSE 0 END) AS today
+       FROM dbo.Bookings b
+       WHERE ${clause}${filters.statusFilter}${filters.dateFilter}`,
+      { ...params, ...filters.params, today, localTime },
+    );
+    const row = result.recordset[0];
+    sendSuccess(res, {
+      total: Number(row?.total ?? 0),
+      pending: Number(row?.pending ?? 0),
+      confirmed: Number(row?.confirmed ?? 0),
+      completed: Number(row?.completed ?? 0),
+      cancelled: Number(row?.cancelled ?? 0),
+      no_show: Number(row?.no_show ?? 0),
+      upcoming: Number(row?.upcoming ?? 0),
+      today: Number(row?.today ?? 0),
+      asOfDate: today,
+      timezone: 'Asia/Ho_Chi_Minh',
+    }, 'Booking summary fetched');
   } catch (error) {
     next(error);
   }
