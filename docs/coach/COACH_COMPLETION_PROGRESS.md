@@ -12,6 +12,20 @@ Status: PASS (migration created and statically reviewed; canonical database inte
 
 Checks: migration file reviewed for SQL Server types/constraints/indexes and `git diff --check` PASS. Canonical `db:migrate:status` remains the only permitted database operation for this phase; `0011` is expected to be pending until an approved disposable migration run.
 
+## Phase 16 — Database-backed Coach Availability API
+
+Status: PASS (implementation, disposable migration and runtime acceptance)
+
+- Replaced the public hardcoded slot calculation with a database-backed availability service using `CoachAvailabilityRules`, `CoachAvailabilityExceptions`, Coach profile status, booking state, Asia/Ho_Chi_Minh date boundaries and fixed 60-minute slot generation.
+- Added public availability metadata and compatibility fields: active/booking-enabled state, rules, exceptions, real `slots`, `available_slots`, `booked_slots`, mode/location, duration and timezone. Public responses do not expose exception private notes.
+- Added Coach-only self routes for availability preview and CRUD of weekly rules/date exceptions. Rules and OPEN exceptions reject overlap in serializable transactions; ownership is derived from the authenticated Coach and cross-Coach delete is denied.
+- Added BLOCK/OPEN precedence: a BLOCK suppresses recurring rules while an OPEN exception adds an explicitly validated window. Suspended Coaches remain hidden; active booking-disabled Coaches return no public slots.
+- Booking creation now re-evaluates the DB-backed slot inside its serializable transaction before overlap insertion. The fixed slot constant was removed; arbitrary valid times are accepted only when a configured rule/exception produces that slot.
+- Updated disposable Coach acceptance setup so migration `0010`/`0011` remain pending until the normal migration runner applies them, and extended booking acceptance for availability CRUD, block/open behavior and ownership.
+- No Marketplace/Seller source or migrations `0100`–`0111` changed. Canonical database was not modified; the disposable database `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_PHASE16` was dropped after testing.
+
+Checks: backend build PASS; `test:coach-booking-unit` PASS; targeted ESLint PASS with only existing acceptance `no-explicit-any` warnings; disposable `0010`/`0011` migration and Coach migration verification PASS; full `acceptance:coach-booking` PASS including availability, booking enforcement, concurrency, RBAC and IDOR cases. Disposable status also showed no checksum mismatch; its pre-existing generic post-migration probe lacks `ProductOptions` and is not used as the Coach verdict.
+
 ## Scope guard
 
 - Target branch: `coach1`

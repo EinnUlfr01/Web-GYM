@@ -21,10 +21,13 @@ async function main(): Promise<void> {
     if (!row) pending.push(version);
     else if (row.checksum !== checksum) mismatches.push(version);
   }
-  const object = await pool.request().query<{ database_name: string; coach_profiles: number; unique_indexes: number }>(
+  const object = await pool.request().query<{ database_name: string; coach_profiles: number; coach_availability_rules: number; coach_availability_exceptions: number; unique_indexes: number; availability_indexes: number }>(
     `SELECT DB_NAME() AS database_name,
             CASE WHEN OBJECT_ID(N'dbo.CoachProfiles',N'U') IS NULL THEN 0 ELSE 1 END AS coach_profiles,
-            (SELECT COUNT(*) FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.CoachProfiles') AND is_unique=1) AS unique_indexes`,
+            CASE WHEN OBJECT_ID(N'dbo.CoachAvailabilityRules',N'U') IS NULL THEN 0 ELSE 1 END AS coach_availability_rules,
+            CASE WHEN OBJECT_ID(N'dbo.CoachAvailabilityExceptions',N'U') IS NULL THEN 0 ELSE 1 END AS coach_availability_exceptions,
+            (SELECT COUNT(*) FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.CoachProfiles') AND is_unique=1) AS unique_indexes,
+            (SELECT COUNT(*) FROM sys.indexes WHERE object_id IN (OBJECT_ID(N'dbo.CoachAvailabilityRules'),OBJECT_ID(N'dbo.CoachAvailabilityExceptions')) AND name IN (N'IX_CoachAvailabilityRules_CoachDayActive',N'IX_CoachAvailabilityExceptions_CoachDateActive')) AS availability_indexes`,
   );
   const evidence = {
     ...object.recordset[0],
@@ -34,7 +37,7 @@ async function main(): Promise<void> {
     migration_0010: stored.get('0010') ? 'APPLIED' : 'PENDING',
   };
   console.log(`COACH_MIGRATION_VERIFY ${JSON.stringify(evidence)}`);
-  if (evidence.coach_profiles !== 1 || evidence.unique_indexes < 1 || pending.length !== 0 || mismatches.length !== 0) {
+  if (evidence.coach_profiles !== 1 || evidence.unique_indexes < 1 || evidence.coach_availability_rules !== 1 || evidence.coach_availability_exceptions !== 1 || evidence.availability_indexes < 2 || pending.length !== 0 || mismatches.length !== 0) {
     throw new Error('Coach migration verification failed');
   }
 }

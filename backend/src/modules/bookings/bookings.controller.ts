@@ -16,6 +16,7 @@ import {
   normalizeSqlTime,
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
+import { assertBookableSlot } from '../coaches/coach-availability.service';
 import { todayInTimeZone } from '../../utils/timezone';
 
 export const getCoaches = getPublicCoaches;
@@ -152,8 +153,9 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
            WHERE u.id=@coachId AND u.role=N'coach' AND u.is_active=1
              AND COALESCE(u.coach_status,N'ACTIVE')=N'ACTIVE'
              AND COALESCE(cp.booking_enabled,1)=1`,
-        );
+      );
       if (!coach.recordset[0]) throw new AppError(404, 'Coach not found or booking is disabled');
+      await assertBookableSlot(tx, coachId, body.booking_date, body.start_time, endTime);
 
       // Range locks protect the overlap checks while the filtered unique index protects exact duplicates.
       const coachConflict = await new sql.Request(tx)

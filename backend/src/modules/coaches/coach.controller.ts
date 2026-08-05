@@ -2,15 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { sendSuccess } from '../../utils/response';
-import {
-  assertBookingDate,
-  addMinutesToTime,
-  COACH_BOOKING_DURATION_MINUTES,
-  COACH_BOOKING_SLOTS,
-  isFutureLocalDateTime,
-  normalizeSqlTime,
-} from '../../utils/coachBooking';
-import { todayInTimeZone } from '../../utils/timezone';
 
 interface PublicCoachRow {
   id: number;
@@ -23,12 +14,6 @@ interface PublicCoachRow {
   location: string | null;
   bookingEnabled: boolean;
 }
-
-interface CoachAvailabilityRow {
-  start_time: unknown;
-  end_time: unknown;
-}
-
 const coachStatusSql = "COALESCE(u.coach_status, CASE WHEN u.is_active = 1 THEN N'ACTIVE' ELSE N'INACTIVE' END)";
 const coachWhereSql = `u.role = N'coach' AND u.is_active = 1 AND ${coachStatusSql} = N'ACTIVE'`;
 
@@ -36,7 +21,6 @@ function parsePositiveInteger(value: unknown, fallback: number): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
-
 function mapCoach(row: PublicCoachRow): PublicCoachRow {
   return {
     id: Number(row.id),
@@ -120,45 +104,4 @@ export async function getCoachById(req: Request, res: Response, next: NextFuncti
   }
 }
 
-/** Shared availability implementation used by canonical and legacy routes. */
-export async function getCoachAvailability(req: Request, res: Response, next: NextFunction) {
-  try {
-    const coachId = Number(req.params.id);
-    if (!Number.isSafeInteger(coachId) || coachId <= 0) throw new AppError(400, 'Coach ID must be a positive integer');
-    const date = typeof req.query.date === 'string' ? req.query.date : '';
-    const targetDate = date || todayInTimeZone('Asia/Ho_Chi_Minh');
-    assertBookingDate(targetDate);
-    const coach = await findPublicCoach(coachId);
-    if (!coach) throw new AppError(404, 'Coach not found');
-    if (!coach.bookingEnabled) throw new AppError(409, 'Coach booking is not enabled');
-
-    const booked = await query<CoachAvailabilityRow>(
-      `SELECT b.start_time,b.end_time
-       FROM dbo.Bookings b
-       WHERE b.coach_id=@coachId AND b.booking_date=@targetDate
-         AND b.status IN (N'pending',N'confirmed')`,
-      { coachId, targetDate },
-    );
-    const bookedIntervals = booked.recordset.map(row => ({
-      start: normalizeSqlTime(row.start_time),
-      end: normalizeSqlTime(row.end_time),
-    }));
-    const availableSlots = COACH_BOOKING_SLOTS.filter(slot => {
-      if (targetDate === todayInTimeZone('Asia/Ho_Chi_Minh')
-        && !isFutureLocalDateTime(targetDate, slot)) return false;
-      const end = addMinutesToTime(slot, COACH_BOOKING_DURATION_MINUTES);
-      return !bookedIntervals.some(interval => interval.start < end && interval.end > slot);
-    });
-    const bookedSlots = bookedIntervals.map(interval => interval.start);
-    sendSuccess(res, {
-      date: targetDate,
-      coach_id: coachId,
-      available_slots: availableSlots,
-      booked_slots: bookedSlots,
-      duration_minutes: COACH_BOOKING_DURATION_MINUTES,
-      timezone: 'Asia/Ho_Chi_Minh',
-    });
-  } catch (error) {
-    next(error);
-  }
-}
+export { getPublicAvailability as getCoachAvailability } from './coach-availability.controller';

@@ -30,7 +30,8 @@ assert.equal(isFutureLocalDateTime('2026-08-04', '11:00', now), true);
 assert.equal(isFutureLocalDateTime('2026-08-04', '09:00', now), false);
 assert.doesNotThrow(() => assertBookingDate(today, now));
 assert.doesNotThrow(() => assertBookingStartTime('17:00'));
-assert.throws(() => assertBookingStartTime('10:30'));
+assert.doesNotThrow(() => assertBookingStartTime('10:30'));
+assert.throws(() => assertBookingStartTime('23:30'));
 assert.throws(() => assertBookingDate('2026-08-03', now));
 
 const maxDate = new Date(Date.parse(`${today}T00:00:00Z`) + COACH_BOOKING_MAX_DAYS * 86400000).toISOString().slice(0, 10);

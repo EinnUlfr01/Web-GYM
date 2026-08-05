@@ -42,6 +42,8 @@ async function cleanup(): Promise<void> {
   const ids = users.recordset.map(row => Number(row.id));
   if (ids.length === 0) return;
   const csv = ids.join(',');
+  await query(`DELETE FROM dbo.CoachAvailabilityExceptions WHERE coach_id IN (${csv})`);
+  await query(`DELETE FROM dbo.CoachAvailabilityRules WHERE coach_id IN (${csv})`);
   await query(`DELETE FROM dbo.Bookings WHERE coach_id IN (${csv}) OR member_id IN (${csv})`);
   await query(`DELETE FROM dbo.CoachProfiles WHERE coach_id IN (${csv})`);
   await query(`DELETE FROM dbo.AuthSessions WHERE user_id IN (${csv})`);
@@ -70,6 +72,25 @@ async function seed(): Promise<void> {
             (@inactive,N'Inactive',N'Not publicly visible',2,N'ONLINE',N'Online',1),
             (@disabled,N'Booking disabled',N'Visible but not bookable',6,N'BOTH',N'GYMFIT',0)`,
     { coachA: accounts.coachA.id, coachB: accounts.coachB.id, suspended: accounts.suspended.id, inactive: accounts.inactive.id, disabled: accounts.disabled.id },
+  );
+  await query(
+    `INSERT dbo.CoachAvailabilityRules(coach_id,weekday,start_time,end_time,mode,location,is_active)
+     VALUES
+       (@coachA,1,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,1,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,2,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,2,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,3,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,3,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,4,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,4,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,5,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,5,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,6,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,6,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachA,7,N'09:00',N'12:00',N'BOTH',N'GYMFIT',1),(@coachA,7,N'13:00',N'18:00',N'BOTH',N'GYMFIT',1),
+       (@coachB,1,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,1,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,2,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,2,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,3,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,3,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,4,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,4,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,5,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,5,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,6,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,6,N'13:00',N'18:00',N'ONLINE',N'Online',1),
+       (@coachB,7,N'09:00',N'12:00',N'ONLINE',N'Online',1),(@coachB,7,N'13:00',N'18:00',N'ONLINE',N'Online',1)`,
+    { coachA: accounts.coachA.id, coachB: accounts.coachB.id },
   );
 }
 
@@ -111,8 +132,37 @@ async function run(): Promise<void> {
   check(searched.status === 200 && searched.data.data.coaches.length === 1 && Number(searched.data.data.coaches[0].id) === accounts.coachB.id, 'public Coach search is server-side');
   check((await call('GET', '/coaches/not-an-id')).status === 400, 'invalid Coach ID is rejected');
   const availability = await call('GET', `/coaches/${accounts.coachA.id}/availability?date=${bookingDate}`);
-  check(availability.status === 200 && availability.data.data.duration_minutes === 60 && availability.data.data.timezone === COACH_BOOKING_TIME_ZONE, 'availability uses canonical timezone and duration');
+  check(availability.status === 200 && availability.data.data.active === true && availability.data.data.booking_enabled === true
+    && availability.data.data.duration_minutes === 60 && availability.data.data.timezone === COACH_BOOKING_TIME_ZONE
+    && Array.isArray(availability.data.data.rules) && Array.isArray(availability.data.data.slots)
+    && availability.data.data.available_slots.includes('10:00') && !availability.data.data.available_slots.includes('12:00'), 'availability uses database rules and canonical timezone');
   check((await call('GET', `/coaches/${accounts.coachA.id}/availability?date=2026-02-31`)).status === 400, 'invalid availability date is rejected');
+  check((await call('GET', `/coaches/${accounts.suspended.id}/availability?date=${bookingDate}`)).status === 404, 'suspended Coach availability is hidden');
+  const disabledAvailability = await call('GET', `/coaches/${accounts.disabled.id}/availability?date=${bookingDate}`);
+  check(disabledAvailability.status === 200 && disabledAvailability.data.data.active === true && disabledAvailability.data.data.booking_enabled === false && disabledAvailability.data.data.available_slots.length === 0, 'booking-disabled Coach exposes no public slots');
+  const selfRules = await call('GET', '/coach/availability/rules', accounts.coachA);
+  check(selfRules.status === 200 && selfRules.data.data.some((rule: any) => rule.weekday === 5 && rule.start_time === '09:00'), 'Coach can read own availability rules');
+  const overlapRule = await call('POST', '/coach/availability/rules', accounts.coachA, { weekday: 5, startTime: '10:00', endTime: '11:00', mode: 'BOTH' });
+  check(overlapRule.status === 409, 'overlapping weekly availability rule is rejected');
+  const extraRule = await call('POST', '/coach/availability/rules', accounts.coachA, { weekday: 7, startTime: '18:00', endTime: '19:00', mode: 'BOTH' });
+  check(extraRule.status === 201, 'Coach can create a non-overlapping weekly rule');
+  const extraRuleId = Number(extraRule.data.data.id);
+  const updatedRule = await call('PATCH', `/coach/availability/rules/${extraRuleId}`, accounts.coachA, { location: 'Updated Gym' });
+  check(updatedRule.status === 200 && updatedRule.data.data.location === 'Updated Gym', 'Coach can update an owned availability rule');
+  check((await call('DELETE', `/coach/availability/rules/${extraRuleId}`, accounts.coachB)).status === 404, 'Coach cannot delete another Coach availability rule');
+  check((await call('DELETE', `/coach/availability/rules/${extraRuleId}`, accounts.coachA)).status === 200, 'Coach can delete an owned availability rule');
+  const blockException = await call('POST', '/coach/availability/exceptions', accounts.coachA, { exceptionDate: datePlus(10), exceptionType: 'BLOCK' });
+  check(blockException.status === 201, 'Coach can create a date block exception');
+  const blockedAvailability = await call('GET', `/coaches/${accounts.coachA.id}/availability?date=${datePlus(10)}`);
+  check(blockedAvailability.status === 200 && blockedAvailability.data.data.available_slots.length === 0, 'date block suppresses recurring availability');
+  const openException = await call('POST', '/coach/availability/exceptions', accounts.coachA, { exceptionDate: datePlus(10), exceptionType: 'OPEN', startTime: '10:00', endTime: '12:00', mode: 'BOTH' });
+  check(openException.status === 201, 'Coach can add an explicit open window');
+  const reopenedAvailability = await call('GET', `/coaches/${accounts.coachA.id}/availability?date=${datePlus(10)}`);
+  check(reopenedAvailability.status === 200 && reopenedAvailability.data.data.available_slots.includes('10:00'), 'open exception adds a real slot after a block');
+  const patchedException = await call('PATCH', `/coach/availability/exceptions/${Number(openException.data.data.id)}`, accounts.coachA, { note: 'Special opening' });
+  check(patchedException.status === 200 && patchedException.data.data.note === 'Special opening', 'Coach can update an owned availability exception');
+  check((await call('DELETE', `/coach/availability/exceptions/${Number(openException.data.data.id)}`, accounts.coachA)).status === 200, 'Coach can delete an owned availability exception');
+  check((await call('DELETE', `/coach/availability/exceptions/${Number(blockException.data.data.id)}`, accounts.coachA)).status === 200, 'Coach can delete an owned date block');
 
   check((await call('POST', '/bookings', undefined, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 401, 'guest cannot create booking');
   check((await call('POST', '/bookings', accounts.coachA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 403, 'Coach cannot create member booking');
@@ -136,7 +186,7 @@ async function run(): Promise<void> {
   check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 409, 'Member overlap is rejected');
   check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '13:00', note: 'x'.repeat(501) })).status === 400, 'oversized note is rejected');
   check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: '2026-02-31', startTime: '10:00' })).status === 400, 'invalid booking date is rejected');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:30' })).status === 400, 'unsupported booking slot is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:30' })).status === 409, 'booking outside a database availability window is rejected');
 
   const concurrent = await Promise.all([
     call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00' }),

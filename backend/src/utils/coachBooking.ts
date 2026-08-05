@@ -5,17 +5,6 @@ export const COACH_BOOKING_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 export const COACH_BOOKING_DURATION_MINUTES = 60;
 export const COACH_BOOKING_MAX_DAYS = 90;
 
-export const COACH_BOOKING_SLOTS = [
-  '09:00',
-  '10:00',
-  '11:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
-  '17:00',
-] as const;
-
 export const BOOKING_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
@@ -42,10 +31,6 @@ export function addMinutesToTime(value: string, minutes: number): string {
   const total = timeToMinutes(value) + minutes;
   if (!Number.isFinite(total) || total < 0 || total >= 24 * 60) throw new AppError(400, 'Booking time is outside the valid day');
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-}
-
-export function isAllowedStartTime(value: string): boolean {
-  return (COACH_BOOKING_SLOTS as readonly string[]).includes(value);
 }
 
 export function localDateTimeMs(date: string, time: string): number {
@@ -79,8 +64,8 @@ export function assertBookingDate(date: string, now = new Date()): void {
 }
 
 export function assertBookingStartTime(startTime: string): void {
-  if (!isTimeString(startTime) || !isAllowedStartTime(startTime)) {
-    throw new AppError(400, 'startTime must be one of the available 60-minute Coach slots');
+  if (!isTimeString(startTime) || timeToMinutes(startTime) + COACH_BOOKING_DURATION_MINUTES >= 24 * 60) {
+    throw new AppError(400, 'startTime must be a valid 60-minute Coach slot');
   }
 }
 

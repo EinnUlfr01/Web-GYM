@@ -45,7 +45,7 @@ async function recreateDatabase(): Promise<void> {
   try {
     for (const batch of batches(body)) await pool.request().batch(batch);
     // schema.sql contains the profile table for local development. Remove it so
-    // migration 0010 is proven against the pre-migration shape in this DB only.
+    // the Coach migrations are proven against the pre-migration shape in this DB only.
     await pool.request().batch('DROP TABLE IF EXISTS dbo.CoachProfiles;');
     // The checked-in schema predates the Coach acceptance runtime's auth/workout
     // tables. Apply those Coach-owned migrations to make the isolated DB a real
@@ -66,8 +66,11 @@ async function recreateDatabase(): Promise<void> {
 
     const entries = (await fs.readdir(migrationDir)).filter(file => /^\d{4}_.+\.sql$/i.test(file)).sort();
     for (const filename of entries) {
-      if (filename.startsWith('0010_')) continue;
       const version = filename.slice(0, 4);
+      // Keep all Coach migrations pending for the normal migration runner. The
+      // foundation schema and 0006-0009 setup above are intentionally recorded;
+      // 0010+ must be applied so new Coach tables are actually created.
+      if (version >= '0010' && version < '0100') continue;
       const checksum = createHash('sha256').update(await fs.readFile(path.join(migrationDir, filename))).digest('hex');
       await pool.request()
         .input('version', sql.NVarChar(20), version)

@@ -4,6 +4,8 @@ import { authenticate, authorize } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { UserRole } from '../../types';
 import * as controller from './coach-workspace.controller';
+import * as availabilityController from '../coaches/coach-availability.controller';
+import { AVAILABILITY_EXCEPTION_TYPES, AVAILABILITY_MODES } from '../coaches/coach-availability.service';
 
 const router = Router();
 const id = z.object({ programId: z.coerce.number().int().positive() }).strict();
@@ -36,11 +38,44 @@ const coachProfile = z.object({
   location: z.string().trim().max(255).nullable().optional(),
   bookingEnabled: z.boolean().optional(),
 }).strict();
+const availabilityDateQuery = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).strict();
+const availabilityListQuery = z.object({ includeInactive: z.enum(['true', 'false']).optional().transform(value => value === 'true') }).strict();
+const ruleId = z.object({ ruleId: z.coerce.number().int().positive() }).strict();
+const exceptionId = z.object({ exceptionId: z.coerce.number().int().positive() }).strict();
+const ruleInput = z.object({
+  weekday: z.coerce.number().int().min(1).max(7),
+  startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  endTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  mode: z.enum(AVAILABILITY_MODES),
+  location: z.string().trim().max(255).nullable().optional(),
+  isActive: z.boolean().optional(),
+}).strict();
+const rulePatch = ruleInput.partial();
+const exceptionInput = z.object({
+  exceptionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  exceptionType: z.enum(AVAILABILITY_EXCEPTION_TYPES),
+  startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  endTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  mode: z.enum(AVAILABILITY_MODES).nullable().optional(),
+  location: z.string().trim().max(255).nullable().optional(),
+  note: z.string().trim().max(1000).nullable().optional(),
+  isActive: z.boolean().optional(),
+}).strict();
+const exceptionPatch = exceptionInput.partial();
 
 router.use(authenticate, authorize(UserRole.COACH));
 router.get('/dashboard', controller.getDashboard);
 router.get('/profile', controller.getSelfProfile);
 router.patch('/profile', validate(coachProfile), controller.updateSelfProfile);
+router.get('/availability', validate(availabilityDateQuery, 'query'), availabilityController.getSelfAvailability);
+router.get('/availability/rules', validate(availabilityListQuery, 'query'), availabilityController.listRules);
+router.post('/availability/rules', validate(ruleInput), availabilityController.createRule);
+router.patch('/availability/rules/:ruleId', validate(ruleId, 'params'), validate(rulePatch), availabilityController.updateRule);
+router.delete('/availability/rules/:ruleId', validate(ruleId, 'params'), availabilityController.deleteRule);
+router.get('/availability/exceptions', validate(availabilityListQuery, 'query'), availabilityController.listExceptions);
+router.post('/availability/exceptions', validate(exceptionInput), availabilityController.createException);
+router.patch('/availability/exceptions/:exceptionId', validate(exceptionId, 'params'), validate(exceptionPatch), availabilityController.updateException);
+router.delete('/availability/exceptions/:exceptionId', validate(exceptionId, 'params'), availabilityController.deleteException);
 router.get('/exercises', validate(exerciseList, 'query'), controller.listExercises);
 router.get('/exercises/:exerciseId', validate(z.object({ exerciseId: z.coerce.number().int().positive() }).strict(), 'params'), controller.getExercise);
 router.get('/workout-programs', validate(list, 'query'), controller.listPrograms);
