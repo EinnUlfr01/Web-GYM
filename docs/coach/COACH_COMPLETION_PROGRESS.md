@@ -1,5 +1,49 @@
 # Coach1 Completion Progress
 
+## Phase 25 - Workout Program Versioning database/backend
+
+Status: PASS (migration, lifecycle API, Assignment pinning, security/concurrency acceptance and regression)
+
+- Added `db/migrations/0015_workout_program_versioning.sql` as an additive, idempotent extension of `WorkoutPrograms` with `root_program_id`, `version_number`, `lifecycle_status`, `published_at` and `cloned_from_program_id`. Legacy active rows already referenced by active/paused Assignments are backfilled as `PUBLISHED`; unassigned active rows become `DRAFT`; inactive rows become `ARCHIVED`. Migration `0015` was applied only to disposable databases and was never applied to the canonical database or migrations `0100`-`0111`.
+- New Programs start as `DRAFT` and are self-rooted inside the same serializable transaction. Because SQL Server cannot know an identity value before the insert, `root_program_id` remains nullable at the storage boundary while the service populates it immediately before commit; versioned rows returned by the Coach service always carry a root ID.
+- Added Coach-only `POST /api/coach/workout-programs/:programId/publish`, `POST /api/coach/workout-programs/:programId/clone-version` and `POST /api/coach/workout-programs/:programId/archive`. Clone performs a transactional deep copy of Days and Exercises, allocates a unique sequential version under serializable locking and never replaces an existing Assignment. Published and Archived structural mutations return `409 PROGRAM_VERSION_IMMUTABLE`.
+- All existing Program/Day/Exercise mutation paths now enforce Draft ownership. Assignment creation and Admin reassignment require an active Published version; `program_id` remains the exact selected version. Legacy Activate maps Archived to Draft, while Deactivate maps any non-Archived version to Archived without deleting history.
+- Updated Coach acceptance fixtures to publish Programs before Assignment and to assert Published immutability. Added `acceptance:coach-program-versioning` covering lifecycle transitions, deep-copy, Assignment version pinning, archive preservation, legacy mapping, RBAC/IDOR and concurrent clone version allocation.
+
+Database/runtime evidence:
+
+- Disposable fixtures: `GYMFIT_DB_COACH_ACCEPTANCE_PHASE25`, `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_PHASE25` and `GYMFIT_DB_COACH_E2E_FIX_PHASE25`.
+- The first migration attempt exposed a SQL Server batch-compilation issue (`ALTER TABLE ADD` followed by same-batch references); the transaction rolled back with no partial migration. `GO` batch boundaries were added, after which migration `0015` applied cleanly. A second `--through=0015` run reported `0 pending migrations` and `0 checksum mismatches`.
+- All three disposable databases were stopped/dropped after testing; exact backend processes were stopped. No canonical database was changed and no migration remained running.
+
+Tests:
+
+- `npm run build` (backend): PASS.
+- `npm run lint` (backend): PASS with 0 errors and 460 existing `no-explicit-any` warnings.
+- `npx tsc --noEmit` (frontend): PASS.
+- `npm run build` (frontend): PASS; existing large-chunk warning remains.
+- `npm run acceptance:coach-program-versioning`: PASS.
+- `npm run acceptance:coach-role`: PASS.
+- `npm run acceptance:admin-coach`: PASS.
+- `npm run acceptance:coach-member-e2e`: PASS.
+- `git diff --check`: PASS.
+
+Security/concurrency evidence:
+
+- Guest/Member/Admin cannot call Coach version routes; Coach B cannot read, edit or clone Coach A's Program. Assignment and Admin reassignment ownership remains actor-scoped.
+- Published metadata, Day, Exercise, delete and reorder mutations are blocked; Archived versions cannot be cloned; historical Days/Exercises and existing Assignment references remain readable.
+- Concurrent clone requests produced versions 3 and 4 exactly once each. Existing Assignment remained pinned to the source version while a new Assignment selected the Published clone. Admin concurrent reassignment retained one winner and one active scope.
+
+Known warnings/limitations:
+
+- Repository-wide ESLint `no-explicit-any` warnings and the frontend Vite large-chunk warning remain pre-existing; no Phase25 error was found.
+- Phase26 frontend lifecycle badges/editor lock has not started. The existing frontend still exposes legacy Activate/Deactivate labels until Phase26.
+
+Checkpoint:
+
+- Code commit: `54fe846 feat(coach): add immutable workout program version lifecycle`.
+- Phase26 is selected as `NOT_STARTED`; no Phase26 work was started in this phase.
+
 ## Phase 24 - In-app notification UI
 
 Status: PASS (implementation, API acceptance, browser QA and disposable cleanup; Phase 25 not started)

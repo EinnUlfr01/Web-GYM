@@ -1,11 +1,11 @@
 {
   "branch": "coach1",
-  "activePhase": "25",
+  "activePhase": "26",
   "activeStatus": "NOT_STARTED",
-  "lastCompletedPhase": "24",
-  "nextPhase": "25",
+  "lastCompletedPhase": "25",
+  "nextPhase": "26",
   "checkpointDate": "2026-08-05",
-  "lastCommit": "f4962ab feat(notifications): add coach and member notification UI",
+  "lastCommit": "54fe846 feat(coach): add immutable workout program version lifecycle",
   "blocker": null,
   "scopeGuard": {
     "marketplaceSellerExcluded": true,
@@ -14,5 +14,6 @@
     "migrationRunning": false
   },
   "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint committed in e496929.",
+  "phase25WorktreeChanges": "Phase 25 migration/backend/API/acceptance committed in 54fe846; documentation checkpoint committed separately after state update.",
   "safeToStartNextPhase": false
 }
