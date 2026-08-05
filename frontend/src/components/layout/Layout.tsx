@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Menu, Search } from 'lucide-react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import NotificationBell from '../notifications/NotificationBell';
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -101,6 +102,7 @@ export default function Layout() {
               <Search size={18} aria-hidden="true" />
               <span className="topbar-search-hint">Ctrl K</span>
             </button>
+            <NotificationBell />
             <span className="topbar-date">{new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
           </div>
         </header>

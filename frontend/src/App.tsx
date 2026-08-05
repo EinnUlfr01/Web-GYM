@@ -94,6 +94,7 @@ import SellerRevenuePage from './pages/seller/SellerRevenuePage';
 import AdminSettlementsPage from './pages/admin/AdminSettlementsPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
 import ReviewsPage from './pages/reviews/ReviewsPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
 import { MemberProgressExercisesPage, MemberProgressPage, MemberProgressSessionsPage, MemberWorkoutHomePage, MemberWorkoutProgramPage, MemberWorkoutScheduleDetailPage, MemberWorkoutSchedulePage, MemberWorkoutSessionDetailPage, MemberWorkoutSessionsPage } from './pages/workouts/MemberWorkoutPages';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
 
@@ -166,6 +167,7 @@ export default function App() {
           <Route path="/appointments" element={<AccessRoute path="/appointments"><AppointmentsPage /></AccessRoute>} />
           <Route path="/appointments/:bookingId" element={<AccessRoute path="/appointments"><AppointmentDetailPage /></AccessRoute>} />
           <Route path="/profile" element={<UserProfile />} />
+          <Route path="/notifications" element={<AccessRoute path="/notifications"><NotificationsPage /></AccessRoute>} />
           <Route path="/seller/apply" element={<AccessRoute path="/seller/apply"><SellerApplicationPage /></AccessRoute>} />
           <Route path="/seller" element={<AccessRoute path="/seller"><SellerFoundationPage /></AccessRoute>} />
           <Route path="/seller/shop" element={<AccessRoute path="/seller/shop"><SellerShopPage /></AccessRoute>} />
