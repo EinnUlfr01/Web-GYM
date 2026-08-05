@@ -26,6 +26,19 @@ Status: PASS (implementation, disposable migration and runtime acceptance)
 
 Checks: backend build PASS; `test:coach-booking-unit` PASS; targeted ESLint PASS with only existing acceptance `no-explicit-any` warnings; disposable `0010`/`0011` migration and Coach migration verification PASS; full `acceptance:coach-booking` PASS including availability, booking enforcement, concurrency, RBAC and IDOR cases. Disposable status also showed no checksum mismatch; its pre-existing generic post-migration probe lacks `ProductOptions` and is not used as the Coach verdict.
 
+## Phase 17 — Coach Availability UI and real-slot booking UX
+
+Status: PASS (implementation, frontend checks and browser QA)
+
+- Added the Coach-only `/coach/availability` page with recurring weekly windows, BLOCK/OPEN date exceptions, explicit save/delete actions, 14-day preview, loading/empty/error states and visible Coach timezone/mode/location data.
+- Added typed availability rule/exception/slot contracts and self-management API calls. Availability list calls use a no-cache request and normalize malformed empty list payloads to prevent a blank-screen render failure.
+- Added the Availability route to access policy, Coach Sidebar and Command Menu. The page aborts stale preview requests when the selected date changes and does not issue PATCH requests per keystroke.
+- Reworked public Member booking to consume database-generated `slots` and compatibility `available_slots`; it shows real mode/location/timezone data and refreshes availability after a 409 slot conflict. No hardcoded Coach slot list remains in the page.
+- Browser QA on the disposable Coach fixture verified Coach sign-in, Availability rule rendering, 14-day preview and real slots; Member sign-in verified Coach discovery and booking slots with mode/location; an unauthenticated request to `/coach/availability` redirected to login. A temporary local browser harness stubbed only the unrelated Marketplace cart bootstrap dependency; it was removed after QA and no Marketplace source/migration was changed.
+- No migration was created or applied in this phase. The Phase 16 `0011` availability migration remains the database dependency.
+
+Checks: frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; `git diff --check` PASS. Temporary API/Vite/browser processes and disposable database `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_PHASE17_BROWSER` were stopped/dropped. No Marketplace/Seller source or migrations `0100`–`0111` changed.
+
 ## Scope guard
 
 - Target branch: `coach1`

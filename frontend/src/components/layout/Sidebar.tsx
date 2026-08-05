@@ -25,6 +25,7 @@ const member: NavItem[] = [
 const coach: NavItem[] = [
   { to: '/coach', label: 'Tổng quan Coach', icon: LayoutDashboard },
   { to: '/coach/profile', label: 'Hồ sơ Coach', icon: UserCircle },
+  { to: '/coach/availability', label: 'Availability', icon: CalendarClock },
   { to: '/coach/appointments', label: 'Lịch hẹn học viên', icon: Calendar },
   { to: '/coach/exercises', label: 'Thư viện bài tập', icon: Dumbbell },
   { to: '/coach/workout-programs', label: 'Chương trình của tôi', icon: ClipboardList },

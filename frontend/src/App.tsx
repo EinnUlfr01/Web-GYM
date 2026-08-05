@@ -29,6 +29,7 @@ import CoachProgressPage from './pages/coaches/CoachProgressPage';
 import CoachListPage from './pages/coaches/CoachListPage';
 import CoachProfilePage from './pages/coaches/CoachProfilePage';
 import CoachSelfProfilePage from './pages/coaches/CoachSelfProfilePage';
+import CoachAvailabilityPage from './pages/coaches/CoachAvailabilityPage';
 import MembersPage from './pages/members/MembersPage';
 import ReferralPage from './pages/referral/ReferralPage';
 import CouponPage from './pages/coupon/CouponPage';
@@ -210,6 +211,7 @@ export default function App() {
           <Route path="/admin/products/:productId/variants" element={<AccessRoute path="/admin"><AdminProductVariantsPage /></AccessRoute>} />
           <Route path="/coach" element={<AccessRoute path="/coach"><CoachDashboard /></AccessRoute>} />
           <Route path="/coach/profile" element={<AccessRoute path="/coach/profile"><CoachSelfProfilePage /></AccessRoute>} />
+          <Route path="/coach/availability" element={<AccessRoute path="/coach/availability"><CoachAvailabilityPage /></AccessRoute>} />
           <Route path="/coach/appointments" element={<AccessRoute path="/coach/appointments"><CoachAppointmentsPage /></AccessRoute>} />
           <Route path="/coach/appointments/:bookingId" element={<AccessRoute path="/coach/appointments"><CoachAppointmentDetailPage /></AccessRoute>} />
           <Route path="/coach/sessions" element={<AccessRoute path="/coach/sessions"><Navigate to="/coach/members" replace /></AccessRoute>} />
