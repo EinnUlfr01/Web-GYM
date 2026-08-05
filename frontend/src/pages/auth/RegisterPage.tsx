@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { Dumbbell, Mail, Lock, Eye, EyeOff, User, Phone, AlertCircle, CheckCircle } from 'lucide-react';
+import { PENDING_PLAN_STORAGE_KEY } from '../../services/plans';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -112,7 +113,8 @@ export default function RegisterPage() {
     
     try {
       await register({email:formData.email,password:formData.password,name:`${formData.firstName} ${formData.lastName}`.trim(),phone:formData.phone});
-      navigate('/dashboard',{replace:true});
+      const pendingPlanId = sessionStorage.getItem(PENDING_PLAN_STORAGE_KEY);
+      navigate(pendingPlanId ? `/membership/checkout?plan_id=${encodeURIComponent(pendingPlanId)}` : '/dashboard',{replace:true});
     } catch (err:unknown) {
       const response=(err as {response?:{data?:{message?:string}}}).response;
       setError(response?.data?.message||'Registration failed. Please try again.');

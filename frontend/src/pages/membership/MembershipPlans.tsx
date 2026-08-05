@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Zap, Star, Crown, Shield, Users, Video, Dumbbell } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { getPlans, Plan } from '../../services/plans';
+import { Link, useNavigate } from 'react-router-dom';
+import { getPlans, Plan, PENDING_PLAN_STORAGE_KEY } from '../../services/plans';
+import { useAuthStore } from '../../stores/authStore';
 import Skeleton from '../../components/ui/skeleton';
 
 const iconMap = [Zap, Star, Crown] as const;
@@ -21,6 +22,8 @@ const comparisonFeatures = [
 ];
 
 export default function MembershipPlans() {
+  const navigate = useNavigate();
+  const user = useAuthStore(state => state.user);
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,18 @@ export default function MembershipPlans() {
 
   const plansToShow = plans.length > 0 ? plans : [];
   const popularIndex = plansToShow.length >= 2 ? 1 : -1;
+  const choosePlan = (planId: number) => {
+    if (user?.role === 'member') {
+      navigate(`/membership/checkout?plan_id=${planId}`);
+      return;
+    }
+    if (user) {
+      navigate('/access-denied');
+      return;
+    }
+    sessionStorage.setItem(PENDING_PLAN_STORAGE_KEY, String(planId));
+    navigate('/register');
+  };
 
   return (
     <div className="min-h-screen bg-[#020617] py-20">
@@ -53,6 +68,7 @@ export default function MembershipPlans() {
               Yearly <span className="ml-1 inline-flex items-center rounded-full bg-[#22c55e]/20 px-2 py-0.5 text-[10px] font-semibold text-[#22c55e]">Save 20%</span>
             </button>
           </div>
+          {user?.role === 'member' && <Link to="/membership/account" className="mt-5 inline-flex rounded-lg border border-[#334155] px-4 py-2 text-sm text-[#cbd5e1] hover:border-[#60a5fa] hover:text-white">Manage my membership</Link>}
         </motion.div>
 
         {/* Plans Grid */}
@@ -115,9 +131,9 @@ export default function MembershipPlans() {
                         <p className="text-xs text-[#22c55e] mt-1">${price.toFixed(0)}/year billed annually</p>
                       )}
                     </div>
-                    <Link to="/register" className={`block w-full rounded-lg py-3 text-center font-semibold transition-all ${isPopular ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'bg-[#1e293b] text-white hover:bg-[#2563eb]/20 border border-[#1e293b] hover:border-[#2563eb]/50'}`}>
+                    <button type="button" onClick={() => choosePlan(plan.id)} className={`block w-full rounded-lg py-3 text-center font-semibold transition-all ${isPopular ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'bg-[#1e293b] text-white hover:bg-[#2563eb]/20 border border-[#1e293b] hover:border-[#2563eb]/50'}`}>
                       {isPopular ? 'Start Free Trial' : 'Get Started'}
-                    </Link>
+                    </button>
                     <div className="mt-8 space-y-3">
                       {(Array.isArray(plan.features) ? plan.features : []).map((feature, j) => (
                         <div key={j} className="flex items-start gap-3">

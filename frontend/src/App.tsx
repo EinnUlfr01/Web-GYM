@@ -43,6 +43,7 @@ import BackupPage from './pages/backup/BackupPage';
 import RevenuePage from './pages/revenue/RevenuePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import MembershipPlans from './pages/membership/MembershipPlans';
+import MembershipAccountPage from './pages/membership/MembershipAccountPage';
 import VideoLibrary from './pages/video/VideoLibrary';
 import VideosPreviewPage from './pages/video/VideosPreviewPage';
 import CoachBooking from './pages/booking/CoachBooking';
@@ -143,6 +144,8 @@ export default function App() {
         {/* PROTECTED */}
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/membership/account" element={<AccessRoute path="/membership/account"><MembershipAccountPage /></AccessRoute>} />
+          <Route path="/membership/checkout" element={<AccessRoute path="/membership/checkout"><MembershipAccountPage /></AccessRoute>} />
           <Route path="/workouts" element={<AccessRoute path="/workouts"><MemberWorkoutHomePage /></AccessRoute>} />
           <Route path="/workouts/program" element={<AccessRoute path="/workouts"><MemberWorkoutProgramPage /></AccessRoute>} />
           <Route path="/workouts/schedule" element={<AccessRoute path="/workouts"><MemberWorkoutSchedulePage /></AccessRoute>} />

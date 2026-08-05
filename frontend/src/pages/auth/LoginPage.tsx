@@ -44,8 +44,10 @@ export default function LoginPage() {
     
     try {
       const current=await login(email,password);
-      const from=typeof location.state?.from?.pathname==='string'?location.state.from.pathname:'';
-      navigate(from&&from.startsWith('/')&&canAccess(current.role,from)?from:roleHome(current.role),{replace:true});
+      const fromPath=typeof location.state?.from?.pathname==='string'?location.state.from.pathname:'';
+      const fromSearch=typeof location.state?.from?.search==='string'?location.state.from.search:'';
+      const destination=fromPath&&fromPath.startsWith('/')&&canAccess(current.role,fromPath)?`${fromPath}${fromSearch}`:roleHome(current.role);
+      navigate(destination,{replace:true});
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Login failed. Please try again.';
       setError(msg);

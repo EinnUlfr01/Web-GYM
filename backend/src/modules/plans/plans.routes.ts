@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPlans, createPlan, updatePlan, deletePlan, subscribe, cancelMembership, getMyMembership } from './plans.controller';
+import { getPlans, createPlan, updatePlan, deletePlan, subscribe, confirmSubscriptionPayment, upgradeMembership, downgradeMembership, cancelMembership, getMyMembership } from './plans.controller';
 import { authenticate } from '../../middleware/auth';
 import { authorize } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
@@ -23,9 +23,16 @@ const subscribeSchema = z.object({
   plan_id: z.number().int().positive(),
 });
 
+const paymentConfirmationSchema = z.object({
+  payment_id: z.number().int().positive(),
+});
+
 router.get('/', getPlans);
 router.get('/my-membership', authenticate, authorize(UserRole.MEMBER), getMyMembership);
 router.post('/subscribe', authenticate, authorize(UserRole.MEMBER), validate(subscribeSchema), subscribe);
+router.post('/subscribe/confirm', authenticate, authorize(UserRole.MEMBER), validate(paymentConfirmationSchema), confirmSubscriptionPayment);
+router.post('/upgrade', authenticate, authorize(UserRole.MEMBER), validate(subscribeSchema), upgradeMembership);
+router.post('/downgrade', authenticate, authorize(UserRole.MEMBER), validate(subscribeSchema), downgradeMembership);
 router.post('/cancel', authenticate, authorize(UserRole.MEMBER), cancelMembership);
 
 router.post('/', authenticate, authorize(UserRole.ADMIN), validate(planSchema), createPlan);

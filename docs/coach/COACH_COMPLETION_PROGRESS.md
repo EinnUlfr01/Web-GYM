@@ -39,6 +39,19 @@ Status: PASS (implementation, frontend checks and browser QA)
 
 Checks: frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; `git diff --check` PASS. Temporary API/Vite/browser processes and disposable database `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_PHASE17_BROWSER` were stopped/dropped. No Marketplace/Seller source or migrations `0100`–`0111` changed.
 
+## Phase 18 â€” Membership purchase, simulated payment and plan lifecycle
+
+Status: PASS (implementation, disposable runtime acceptance and frontend checks)
+
+- Replaced the old subscribe flow that activated a Membership before payment. `POST /api/plans/subscribe` now creates only a `Payments.status='pending'` record with the schema-correct `Payments.method` column; `POST /api/plans/subscribe/confirm` performs explicit simulated confirmation before creating the active Membership.
+- Added transactional `upgrade` and `downgrade` endpoints. A pending plan change preserves the current active Membership; confirmation cancels the old record and creates exactly one new active record, retaining history and writing `AuditLogs` entries. Cancellation no longer references the non-existent `Memberships.updated_at` column.
+- Membership state responses normalize lifecycle to `PENDING_PAYMENT`, `ACTIVE`, `CANCELLED` or `EXPIRED`, include the scoped current Membership and pending Payment, and never trust a client-supplied amount or user ID. Member-only routes include `/my-membership`, `/subscribe`, `/subscribe/confirm`, `/upgrade`, `/downgrade` and `/cancel`.
+- Added typed frontend plan/lifecycle APIs, public plan intent storage for Guest registration return, login query-string preservation, Register return to `/membership/checkout`, and the Member-only `/membership/account`/`/membership/checkout` UI with pending confirmation, upgrade/downgrade and cancellation states.
+- Added `acceptance:coach-membership`. Disposable acceptance passed Guest/RBAC checks, no early activation, pending-payment uniqueness, confirmation idempotency, payment IDOR, upgrade/downgrade ordering, cancellation, audit coverage and concurrent subscribe/confirm races. The disposable database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE18` was dropped after testing.
+- A temporary browser harness stubbed only unrelated Marketplace cart bootstrap calls because the disposable Coach fixture does not provide that Marketplace state. It was removed; no Marketplace/Seller source or migration `0100`â€“`0111` changed. Direct membership API acceptance remains the Phase 18 runtime verdict.
+
+Checks: backend build PASS; backend lint PASS with 0 errors and the repository's existing `no-explicit-any` warnings; frontend `npx tsc --noEmit` PASS; frontend `npm run build` PASS with the existing large-chunk warning; `git diff --check` PASS. No Phase 18 migration was created or applied.
+
 ## Scope guard
 
 - Target branch: `coach1`
