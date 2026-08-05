@@ -82,3 +82,16 @@ Status: PASS (implementation and compile checks)
 - Member E2E acceptance now verifies an overdue schedule becomes `SKIPPED` without a Session.
 
 Checks: backend build PASS; targeted ESLint PASS; acceptance fixture compiles. Disposable execution remains part of integrated acceptance because the script requires an isolated Coach E2E database.
+
+## Phase 05 — Session completion integrity
+
+Status: PASS (implementation and compile checks)
+
+- `COMPLETE` now requires at least one Session Exercise and one completed Set with at least one measurement.
+- `ABANDON` remains valid for an empty/in-progress Session; not every target must be completed.
+- Session and Schedule updates now verify affected rows inside the existing serializable transaction.
+- Added stable error code `SESSION_HAS_NO_COMPLETED_WORK` on the 409 response.
+- Member UI disables Complete until completed measured work exists while retaining backend enforcement.
+- Member E2E acceptance now checks empty completion rejection.
+
+Checks: backend build PASS; targeted lint PASS; frontend typecheck/build PASS; booking unit PASS. Disposable Member E2E remains part of integrated acceptance.

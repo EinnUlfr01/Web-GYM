@@ -366,9 +366,28 @@ async function transitionSession(memberId: number, sessionId: number, nextStatus
     const row = current.recordset[0];
     if (!row) throw new AppError(404, 'Session not found');
     if (row.status !== 'IN_PROGRESS') throw new AppError(409, 'Session is already finished');
+    if (nextStatus === 'COMPLETED') {
+      const work = await new sql.Request(tx)
+        .input('sessionId', sql.Int, sessionId)
+        .query<{ exercise_count: number; completed_measurement_count: number }>(
+          `SELECT COUNT(DISTINCT se.id) AS exercise_count,
+                  COUNT(DISTINCT CASE WHEN sl.completed=1
+                    AND (sl.reps IS NOT NULL OR sl.weight_kg IS NOT NULL OR sl.duration_seconds IS NOT NULL OR sl.distance_meters IS NOT NULL)
+                    THEN sl.id END) AS completed_measurement_count
+           FROM dbo.MemberWorkoutSessionExercises se
+           LEFT JOIN dbo.MemberWorkoutSetLogs sl ON sl.session_exercise_id=se.id
+           WHERE se.session_id=@sessionId`,
+        );
+      const summary = work.recordset[0];
+      if (!summary || Number(summary.exercise_count) < 1 || Number(summary.completed_measurement_count) < 1) {
+        throw new AppError(409, 'Session has no completed work', 'SESSION_HAS_NO_COMPLETED_WORK');
+      }
+    }
     const scheduleStatus = nextStatus === 'COMPLETED' ? 'COMPLETED' : 'SKIPPED';
-    await new sql.Request(tx).input('sessionId', sql.Int, sessionId).input('status', sql.NVarChar(20), nextStatus).query(`UPDATE dbo.MemberWorkoutSessions SET status=@status,ended_at=SYSUTCDATETIME(),total_duration_seconds=DATEDIFF(SECOND,started_at,SYSUTCDATETIME()),updated_at=SYSUTCDATETIME() WHERE id=@sessionId AND status=N'IN_PROGRESS'`);
-    await new sql.Request(tx).input('scheduleId', sql.Int, Number(row.schedule_id)).input('scheduleStatus', sql.NVarChar(20), scheduleStatus).query(`UPDATE dbo.CoachProgramSchedules SET status=@scheduleStatus,updated_at=SYSUTCDATETIME() WHERE id=@scheduleId AND status=N'IN_PROGRESS'`);
+    const sessionUpdate = await new sql.Request(tx).input('sessionId', sql.Int, sessionId).input('status', sql.NVarChar(20), nextStatus).query(`UPDATE dbo.MemberWorkoutSessions SET status=@status,ended_at=SYSUTCDATETIME(),total_duration_seconds=DATEDIFF(SECOND,started_at,SYSUTCDATETIME()),updated_at=SYSUTCDATETIME() WHERE id=@sessionId AND status=N'IN_PROGRESS'`);
+    if (sessionUpdate.rowsAffected[0] !== 1) throw new AppError(409, 'Session state changed before transition');
+    const scheduleUpdate = await new sql.Request(tx).input('scheduleId', sql.Int, Number(row.schedule_id)).input('scheduleStatus', sql.NVarChar(20), scheduleStatus).query(`UPDATE dbo.CoachProgramSchedules SET status=@scheduleStatus,updated_at=SYSUTCDATETIME() WHERE id=@scheduleId AND status=N'IN_PROGRESS'`);
+    if (scheduleUpdate.rowsAffected[0] !== 1) throw new AppError(409, 'Schedule state changed before session transition');
     await tx.commit();
     return sessionPayload(memberId, sessionId);
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }
