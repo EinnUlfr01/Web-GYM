@@ -204,11 +204,22 @@ async function assertProgramExerciseOwner(coachId: number, programExerciseId: nu
 }
 
 export async function assertAssignment(coachId: number, assignmentId: number) {
-  const result = await query<{ id: number; member_id: number; program_id: number; schedule_timezone: string; status: string }>(
-    `SELECT a.id,a.member_id,a.program_id,a.schedule_timezone,a.status
+  const result = await query<{
+    id: number;
+    member_id: number;
+    program_id: number;
+    schedule_timezone: string;
+    status: string;
+    start_date: string | Date;
+    end_date: string | Date | null;
+    duration_weeks: number;
+  }>(
+    `SELECT a.id,a.member_id,a.program_id,a.schedule_timezone,a.status,a.start_date,a.end_date,
+            p.duration_weeks
      FROM dbo.CoachProgramAssignments a
      JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
      JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+     JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
      WHERE a.id=@assignmentId AND a.coach_id=@coachId`,
     { coachId, assignmentId },
   );
@@ -454,16 +465,58 @@ export async function listSchedules(coachId: number, page: number, limit: number
   ]); return { items: rows.recordset, page, limit, total: Number(count.recordset[0].total), totalPages: Math.ceil(Number(count.recordset[0].total) / limit) };
 }
 
+const daysBetween = (from: string, to: string): number => {
+  const fromMs = new Date(`${from}T00:00:00Z`).getTime();
+  const toMs = new Date(`${to}T00:00:00Z`).getTime();
+  return Math.round((toMs - fromMs) / 86400000);
+};
+
 export async function generateSchedules(coachId: number, assignmentId: number, input: { fromDate?: string; horizonDays: number }) {
-  const assignment = await assertAssignment(coachId, assignmentId); if (assignment.status !== 'ACTIVE') throw new AppError(409, 'Only active assignments can generate schedules'); assertTimeZone(assignment.schedule_timezone);
-  const from = input.fromDate ? dateOnly(input.fromDate) : todayInTimeZone(assignment.schedule_timezone); const days = await query(`SELECT id,week_number,day_number FROM dbo.WorkoutProgramDays WHERE program_id=@programId ORDER BY week_number,day_number,sort_order`, { programId: assignment.program_id });
-  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE); let inserted = 0;
+  const assignment = await assertAssignment(coachId, assignmentId);
+  if (assignment.status !== 'ACTIVE') throw new AppError(409, 'Only active assignments can generate schedules');
+  assertTimeZone(assignment.schedule_timezone);
+
+  const assignmentStart = datePart(assignment.start_date);
+  const assignmentEnd = assignment.end_date ? datePart(assignment.end_date) : null;
+  const programEnd = Number(assignment.duration_weeks) > 0
+    ? addDays(assignmentStart, Number(assignment.duration_weeks) * 7 - 1)
+    : null;
+  const requestedFrom = input.fromDate ? dateOnly(input.fromDate) : todayInTimeZone(assignment.schedule_timezone);
+  const today = todayInTimeZone(assignment.schedule_timezone);
+  const from = [requestedFrom, assignmentStart, today].sort().at(-1)!;
+  const horizonEnd = addDays(from, input.horizonDays - 1);
+  const boundedEnd = [horizonEnd, assignmentEnd, programEnd].filter((value): value is string => Boolean(value)).sort()[0] ?? horizonEnd;
+  if (boundedEnd < from) throw new AppError(409, 'No schedule dates remain within assignment and program bounds');
+  const effectiveHorizonDays = daysBetween(from, boundedEnd) + 1;
+  const days = await query(`SELECT id,week_number,day_number FROM dbo.WorkoutProgramDays WHERE program_id=@programId ORDER BY week_number,day_number,sort_order`, { programId: assignment.program_id });
+  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE); let inserted = 0; let skipped = 0;
   try {
-    for (let offset = 0; offset < input.horizonDays; offset += 1) {
-      const scheduledDate = addDays(from, offset); const week = Math.floor(offset / 7) + 1; const dayNumber = mondayDay(scheduledDate); const day = days.recordset.find(row => Number(row.week_number) === week && Number(row.day_number) === dayNumber); if (!day) continue;
-      const result = await new sql.Request(tx).input('assignmentId', sql.Int, assignmentId).input('dayId', sql.Int, Number(day.id)).input('scheduledDate', sql.Date, scheduledDate).query(`IF NOT EXISTS (SELECT 1 FROM dbo.CoachProgramSchedules WITH (UPDLOCK,HOLDLOCK) WHERE assignment_id=@assignmentId AND program_day_id=@dayId AND scheduled_date=@scheduledDate) BEGIN INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date) VALUES(@assignmentId,@dayId,@scheduledDate); SELECT 1 AS inserted; END ELSE SELECT 0 AS inserted`); inserted += Number(result.recordset[0].inserted);
+    for (let offset = 0; offset < effectiveHorizonDays; offset += 1) {
+      const scheduledDate = addDays(from, offset);
+      const week = Math.floor(daysBetween(assignmentStart, scheduledDate) / 7) + 1;
+      const dayNumber = mondayDay(scheduledDate);
+      const day = days.recordset.find(row => Number(row.week_number) === week && Number(row.day_number) === dayNumber);
+      if (!day) { skipped += 1; continue; }
+      const result = await new sql.Request(tx)
+        .input('assignmentId', sql.Int, assignmentId)
+        .input('dayId', sql.Int, Number(day.id))
+        .input('scheduledDate', sql.Date, scheduledDate)
+        .query(`IF NOT EXISTS (SELECT 1 FROM dbo.CoachProgramSchedules WITH (UPDLOCK,HOLDLOCK) WHERE assignment_id=@assignmentId AND program_day_id=@dayId AND scheduled_date=@scheduledDate)
+                BEGIN INSERT dbo.CoachProgramSchedules(assignment_id,program_day_id,scheduled_date) VALUES(@assignmentId,@dayId,@scheduledDate); SELECT 1 AS inserted; END
+                ELSE SELECT 0 AS inserted`);
+      const wasInserted = Number(result.recordset[0].inserted);
+      inserted += wasInserted;
+      if (!wasInserted) skipped += 1;
     }
-    await tx.commit(); return { inserted, fromDate: from, horizonDays: input.horizonDays };
+    await tx.commit();
+    return {
+      inserted,
+      skipped,
+      requestedFromDate: requestedFrom,
+      fromDate: from,
+      toDate: boundedEnd,
+      horizonDays: effectiveHorizonDays,
+    };
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 

@@ -57,3 +57,15 @@ Status: PASS
 - No migration file was created or rewritten. Migrations `0100`–`0111` were not changed.
 
 The existing verification script already supplied the required Coach migration evidence, so no script change was necessary in this phase.
+
+## Phase 03 — Schedule date model and generation
+
+Status: PASS (implementation and compile checks)
+
+- Schedule generation now uses the assignment start date as the relative week anchor.
+- Requested generation dates are bounded by assignment start, current Coach timezone date, assignment end date and Program duration.
+- The response now includes requested/effective range, `toDate`, `horizonDays`, `inserted` and `skipped` counts.
+- Serializable generation and the existing `(assignment, program_day, scheduled_date)` idempotency guard remain in place.
+- The Coach role acceptance fixture now covers bounded range and supplemental generation preserving assignment-relative week numbers.
+
+Checks: backend build PASS; targeted ESLint PASS with two existing `no-explicit-any` warnings in the acceptance script; booking unit PASS; frontend typecheck/build PASS after the Schedule DTO/UI update. Disposable acceptance execution remains part of the integrated acceptance run.

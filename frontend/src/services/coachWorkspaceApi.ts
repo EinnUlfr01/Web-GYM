@@ -29,7 +29,7 @@ export const createAssignment = async (body:Record<string,unknown>) => data<Coac
 export const getAssignment = async (id:number) => data<CoachAssignment>(await api.get(`${coach}/assignments/${id}`));
 export const transitionAssignment = async (id:number, action:'pause'|'resume'|'complete'|'cancel') => data<CoachAssignment>(await api.post(`${coach}/assignments/${id}/${action}`, {}));
 export const listSchedules = async (params:Record<string,unknown>) => page<CoachSchedule>(await api.get(`${coach}/schedules`, { params }));
-export const generateSchedules = async (id:number, body:Record<string,unknown>) => data<{inserted:number;fromDate:string;horizonDays:number}>(await api.post(`${coach}/assignments/${id}/schedules/generate`, body));
+export const generateSchedules = async (id:number, body:Record<string,unknown>) => data<{inserted:number;skipped:number;requestedFromDate:string;fromDate:string;toDate:string;horizonDays:number}>(await api.post(`${coach}/assignments/${id}/schedules/generate`, body));
 export const reschedule = async (id:number, scheduledDate:string) => data<CoachSchedule>(await api.post(`${coach}/schedules/${id}/reschedule`, { scheduledDate }));
 export const cancelSchedule = async (id:number) => data<CoachSchedule>(await api.post(`${coach}/schedules/${id}/cancel`, {}));
 export const listSessions = async (memberId:number, params:Record<string,unknown>) => page<CoachSessionHistoryItem>(await api.get(`${coach}/members/${memberId}/sessions`, { params }));
