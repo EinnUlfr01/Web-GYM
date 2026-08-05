@@ -37,3 +37,11 @@ Role, member E2E, Admin Coach and Booking acceptance scripts require isolated di
 ## Reporting convention
 
 Each subsequent phase records its status, changed files, database/API/frontend impact, RBAC/IDOR checks, concurrency checks, test evidence, risks and checkpoint commit here. A phase is not marked PASS until its required build/test/scope checks complete.
+
+## Phase 01 — Domain rules and ADR
+
+Status: PASS
+
+Added the canonical Coach domain contract and focused ADRs for Membership entitlement/quota, Availability and Program Versioning. The contract fixes Asia/Ho_Chi_Minh boundaries, reservation-based quota with no cancellation refund, explicit pending-payment confirmation, availability-versus-booking responsibilities, immutable snapshots, private context scope, notification limits and API error semantics.
+
+Runtime tests were not required for this documentation-only phase. `git diff --check` passed before checkpointing.
