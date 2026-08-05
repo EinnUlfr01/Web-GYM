@@ -1,7 +1,7 @@
 import api from '../api/axios';
 import type { CoachAssignment, CoachDashboardData, CoachExercise, CoachMember, CoachMemberDetail, CoachProgram, CoachProgramDay, CoachProgramExercise, CoachProgress, CoachSchedule, CoachSessionDetail, CoachSessionHistoryItem } from '../types/coachWorkspace';
 
-type Page<T> = { items:T[]; page:number; limit:number; total:number; totalPages:number };
+export type Page<T> = { items:T[]; page:number; limit:number; total:number; totalPages:number };
 const data = <T,>(response:{data:{data:T}}) => response.data.data;
 const page = <T,>(response:{data:{data:Page<T>}}) => response.data.data;
 const coach = '/coach';

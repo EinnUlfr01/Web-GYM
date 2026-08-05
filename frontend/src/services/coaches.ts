@@ -38,7 +38,7 @@ export interface CoachAvailability {
 
 interface ApiResponse<T> { data: T }
 export interface CoachPagination { page: number; limit: number; total: number; totalPages: number }
-export interface CoachListResult { coaches: Coach[]; pagination: CoachPagination }
+export interface CoachListResult { items: Coach[]; coaches: Coach[]; pagination: CoachPagination }
 
 export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }): Promise<CoachListResult> {
   const response = await api.get<ApiResponse<CoachListResult>>('/coaches', { params });

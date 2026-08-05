@@ -577,17 +577,46 @@ export async function cancelSchedule(coachId: number, scheduleId: number) {
 }
 
 export async function listSessions(coachId: number, memberId: number, page: number, limit: number) {
-  await assertMemberScope(coachId, memberId); const params = { coachId, memberId };
-  const [legacy, member] = await Promise.all([
-    query(`SELECT ws.id,ws.user_id AS member_id,ws.workout_id,ws.started_at,ws.completed_at,ws.status,ws.notes,w.name AS workout_name,w.description AS workout_description FROM dbo.WorkoutSessions ws JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId WHERE ws.user_id=@memberId`, params),
-    query(`SELECT ms.id,ms.member_id,CAST(NULL AS INT) AS workout_id,ms.assignment_id,ms.schedule_id,ms.started_at,ms.ended_at AS completed_at,ms.status,ms.note AS notes,p.name AS workout_name,p.description AS workout_description,
-                  (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
-                  (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count
-           FROM dbo.MemberWorkoutSessions ms JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId JOIN dbo.WorkoutPrograms p ON p.id=a.program_id WHERE ms.member_id=@memberId`, params),
+  await assertMemberScope(coachId, memberId);
+  const params = { coachId, memberId, offset: (page - 1) * limit, limit };
+  const sessionRows = `
+    WITH session_rows AS (
+      SELECT ws.id,ws.user_id AS member_id,ws.workout_id,
+             CAST(NULL AS INT) AS assignment_id,CAST(NULL AS INT) AS schedule_id,
+             ws.started_at,ws.completed_at,ws.status,ws.notes,
+             w.name AS workout_name,w.description AS workout_description,
+             CAST(NULL AS INT) AS set_count,CAST(NULL AS INT) AS completed_set_count,
+             CAST(N'legacy' AS NVARCHAR(10)) AS source
+      FROM dbo.WorkoutSessions ws
+      JOIN dbo.Workouts w ON w.id=ws.workout_id AND w.coach_id=@coachId
+      WHERE ws.user_id=@memberId
+      UNION ALL
+      SELECT ms.id,ms.member_id,CAST(NULL AS INT) AS workout_id,
+             ms.assignment_id,ms.schedule_id,ms.started_at,ms.ended_at AS completed_at,
+             ms.status,ms.note AS notes,p.name AS workout_name,p.description AS workout_description,
+             (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id) AS set_count,
+             (SELECT COUNT(*) FROM dbo.MemberWorkoutSetLogs sl JOIN dbo.MemberWorkoutSessionExercises se ON se.id=sl.session_exercise_id WHERE se.session_id=ms.id AND sl.completed=1) AS completed_set_count,
+             CAST(N'member' AS NVARCHAR(10)) AS source
+      FROM dbo.MemberWorkoutSessions ms
+      JOIN dbo.CoachProgramAssignments a ON a.id=ms.assignment_id AND a.coach_id=@coachId
+      JOIN dbo.WorkoutPrograms p ON p.id=a.program_id
+      WHERE ms.member_id=@memberId
+    )`;
+  const [rows, count] = await Promise.all([
+    query(`${sessionRows}
+      SELECT * FROM session_rows
+      ORDER BY started_at DESC,id DESC
+      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`, params),
+    query(`${sessionRows} SELECT COUNT(*) AS total FROM session_rows`, { coachId, memberId }),
   ]);
-  const items = [...legacy.recordset.map(row => ({ ...row, source: 'legacy' as const, setSummary: null, blockedReason: 'LEGACY_SESSION_NO_MEMBER_SET_LOGS' })), ...member.recordset.map(row => ({ ...row, source: 'member' as const, setSummary: { total: Number(row.set_count), completed: Number(row.completed_set_count) }, blockedReason: null }))].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime() || Number(b.id) - Number(a.id));
-  const total = items.length; const start = (page - 1) * limit;
-  return { items: items.slice(start, start + limit), page, limit, total, totalPages: Math.ceil(total / limit) };
+  const items = rows.recordset.map(row => ({
+    ...row,
+    source: row.source === 'legacy' ? 'legacy' as const : 'member' as const,
+    setSummary: row.source === 'member' ? { total: Number(row.set_count), completed: Number(row.completed_set_count) } : null,
+    blockedReason: row.source === 'legacy' ? 'LEGACY_SESSION_NO_MEMBER_SET_LOGS' : null,
+  }));
+  const total = Number(count.recordset[0]?.total ?? 0);
+  return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getSession(coachId: number, memberId: number, sessionId: number, source?: CoachSessionSource) {

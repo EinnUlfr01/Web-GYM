@@ -96,8 +96,10 @@ export async function getCoaches(req: Request, res: Response, next: NextFunction
       rawSearch ? { search: `%${rawSearch}%` } : undefined,
     );
     const total = Number(count.recordset[0]?.total ?? 0);
+    const coaches = result.recordset.map(mapCoach);
     sendSuccess(res, {
-      coaches: result.recordset.map(mapCoach),
+      items: coaches,
+      coaches,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

@@ -118,6 +118,19 @@ Status: PASS (implementation and compile checks)
 
 Checks: backend build PASS; targeted ESLint PASS with two pre-existing `no-explicit-any` warnings in `coach-role-acceptance.ts`; frontend typecheck/build PASS; booking unit PASS. No migration was created.
 
+## Phase 11 — Server-side pagination foundation
+
+Status: PASS (implementation and compile checks)
+
+- Coach Workspace `listSessions` now performs the legacy/member `UNION ALL`, ordering, count and `OFFSET/FETCH` in SQL Server. It no longer loads both complete histories and slices them in memory.
+- Session rows retain the source discriminator, set summary and legacy blocked reason while using the same `{items,page,limit,total,totalPages}` contract as the other Coach Workspace lists.
+- Public Coach list now exposes normalized `items` while preserving the existing `coaches` alias and pagination metadata for current callers.
+- Added a reusable frontend pagination control and wired Coach Programs, Exercise Library, Members, Assignments, Schedules, Sessions and Admin Workout Governance to server page/filter state. Search/filter changes reset to page 1 and list views no longer request 50 records as an implicit full fetch.
+- Admin Coach and Admin Exercise services were already SQL-paginated and were kept compatible; no migration or query index was added without Phase 28 query-plan evidence.
+- Scope review: no Marketplace/Seller source or migration `0100`–`0111` changed.
+
+Checks: backend build PASS; backend lint PASS with the existing 452 `no-explicit-any` warnings and zero errors; `test:coach-booking-unit` PASS; frontend typecheck PASS; frontend build PASS with the existing large-chunk warning. Disposable list fixtures with more than one page remain part of the integrated acceptance run.
+
 ## Phase 09 — Program Builder integrity and save semantics
 
 Status: PASS (implementation and compile checks)
