@@ -51,6 +51,7 @@
     "acceptance:coach-member-context": "tsx src/scripts/coach-member-context-acceptance.ts",
     "acceptance:coach-notifications": "tsx src/scripts/coach-notification-acceptance.ts",
     "acceptance:coach-program-versioning": "tsx src/scripts/coach-program-versioning-acceptance.ts",
+    "acceptance:coach-completion-security": "tsx src/scripts/coach-completion-security-acceptance.ts",
     "integrity:regression-03": "tsx src/scripts/regression-03-product-integrity.ts",
     "integrity:regression-04": "tsx src/scripts/regression-04-seller-integrity.ts",
     "images:repair": "tsx src/scripts/repair-product-images.ts",
