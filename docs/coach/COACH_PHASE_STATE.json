@@ -1,11 +1,11 @@
 {
   "branch": "coach1",
-  "activePhase": "26",
+  "activePhase": "27",
   "activeStatus": "NOT_STARTED",
-  "lastCompletedPhase": "25",
-  "nextPhase": "26",
-  "checkpointDate": "2026-08-05",
-  "lastCommit": "54fe846 feat(coach): add immutable workout program version lifecycle",
+  "lastCompletedPhase": "26",
+  "nextPhase": "27",
+  "checkpointDate": "2026-08-06",
+  "lastCommit": "65d4455 feat(coach): expose workout program version lifecycle in UI",
   "blocker": null,
   "scopeGuard": {
     "marketplaceSellerExcluded": true,
@@ -15,5 +15,6 @@
   },
   "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint committed in e496929.",
   "phase25WorktreeChanges": "Phase 25 migration/backend/API/acceptance committed in 54fe846; documentation checkpoint committed separately after state update.",
+  "phase26WorktreeChanges": "Phase 26 frontend lifecycle UI/type/API changes committed in 65d4455. Browser QA passed through a temporary disposable-only origin-normalizing proxy; disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806 was dropped, exact QA processes were stopped, browser tabs were finalized, canonicalDatabaseChanged=false. Documentation checkpoint is committed separately after this state update.",
   "safeToStartNextPhase": false
 }

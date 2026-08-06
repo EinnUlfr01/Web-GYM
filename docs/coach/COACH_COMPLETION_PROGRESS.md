@@ -1,5 +1,34 @@
 # Coach1 Completion Progress
 
+## Phase 26 - Workout Program Versioning frontend
+
+Status: PASS (frontend lifecycle UI, browser QA, API acceptance and disposable cleanup)
+
+- Branch was verified as `coach1`. Changes are limited to the five planned frontend files for lifecycle metadata/actions, read-only Published/Archived editing, version links and Published/Active Assignment selection. No backend production file, migration or Marketplace/Seller file was changed.
+- The Assignment selector includes a compatibility fallback for legacy rows without `lifecycle_status`; the backend remains authoritative and only active Published versions can be assigned.
+- The earlier browser failure was isolated to the QA harness: the browser-origin `Origin: http://127.0.0.1:51230` reached the disposable backend, whose default CORS allow-list rejected it and returned `Internal Server Error`. A temporary proxy outside the repository stripped only browser-origin headers and returned an empty Cart fixture response; it did not alter production code, credentials, tokens or the canonical database.
+- A clean in-app browser session then authenticated against the disposable Coach fixture and verified the lifecycle list, Draft/Published/Archived badges, version links, Clone Version, Publish, Archive, read-only Published/Archived editor controls and the Assignment selector. Published and Archived inputs/actions were disabled; Draft controls were enabled; the selector exposed only the Published version.
+- Guest protection was verified by logout followed by navigation to `/coach/workout-programs`, which redirected to `/login`. Browser console error collection was empty for the successful run.
+- Responsive QA passed at `375x812`, `768x1024` and `1440x900`; document/body widths stayed within the viewport and lifecycle content remained visible. No horizontal overflow was observed.
+- Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806` was migrated through `0015`, used for browser/API QA, then dropped. The canonical database was not changed, no migration remained running, and the exact backend/Vite/proxy QA processes and browser tabs were stopped/finalized.
+
+Commands/evidence:
+
+- `frontend: npx tsc --noEmit`: PASS.
+- `frontend: npm run build`: PASS with the existing Vite large-chunk warning.
+- `backend: npm run build`: PASS.
+- `backend: npm run lint`: PASS, 0 errors and 460 existing `no-explicit-any` warnings.
+- `backend: npm run acceptance:coach-program-versioning`: PASS on the disposable Phase 26 database after the browser lifecycle actions; RBAC/IDOR, immutability, Assignment pinning, deep-copy and concurrent clone checks all passed.
+- Browser QA: login, lifecycle actions, read-only controls, Assignment filtering, guest redirect and three viewport/overflow checks: PASS.
+- `git diff --check`: PASS before checkpoint commit.
+
+Transition:
+
+- Phase 26 is complete. Phase 27 is selected as `NOT_STARTED` and was not started in this checkpoint.
+- Known warnings are unchanged: repository-wide ESLint `no-explicit-any` warnings, Vite large-chunk warning and existing React Router future-flag notices. None is a Phase 26 failure.
+- Checkpoint code commit: `65d4455 feat(coach): expose workout program version lifecycle in UI`.
+- Documentation checkpoint commit is created separately immediately after this state update; Phase 27 remains stopped.
+
 ## Phase 25 - Workout Program Versioning database/backend
 
 Status: PASS (migration, lifecycle API, Assignment pinning, security/concurrency acceptance and regression)
