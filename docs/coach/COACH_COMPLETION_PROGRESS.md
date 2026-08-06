@@ -27,7 +27,7 @@ Transition:
 - Phase 26 is complete. Phase 27 is selected as `NOT_STARTED` and was not started in this checkpoint.
 - Known warnings are unchanged: repository-wide ESLint `no-explicit-any` warnings, Vite large-chunk warning and existing React Router future-flag notices. None is a Phase 26 failure.
 - Checkpoint code commit: `65d4455 feat(coach): expose workout program version lifecycle in UI`.
-- Documentation checkpoint commit is created separately immediately after this state update; Phase 27 remains stopped.
+- Documentation checkpoint commit: `4081bd8 docs(coach): checkpoint phase 26`; Phase 27 remains stopped.
 
 ## Phase 25 - Workout Program Versioning database/backend
 

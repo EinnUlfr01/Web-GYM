@@ -15,6 +15,6 @@
   },
   "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint committed in e496929.",
   "phase25WorktreeChanges": "Phase 25 migration/backend/API/acceptance committed in 54fe846; documentation checkpoint committed separately after state update.",
-  "phase26WorktreeChanges": "Phase 26 frontend lifecycle UI/type/API changes committed in 65d4455. Browser QA passed through a temporary disposable-only origin-normalizing proxy; disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806 was dropped, exact QA processes were stopped, browser tabs were finalized, canonicalDatabaseChanged=false. Documentation checkpoint is committed separately after this state update.",
+  "phase26WorktreeChanges": "Phase 26 frontend lifecycle UI/type/API changes committed in 65d4455; documentation checkpoint committed in 4081bd8. Browser QA passed through a temporary disposable-only origin-normalizing proxy; disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806 was dropped, exact QA processes were stopped, browser tabs were finalized, canonicalDatabaseChanged=false.",
   "safeToStartNextPhase": false
 }
