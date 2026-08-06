@@ -1,11 +1,11 @@
 {
   "branch": "coach1",
-  "activePhase": "27",
+  "activePhase": "28",
   "activeStatus": "NOT_STARTED",
-  "lastCompletedPhase": "26",
-  "nextPhase": "27",
+  "lastCompletedPhase": "27",
+  "nextPhase": "28",
   "checkpointDate": "2026-08-06",
-  "lastCommit": "65d4455 feat(coach): expose workout program version lifecycle in UI",
+  "lastCommit": "414366a test(coach): add completion security and concurrency acceptance",
   "blocker": null,
   "scopeGuard": {
     "marketplaceSellerExcluded": true,
@@ -16,5 +16,6 @@
   "phase24WorktreeChanges": "Phase 24 frontend code committed in f4962ab; documentation checkpoint committed in e496929.",
   "phase25WorktreeChanges": "Phase 25 migration/backend/API/acceptance committed in 54fe846; documentation checkpoint committed separately after state update.",
   "phase26WorktreeChanges": "Phase 26 frontend lifecycle UI/type/API changes committed in 65d4455; documentation checkpoint committed in 4081bd8. Browser QA passed through a temporary disposable-only origin-normalizing proxy; disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806 was dropped, exact QA processes were stopped, browser tabs were finalized, canonicalDatabaseChanged=false.",
+  "phase27WorktreeChanges": "Phase 27 completion security/concurrency acceptance script and npm command committed in 414366a; documentation checkpoint committed separately after state update. Four disposable databases and QA processes were cleaned up; canonicalDatabaseChanged=false and migrationRunning=false.",
   "safeToStartNextPhase": false
 }

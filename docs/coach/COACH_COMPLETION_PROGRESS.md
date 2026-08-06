@@ -1,5 +1,49 @@
 # Coach1 Completion Progress
 
+## Phase 27 - Security, IDOR and concurrency hardening
+
+Status: PASS (completion security acceptance, Coach regression matrix, build/lint/typecheck and disposable cleanup)
+
+- Branch was verified as `coach1` before and after execution. Phase 27 created only the isolated completion acceptance script and its package command. No production Coach route/service was changed, no migration was created, and no Marketplace/Seller source or migration `0100`-`0111` was modified.
+- Added `backend/src/scripts/coach-completion-security-acceptance.ts` and `acceptance:coach-completion-security`. The fixture uses six actors: Guest, Member A/B/C, Coach A/B and Admin. It exercises public/private RBAC, Coach ownership, body identity spoofing, source-aware Session identity, private Member context, notification recipient scope and Membership/quota boundaries.
+- The first fixture run exposed an empty disposable `Exercises` catalog. The acceptance fixture now seeds and cleans up a dedicated active Exercise rather than relying on unrelated catalog data. A schedule-race fixture initially targeted a date with no matching Program Day; the fixture now adds a week-four race Day and verifies the real assignment-relative generation race at `today+21`.
+- Final completion acceptance passed all checks: Guest public access/private denial; Member/Coach/Admin route RBAC; cross-Coach Program/Availability/Assignment/Member/Context/Booking/Notification/Session IDOR; client `memberId` and `owner_coach_id` spoof rejection; slot/quota serialization; notification deduplication; Session completion and terminal Set immutability; idempotent Schedule generation; conditional Assignment transition; transactional Publish/Clone; and concurrent Admin reassignment with one authoritative owner.
+
+Runtime acceptance evidence:
+
+- `npm run acceptance:coach-completion-security`: PASS on `GYMFIT_DB_COACH_ACCEPTANCE_PHASE27_20260806`.
+- `npm run acceptance:coach-role`: PASS on the same disposable Coach database.
+- `npm run acceptance:coach-booking-quota`: PASS, including Starter/Pro/Elite, cancellation no-refund, month boundary and concurrent last-quota requests.
+- `npm run acceptance:coach-membership`: PASS, including pending payment, confirmation, upgrade/downgrade/cancel, audit and concurrent activation.
+- `npm run acceptance:coach-entitlement`: PASS; structured entitlement constraints and typed Plan response verified.
+- `npm run acceptance:coach-member-context`: PASS; previous Coach read-only/new Coach isolated scope and optimistic conflict verified.
+- `npm run acceptance:coach-notifications`: PASS; self-scope, read lifecycle, triggers and concurrent deduplication verified.
+- `npm run acceptance:coach-program-versioning`: PASS; Published immutability, deep clone, Assignment pinning and concurrent version allocation verified.
+- `npm run acceptance:admin-coach`: PASS on `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_PHASE27_20260806`.
+- `npm run acceptance:coach-member-e2e`: PASS on `GYMFIT_DB_COACH_E2E_FIX_PHASE27_20260806`.
+- `npm run acceptance:coach-booking`: PASS on `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_PHASE27_20260806`.
+- `npm run test:coach-booking-unit`: PASS.
+
+Build and scope evidence:
+
+- Backend `npm run build`: PASS.
+- Backend `npm run lint`: PASS with 0 errors and 460 existing `no-explicit-any` warnings.
+- Frontend `npx tsc --noEmit`: PASS.
+- Frontend `npm run build`: PASS with the existing Vite large-chunk warning.
+- `git diff --check`: PASS; only the existing package/script line-ending normalization warning was reported by Git.
+- Four disposable databases were stopped and dropped exactly by name. Backend fixture PIDs on ports `51227`, `51228`, `51229` and `51230` were stopped and verified absent. No canonical database was changed and no migration was left running.
+
+Known warnings/limitations:
+
+- Repository-wide ESLint `no-explicit-any` warnings, Vite large-chunk warning and existing React Router future-flag notices remain; none is a Phase 27 failure.
+- Phase 27 does not add browser UI behavior; frontend verification here is typecheck/build. Final browser QA remains part of Phase 29.
+
+Transition:
+
+- Phase 27 is complete. Phase 28 is selected as `NOT_STARTED`; it was not started in this checkpoint.
+- Code checkpoint commit: `414366a test(coach): add completion security and concurrency acceptance`.
+- Documentation checkpoint commit: `docs(coach): checkpoint phase 27`.
+
 ## Phase 26 - Workout Program Versioning frontend
 
 Status: PASS (frontend lifecycle UI, browser QA, API acceptance and disposable cleanup)
