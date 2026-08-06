@@ -14,6 +14,9 @@ export const getProgram = async (id:number) => data<CoachProgram>(await api.get(
 export const updateProgram = async (id:number, body:Record<string,unknown>) => data<CoachProgram>(await api.patch(`${coach}/workout-programs/${id}`, body));
 export const activateProgram = async (id:number) => data<CoachProgram>(await api.post(`${coach}/workout-programs/${id}/activate`, {}));
 export const deactivateProgram = async (id:number) => data<CoachProgram>(await api.post(`${coach}/workout-programs/${id}/deactivate`, {}));
+export const publishProgram = async (id:number) => data<CoachProgram>(await api.post(`${coach}/workout-programs/${id}/publish`, {}));
+export const cloneProgramVersion = async (id:number) => data<CoachProgram>(await api.post(`${coach}/workout-programs/${id}/clone-version`, {}));
+export const archiveProgram = async (id:number) => data<CoachProgram>(await api.post(`${coach}/workout-programs/${id}/archive`, {}));
 export const createDay = async (programId:number, body:Record<string,unknown>) => data<CoachProgramDay>(await api.post(`${coach}/workout-programs/${programId}/days`, body));
 export const updateDay = async (dayId:number, body:Record<string,unknown>) => data<CoachProgramDay>(await api.patch(`${coach}/workout-program-days/${dayId}`, body));
 export const deleteDay = async (dayId:number) => api.delete(`${coach}/workout-program-days/${dayId}`);
