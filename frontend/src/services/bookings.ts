@@ -28,6 +28,7 @@ export interface CreateBookingPayload {
 interface ApiResponse<T> { data: T }
 interface BookingListResponse { data: Booking[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }
 export interface BookingQuery { status?: BookingStatus | BookingStatus[]; fromDate?: string; toDate?: string; page?: number; limit?: number }
+export interface RequestOptions { signal?: AbortSignal }
 export interface BookingPage { items: Booking[]; page: number; limit: number; total: number; totalPages: number }
 export interface BookingSummary { total: number; pending: number; confirmed: number; completed: number; cancelled: number; no_show: number; upcoming: number; today: number; asOfDate: string; timezone: string }
 export interface CoachBookingQuota { included: boolean; monthlyLimit: number | null; used: number; remaining: number | null; bookingMonth: string; timezone: string; reason?: 'COACH_BOOKING_NOT_INCLUDED' }
@@ -42,18 +43,18 @@ function queryParams(params?: BookingQuery): Record<string, unknown> | undefined
   return { ...params, status: Array.isArray(params.status) ? params.status.join(',') : params.status };
 }
 
-export async function getBookingsPage(params?: BookingQuery): Promise<BookingPage> {
-  const response = await api.get<BookingListResponse>('/bookings', { params: queryParams(params) });
+export async function getBookingsPage(params?: BookingQuery, options?: RequestOptions): Promise<BookingPage> {
+  const response = await api.get<BookingListResponse>('/bookings', { params: queryParams(params), ...(options?.signal ? { signal: options.signal } : {}) });
   const pagination = response.data.pagination ?? { page: params?.page ?? 1, limit: params?.limit ?? response.data.data.length, total: response.data.data.length, totalPages: response.data.data.length ? 1 : 0 };
   return { items: response.data.data, ...pagination };
 }
 
-export async function getMyBookings(params?: BookingQuery): Promise<Booking[]> {
-  return (await getBookingsPage(params)).items;
+export async function getMyBookings(params?: BookingQuery, options?: RequestOptions): Promise<Booking[]> {
+  return (await getBookingsPage(params, options)).items;
 }
 
-export async function getBookingSummary(params?: Pick<BookingQuery, 'fromDate' | 'toDate'>): Promise<BookingSummary> {
-  const response = await api.get<ApiResponse<BookingSummary>>('/bookings/summary', { params });
+export async function getBookingSummary(params?: Pick<BookingQuery, 'fromDate' | 'toDate'>, options?: RequestOptions): Promise<BookingSummary> {
+  const response = await api.get<ApiResponse<BookingSummary>>('/bookings/summary', { params, ...(options?.signal ? { signal: options.signal } : {}) });
   return response.data.data;
 }
 
@@ -71,8 +72,8 @@ export async function cancelMyBooking(id: number | string): Promise<Booking> {
   return updateBookingStatus(id, 'cancelled');
 }
 
-export async function getCoachAppointmentsPage(params?: BookingQuery): Promise<BookingPage> {
-  return getBookingsPage(params);
+export async function getCoachAppointmentsPage(params?: BookingQuery, options?: RequestOptions): Promise<BookingPage> {
+  return getBookingsPage(params, options);
 }
 
 export async function getCoachBookingQuota(date?: string): Promise<CoachBookingQuota> {
@@ -80,8 +81,8 @@ export async function getCoachBookingQuota(date?: string): Promise<CoachBookingQ
   return response.data.data;
 }
 
-export async function getCoachAppointments(params?: BookingQuery): Promise<Booking[]> {
-  return (await getCoachAppointmentsPage(params)).items;
+export async function getCoachAppointments(params?: BookingQuery, options?: RequestOptions): Promise<Booking[]> {
+  return (await getCoachAppointmentsPage(params, options)).items;
 }
 
 export async function confirmBooking(id: number | string): Promise<Booking> {

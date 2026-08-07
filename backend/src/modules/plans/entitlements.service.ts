@@ -69,9 +69,21 @@ export function normalizeEntitlements(value: unknown): PlanEntitlementInput[] {
 
 export async function listPlanEntitlements(planIds?: number[]): Promise<Map<number, PlanEntitlement[]>> {
   try {
+    const normalizedIds = planIds === undefined
+      ? undefined
+      : [...new Set(planIds.map(Number).filter(value => Number.isSafeInteger(value) && value > 0))];
+    if (normalizedIds && normalizedIds.length === 0) return new Map();
+    const params: Record<string, unknown> = {};
+    const filter = normalizedIds
+      ? ` WHERE plan_id IN (${normalizedIds.map((planId, index) => {
+        const parameter = `planId${index}`;
+        params[parameter] = planId;
+        return `@${parameter}`;
+      }).join(',')})`
+      : '';
     const result = await query<PlanEntitlement>(`SELECT id, plan_id, entitlement_key, entitlement_value, value_type, created_at, updated_at
-      FROM dbo.PlanEntitlements ORDER BY plan_id, entitlement_key`);
-    const allowed = planIds ? new Set(planIds.map(Number)) : null;
+      FROM dbo.PlanEntitlements${filter} ORDER BY plan_id, entitlement_key`, params);
+    const allowed = normalizedIds ? new Set(normalizedIds) : null;
     const grouped = new Map<number, PlanEntitlement[]>();
     for (const row of result.recordset) {
       const planId = Number(row.plan_id);

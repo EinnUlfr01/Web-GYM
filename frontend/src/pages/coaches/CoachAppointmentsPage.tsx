@@ -36,20 +36,24 @@ export default function CoachAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError('');
     const status = tab === 'pending' ? 'pending' : tab === 'upcoming' ? 'confirmed' : ['completed', 'cancelled', 'no_show'] as BookingStatus[];
     try {
       const [rows, totals] = await Promise.all([
-        getCoachAppointmentsPage({ status, fromDate: fromDate || undefined, toDate: toDate || undefined, page, limit: 20 }),
-        getBookingSummary({ fromDate: fromDate || undefined, toDate: toDate || undefined }),
+        getCoachAppointmentsPage({ status, fromDate: fromDate || undefined, toDate: toDate || undefined, page, limit: 20 }, { signal }),
+        getBookingSummary({ fromDate: fromDate || undefined, toDate: toDate || undefined }, { signal }),
       ]);
       setPageData(rows); setSummary(totals);
-    } catch (reason: unknown) { setError(messageFor(reason)); }
-    finally { setLoading(false); }
+    } catch (reason: unknown) { if (!signal?.aborted) setError(messageFor(reason)); }
+    finally { if (!signal?.aborted) setLoading(false); }
   }, [fromDate, page, tab, toDate]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
   useEffect(() => { setPage(1); }, [tab, fromDate, toDate]);
 
   const action = async (id: number, status: Exclude<BookingStatus, 'pending'>) => {

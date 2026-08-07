@@ -25,24 +25,29 @@ export default function CoachProgramsPage() {
   const [error, setError] = useState('');
   const [actionKey, setActionKey] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (signal?: AbortSignal) => {
     const requestId = ++requestRef.current;
     setLoading(true);
     setError('');
     try {
-      const result = await listPrograms({ q: q || undefined, page, limit: 20 });
+      const result = await listPrograms({ q: q || undefined, page, limit: 20 }, { signal });
       if (requestId !== requestRef.current) return;
       setItems(result.items);
       setTotal(result.total);
       setTotalPages(result.totalPages);
     } catch {
+      if (signal?.aborted) return;
       if (requestId === requestRef.current) setError('Unable to load Coach Programs.');
     } finally {
-      if (requestId === requestRef.current) setLoading(false);
+      if (!signal?.aborted && requestId === requestRef.current) setLoading(false);
     }
   };
 
-  useEffect(() => { void load(); }, [q, page]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [q, page]);
 
   const runLifecycleAction = async (item: CoachProgram, action: 'publish' | 'clone' | 'archive') => {
     const lifecycle = lifecycleOf(item);
