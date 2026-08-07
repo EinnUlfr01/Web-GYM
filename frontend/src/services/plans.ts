@@ -1,6 +1,23 @@
 import api from '../api/axios';
 
 export const PENDING_PLAN_STORAGE_KEY = 'gymfit_pending_plan_id';
+
+export function getPendingPlanId(): number | null {
+  const raw = sessionStorage.getItem(PENDING_PLAN_STORAGE_KEY);
+  if (!raw) return null;
+  const planId = Number(raw);
+  return Number.isSafeInteger(planId) && planId > 0 ? planId : null;
+}
+
+export function getPendingPlanCheckoutPath(): string | null {
+  const planId = getPendingPlanId();
+  return planId === null ? null : `/membership/checkout?plan_id=${encodeURIComponent(String(planId))}`;
+}
+
+export function clearPendingPlan(): void {
+  sessionStorage.removeItem(PENDING_PLAN_STORAGE_KEY);
+}
+
 export type MembershipLifecycle = 'PENDING_PAYMENT' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
 export type PlanEntitlementKey = 'COACH_BOOKING_ENABLED' | 'COACH_BOOKING_MONTHLY_LIMIT';
 export type PlanEntitlementValueType = 'BOOLEAN' | 'INTEGER' | 'UNLIMITED';

@@ -81,3 +81,64 @@ Security:
 Commit: pending explicit documentation commit.
 
 Next: C02 — truthful public Membership UI.
+
+## C02 — Truthful public Membership UI
+
+Status: PASS
+
+Confirmed issue:
+
+- Public Membership UI contained unsupported yearly billing, discount, free-trial and live-payment claims.
+
+Changes:
+
+- Removed fake Monthly/Yearly toggle and annual price calculation.
+- Cards now display backend `price`, `durationDays`, backend features and structured Coach booking entitlement values.
+- Replaced unsupported comparison/trust/payment claims with a truthful activation explanation and backend-aligned FAQ.
+- Kept the real flow as choose Plan → pending simulated payment → explicit confirmation → active Membership.
+
+Tests:
+
+- `frontend: npx.cmd tsc --noEmit`: PASS.
+- `frontend: npm.cmd run build`: PASS; existing Vite large-chunk warning documented.
+- `git diff --check`: PASS.
+
+Database: No migration or database mutation.
+
+Security: No payment provider, trial, yearly billing or client-side entitlement authorization was added.
+
+Commit: grouped with C03 after the pending-Plan gate.
+
+Next: C03 — pending Plan redirect after Login/Register.
+
+## C03 — Pending Plan redirect after Login/Register
+
+Status: PASS
+
+Confirmed issue:
+
+- Register preserved pending Plan state, but Login did not route a member with pending state to checkout.
+- Membership Account cleared the pending key after unrelated actions and could clear it before a successful subscription/confirmation.
+
+Changes:
+
+- Added shared `getPendingPlanId`, `getPendingPlanCheckoutPath` and `clearPendingPlan` helpers.
+- Login and Register route authenticated members to `/membership/checkout?plan_id=<id>` before normal role/home routing.
+- Coach/Admin/Seller stale pending state is cleared and never enters Member checkout.
+- Pending state is only cleared after successful subscription or payment confirmation; failed requests retain it.
+- Destinations remain fixed internal paths, preventing open redirects.
+
+Tests:
+
+- Member/guest flow code paths reviewed for Plan → Register, Plan → Login, normal login and non-member stale state.
+- `frontend: npx.cmd tsc --noEmit`: PASS.
+- `frontend: npm.cmd run build`: PASS; existing Vite large-chunk warning documented.
+- `git diff --check`: PASS.
+
+Database: No migration or database mutation.
+
+Security: Role policy remains backend-authoritative; pending Plan never grants membership access.
+
+Commit: pending explicit C02/C03 commit.
+
+Next: C04 — Program Exercise validation.

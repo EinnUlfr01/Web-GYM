@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AlertCircle, ArrowDown, ArrowLeft, ArrowUp, CheckCircle2, CreditCard, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
-import { cancelMembership, confirmMembershipPayment, downgradeMembership, getMyMembership, getPlans, MembershipState, Plan, PENDING_PLAN_STORAGE_KEY, subscribeToPlan, upgradeMembership } from '../../services/plans';
+import { cancelMembership, clearPendingPlan, confirmMembershipPayment, downgradeMembership, getMyMembership, getPendingPlanId, getPlans, type MembershipState, type Plan, subscribeToPlan, upgradeMembership } from '../../services/plans';
 import { useAuthStore } from '../../stores/authStore';
 
 function errorMessage(error: unknown): string {
@@ -20,8 +20,7 @@ function formatPrice(value: number): string {
 function initialPlanId(search: string): number | null {
   const queryId = Number(new URLSearchParams(search).get('plan_id'));
   if (Number.isInteger(queryId) && queryId > 0) return queryId;
-  const storedId = Number(sessionStorage.getItem(PENDING_PLAN_STORAGE_KEY));
-  return Number.isInteger(storedId) && storedId > 0 ? storedId : null;
+  return getPendingPlanId();
 }
 
 export default function MembershipAccountPage() {
@@ -55,29 +54,29 @@ export default function MembershipAccountPage() {
 
   useEffect(() => { void load(); }, [location.search]);
 
-  const applyResult = (result: MembershipState) => {
+  const applyResult = (result: MembershipState, clearPending = false) => {
     setState(result);
     setError('');
-    sessionStorage.removeItem(PENDING_PLAN_STORAGE_KEY);
+    if (clearPending) clearPendingPlan();
   };
 
-  const runAction = async (label: string, action: () => Promise<MembershipState>) => {
+  const runAction = async (label: string, action: () => Promise<MembershipState>, clearPending = false) => {
     setProcessing(label);
     setError('');
-    try { applyResult(await action()); }
+    try { applyResult(await action(), clearPending); }
     catch (requestError) { setError(errorMessage(requestError)); }
     finally { setProcessing(''); }
   };
 
   const startSubscription = () => {
     if (!selectedPlanId) return;
-    void runAction('subscribe', () => subscribeToPlan(selectedPlanId));
+    void runAction('subscribe', () => subscribeToPlan(selectedPlanId), true);
   };
 
   const confirmPayment = () => {
     const paymentId = state?.pendingPayment?.id;
     if (!paymentId) return;
-    void runAction('confirm', () => confirmMembershipPayment(paymentId));
+    void runAction('confirm', () => confirmMembershipPayment(paymentId), true);
   };
 
   const changePlan = (plan: Plan) => {
