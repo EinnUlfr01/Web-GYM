@@ -103,6 +103,8 @@ async function run(): Promise<void> {
   const exercise = await call('POST', `/coach/workout-program-days/${dayId}/exercises`, accounts.coachA, { exerciseId, targetSets: 3, targetRepsMin: 8, targetRepsMax: 12, targetWeight: 20 });
   check(exercise.status === 201, 'Coach adds a Draft Program Exercise');
   const programExerciseId = dataOf<{ id: number }>(exercise).id;
+  const invalidExercise = await call('POST', `/coach/workout-program-days/${dayId}/exercises`, accounts.coachA, { exerciseId, targetSets: 3, targetRepsMin: 12, targetRepsMax: 8 });
+  check(invalidExercise.status === 400, 'Program Exercise rejects an inverted reps range with HTTP 400');
 
   check((await call('GET', `/coach/workout-programs/${programId}`, accounts.coachB)).status === 404, 'Coach B cannot read Coach A Program');
   check((await call('PATCH', `/coach/workout-programs/${programId}`, accounts.coachB, { name: 'IDOR', goal: 'MOBILITY', difficulty: 'BEGINNER', durationWeeks: 1, daysPerWeek: 1 })).status === 404, 'Coach B cannot edit Coach A Program');

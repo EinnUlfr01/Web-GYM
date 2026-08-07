@@ -142,3 +142,32 @@ Security: Role policy remains backend-authoritative; pending Plan never grants m
 Commit: pending explicit C02/C03 commit.
 
 Next: C04 — Program Exercise validation.
+
+## C04 — Program Exercise validation
+
+Status: PASS
+
+Confirmed issue:
+
+- Program Exercise schemas validated individual numeric fields and required a reps/duration target but accepted an inverted reps range.
+
+Changes:
+
+- Replaced the duplicated `.refine` checks with a shared Zod `superRefine`.
+- Invalid `targetRepsMin > targetRepsMax` now produces a validation response with HTTP `400`.
+- Existing bounds, Draft-only mutation and active Exercise checks remain unchanged.
+- Added the inverted-range assertion to `acceptance:coach-program-versioning`.
+
+Tests:
+
+- `backend: npm.cmd run build`: PASS.
+- `backend: npm.cmd run lint`: PASS with 0 errors and 461 existing `no-explicit-any` warnings.
+- `git diff --check`: PASS.
+
+Database: No migration or database mutation.
+
+Security: Validation remains server-side and ownership/lifecycle checks are unchanged.
+
+Commit: pending explicit C04 commit.
+
+Next: C05 — Booking slot snapshot design.

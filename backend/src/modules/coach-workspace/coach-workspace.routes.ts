@@ -29,8 +29,16 @@ const exerciseList = z.object({ page: z.coerce.number().int().min(1).default(1),
 const program = z.object({ name: z.string().trim().min(1).max(200), description: z.string().trim().max(10000).optional(), goal: z.enum(['GENERAL_FITNESS','WEIGHT_LOSS','MUSCLE_GAIN','STRENGTH','ENDURANCE','MOBILITY']), difficulty: z.enum(['BEGINNER','INTERMEDIATE','ADVANCED']), durationWeeks: z.number().int().min(1).max(104), daysPerWeek: z.number().int().min(1).max(7) }).strict();
 const day = z.object({ weekNumber: z.number().int().min(1).max(104), dayNumber: z.number().int().min(1).max(7), title: z.string().trim().min(1).max(200), description: z.string().trim().max(10000).optional() }).strict();
 const targetFields = { targetSets: z.number().int().min(1).max(50).nullable().optional(), targetRepsMin: z.number().int().min(1).max(1000).nullable().optional(), targetRepsMax: z.number().int().min(1).max(1000).nullable().optional(), targetWeight: z.number().finite().min(0).max(100000).nullable().optional(), targetDurationSeconds: z.number().int().min(1).max(86400).nullable().optional(), restSeconds: z.number().int().min(0).max(3600).nullable().optional(), tempo: z.string().trim().max(40).nullable().optional(), coachNote: z.string().trim().max(2000).nullable().optional() };
-const programExercise = z.object({ exerciseId: z.number().int().positive(), ...targetFields }).strict().refine(value => value.targetRepsMin != null || value.targetRepsMax != null || value.targetDurationSeconds != null, { message: 'At least a reps or duration target is required' });
-const programExerciseUpdate = z.object(targetFields).strict().refine(value => value.targetRepsMin != null || value.targetRepsMax != null || value.targetDurationSeconds != null, { message: 'At least a reps or duration target is required' });
+function validateExerciseTargets(value: { targetRepsMin?: number | null; targetRepsMax?: number | null; targetDurationSeconds?: number | null }, context: z.RefinementCtx): void {
+  if (value.targetRepsMin == null && value.targetRepsMax == null && value.targetDurationSeconds == null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['targetRepsMin'], message: 'At least a reps or duration target is required' });
+  }
+  if (value.targetRepsMin != null && value.targetRepsMax != null && value.targetRepsMin > value.targetRepsMax) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['targetRepsMin'], message: 'targetRepsMin must not exceed targetRepsMax' });
+  }
+}
+const programExercise = z.object({ exerciseId: z.number().int().positive(), ...targetFields }).strict().superRefine(validateExerciseTargets);
+const programExerciseUpdate = z.object(targetFields).strict().superRefine(validateExerciseTargets);
 const reorder = z.object({ ids: z.array(z.number().int().positive()).min(0).max(200) }).strict();
 const assignment = z.object({ memberId: z.number().int().positive(), programId: z.number().int().positive(), startDate: z.string(), endDate: z.string().optional().nullable(), scheduleTimezone: z.string().trim().min(1).max(64), note: z.string().trim().max(2000).optional().nullable() }).strict();
 const transition = z.object({}).strict();
