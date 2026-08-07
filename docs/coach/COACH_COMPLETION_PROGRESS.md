@@ -1,5 +1,50 @@
 # Coach1 Completion Progress
 
+## Phase 29 - Final acceptance and handover
+
+Status: PASS (full Coach acceptance, browser QA, migration verification, build gates, security/concurrency regression and cleanup)
+
+- Branch was verified as `coach1` before and after the final run. Phase 29 was the last valid phase in the Master Prompt (`Phase 00` through `Phase 29`); no Phase 30 exists and none was started. The final scope remained Coach, Member Workout, Coach Booking, Membership/Entitlement, Availability, Notifications, Program Versioning and Admin Coach only.
+- No Marketplace/Seller source, route or migration `0100`-`0111` was changed. The canonical database `GYMFIT_DB` was inspected read-only: migration `0010` is applied, `0011`-`0016` remain pending for a separately authorized deployment, checksum mismatches are zero, and all applied Marketplace/Seller migrations `0100`-`0111` match their checksums. `canonicalDatabaseChanged=false` and `migrationRunning=false` throughout this phase.
+
+Final runtime matrix:
+
+- `npm.cmd run test:coach-booking-unit`: PASS.
+- Disposable migration verification on `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_FINAL_20260807`: migrations `0010`-`0016` applied, `0010` CoachProfiles shape verified, `0011` Availability, `0012` Entitlements, `0013` Context, `0014` Notifications, `0015` Versioning and `0016` performance indexes verified; rerun reported 0 pending migrations and 0 checksum mismatches. The exact database was dropped.
+- `npm.cmd run acceptance:coach-role`: PASS.
+- `npm.cmd run acceptance:coach-member-e2e`: PASS.
+- `npm.cmd run acceptance:admin-coach`: PASS.
+- `npm.cmd run acceptance:coach-booking`: PASS.
+- `npm.cmd run acceptance:coach-membership`: PASS.
+- `npm.cmd run acceptance:coach-entitlement`: PASS.
+- `npm.cmd run acceptance:coach-member-context`: PASS.
+- `npm.cmd run acceptance:coach-notifications`: PASS.
+- `npm.cmd run acceptance:coach-program-versioning`: PASS.
+- `npm.cmd run acceptance:coach-completion-security`: PASS, including Guest/Member/Coach A/Coach B/Admin RBAC, cross-owner IDOR, identity spoof rejection, booking slot/quota races, schedule idempotency, assignment transition, Session completion/set immutability, notification deduplication, Publish/Clone and reassignment concurrency.
+- Phase 28 performance acceptance evidence remained PASS for the large fixture, query plans, `STATISTICS IO/TIME`, migration `0016` and stale-request cancellation.
+
+Build gates:
+
+- Backend `npm.cmd run build`: PASS.
+- Backend `npm.cmd run lint`: PASS with 0 errors and 461 existing `no-explicit-any` warnings.
+- Frontend `npx.cmd tsc --noEmit`: PASS.
+- Frontend `npm.cmd run build`: PASS. The existing Vite large-chunk warning remains non-blocking.
+- Repository `git diff --check`: PASS.
+
+Browser QA evidence:
+
+- Browser QA used a clean localhost origin with a disposable database and fresh Guest, Member, Coach and Admin sessions at `375x812`, `768x1024` and `1440x900`.
+- Guest public Coach list/detail, booking login guard and private-route protection passed. Member dashboard, Coach discovery/booking, appointments, workouts, membership and self-scoped notifications passed. Coach dashboard, Availability, Appointments, Programs, Published/Draft Builder, Notifications and source-aware session links passed. Admin dashboard, Coach management, Exercise Library and Workout Governance passed.
+- Notification bell/unread count, dropdown/list, mark-one-read, read-all, empty state and role isolation passed. Program Draft/Published/Archived badges, Publish/Clone/Archive, version links, Published read-only behavior and Assignment selector passed.
+- Mobile QA found and fixed two real overflow defects: `min-w-0` on the Coach Program Builder grid/content and Admin Exercise Library grid/content. Draft Builder width changed from `459` to `369` CSS pixels at 375px viewport; Admin Exercise Library changed from `381` to `375`. All final route checks had no horizontal overflow and no new console errors.
+- Console output contained only existing React Router future-flag warnings. The initial `127.0.0.1` browser attempt failed because the disposable backend CORS origin was configured for `localhost`; rerunning with the configured localhost origin passed. Long navigation-loop timeouts were browser harness resets, not application failures.
+
+Cleanup and transition:
+
+- Exact Phase 29 backend/Vite QA processes were stopped. Ports `51230`-`51232` were verified closed. The exact database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_BROWSER_20260807` was dropped and a read-only `DB_ID` check returned `null`. No other process or database was touched.
+- Phase 29 is complete. The state transitions to `DONE` with `activeStatus=PASS`, `lastCompletedPhase=29`, `nextPhase=null`, `blocker=null` and `safeToStartNextPhase=false`.
+- Known non-blocking warnings are documented in `COACH_KNOWN_LIMITATIONS.md`. No Phase 30 is planned or required.
+
 ## Phase 28 - Performance and index review
 
 Status: PASS (disposable query-plan/statistics review, evidence-backed indexes, frontend stale-request protection, regression gates and cleanup)
