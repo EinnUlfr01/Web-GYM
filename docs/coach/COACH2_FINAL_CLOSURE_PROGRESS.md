@@ -199,3 +199,33 @@ Security: Snapshot authority is server-side and remains independent of request-b
 Commit: pending explicit C05 documentation commit.
 
 Next: C06 — additive migration and disposable verification.
+
+## C06 — Booking snapshot migration
+
+Status: PASS
+
+Confirmed issue:
+
+- Migration `0017_coach_booking_slot_snapshot.sql` was required because `Bookings` lacked both snapshot columns.
+
+Changes:
+
+- Added nullable `session_mode` and `location` columns.
+- Added an idempotent `CK_Bookings_SessionMode` check constraint.
+- Kept the migration additive, legacy-safe and free of data backfill or new indexes.
+
+Tests:
+
+- Migration syntax and SQL Server batch boundaries reviewed.
+- Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_CLOSURE_20260807` applied 0010–0017 successfully.
+- Disposable migration status reported `pending=0` and `checksum mismatches=0` before the pre-existing catalog post-verifier attempted to read absent ProductOptions in this intentionally pre-0001 fixture; the Coach-specific verifier passed with `pending=[]` and `checksum_mismatches=[]`.
+- Snapshot columns are nullable and the `CK_Bookings_SessionMode` constraint is present on the disposable database.
+- Canonical database has not been changed; disposable cleanup is still required after this checkpoint.
+
+Database: Canonical database has not been changed.
+
+Security: No historical data is guessed or rewritten.
+
+Commit: pending explicit migration commit.
+
+Next: C07 — authoritative Booking snapshot enforcement.
