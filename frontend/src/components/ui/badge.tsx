@@ -1,4 +1,4 @@
-﻿import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 
 interface BadgeProps {
   variant?: 'green' | 'yellow' | 'red' | 'blue' | 'purple' | 'default';

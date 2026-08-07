@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Play, Clock, ChevronRight, TrendingUp, Star, Lock, Users, ArrowRight, AlertTriangle, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Badge from '../../components/ui/badge';

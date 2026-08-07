@@ -1,4 +1,4 @@
-﻿import { useApi } from '../../hooks/useApi';
+import { useApi } from '../../hooks/useApi';
 import DataTable from '../../components/shared/DataTable';
 import LoadingSpinner from '../../components/ui/loading-spinner';
 import ErrorState from '../../components/ui/error-state';

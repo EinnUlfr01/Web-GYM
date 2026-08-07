@@ -1,4 +1,4 @@
-﻿import * as dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
 const useTrusted = process.env.DB_TRUSTED_CONNECTION === 'true';

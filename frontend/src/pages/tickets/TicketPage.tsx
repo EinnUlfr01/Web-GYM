@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
 import DataTable from '../../components/shared/DataTable';
 import LoadingSpinner from '../../components/ui/loading-spinner';

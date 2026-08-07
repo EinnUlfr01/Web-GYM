@@ -1,4 +1,4 @@
-﻿import { useApi } from '../../hooks/useApi';
+import { useApi } from '../../hooks/useApi';
 import StatCard from '../../components/shared/StatCard';
 import LoadingSpinner from '../../components/ui/loading-spinner';
 import ErrorState from '../../components/ui/error-state';

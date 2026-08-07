@@ -5,16 +5,16 @@ Execution history: `coach1`
 Start commit: `4cf3cc7`
 Imported Coach1 completion checkpoint: `e368d60`
 
-## C00 â€” Baseline vÃ  khÃ³a nhÃ¡nh
+## C00 — Baseline và khóa nhánh
 
 Status: PASS
 
 Confirmed issue:
 
-- `coach2` was an ancestor of `coach1` and was missing the 13 Coach phase 26â€“29 commits.
+- `coach2` was an ancestor of `coach1` and was missing the 13 Coach phase 26–29 commits.
 - The branch had no unique tracked commits. A fast-forward to `e368d60` was safe because the worktree contained only user-owned untracked files outside the incoming tracked paths.
 - Canonical/dev target was verified read-only as SQL Server database `GYMFIT_DB` with `NODE_ENV=development` and `DB_HOST=DESKTOP-0PI1Q6Q`.
-- Migration status through `0016`: `0010` applied, `0011`â€“`0016` pending, zero checksum mismatches, required foundation tables present, no migration was applied in C00.
+- Migration status through `0016`: `0010` applied, `0011`–`0016` pending, zero checksum mismatches, required foundation tables present, no migration was applied in C00.
 
 Changes:
 
@@ -27,7 +27,7 @@ Tests:
 - `git branch --show-current`: `coach2`.
 - `git status --short --branch`: expected user-owned untracked files only.
 - `git diff --check`: PASS.
-- `npm.cmd run db:migrate:status -- --through=0016`: PASS; pending Coach migrations are `0011`â€“`0016`, checksum mismatches `0`.
+- `npm.cmd run db:migrate:status -- --through=0016`: PASS; pending Coach migrations are `0011`–`0016`, checksum mismatches `0`.
 
 Database:
 
@@ -36,14 +36,14 @@ Database:
 
 Security:
 
-- No production code, Marketplace/Seller code, or migrations `0100`â€“`0111` changed.
+- No production code, Marketplace/Seller code, or migrations `0100`–`0111` changed.
 - No destructive Git or database command was used.
 
 Commit: `e368d60` (existing fast-forward checkpoint)
 
-Next: C01 â€” source re-audit.
+Next: C01 — source re-audit.
 
-## C01 â€” Source re-audit
+## C01 — Source re-audit
 
 Status: PASS
 
@@ -57,7 +57,7 @@ Confirmed issue:
 | Booking slot snapshot | `CONFIRMED_GAP` | Booking schema/controller/DTO have no `session_mode` or `location` columns or fields. |
 | Schedule outcome response | `CONFIRMED_GAP` | Generator returns only legacy `inserted`, `skipped`, `requestedFromDate`, `fromDate`, `toDate` and `horizonDays`. |
 | Priority booking entitlement | `SPEC_ONLY` | Historical prompt names `COACH_PRIORITY_BOOKING`, but migration `0012` and runtime entitlements contain only booking-enabled and monthly-limit keys; no priority behavior exists. |
-| Canonical migrations `0011`â€“`0016` | `DEPLOYMENT_ONLY` | Read-only status shows all six pending with zero checksum mismatches on verified development target `GYMFIT_DB`. |
+| Canonical migrations `0011`–`0016` | `DEPLOYMENT_ONLY` | Read-only status shows all six pending with zero checksum mismatches on verified development target `GYMFIT_DB`. |
 | Branch context in docs | `CONFIRMED_GAP` | Existing handover/state describe execution branch as `coach1` only and have no Coach2 closure/release state. |
 
 Changes:
@@ -76,13 +76,13 @@ Database:
 
 Security:
 
-- Scope exclusions confirmed: no Marketplace/Seller backend changes and no migration `0100`â€“`0111` changes.
+- Scope exclusions confirmed: no Marketplace/Seller backend changes and no migration `0100`–`0111` changes.
 
 Commit: `2ac6f6a`.
 
-Next: C02 â€” truthful public Membership UI.
+Next: C02 — truthful public Membership UI.
 
-## C02 â€” Truthful public Membership UI
+## C02 — Truthful public Membership UI
 
 Status: PASS
 
@@ -95,7 +95,7 @@ Changes:
 - Removed fake Monthly/Yearly toggle and annual price calculation.
 - Cards now display backend `price`, `durationDays`, backend features and structured Coach booking entitlement values.
 - Replaced unsupported comparison/trust/payment claims with a truthful activation explanation and backend-aligned FAQ.
-- Kept the real flow as choose Plan â†’ pending simulated payment â†’ explicit confirmation â†’ active Membership.
+- Kept the real flow as choose Plan → pending simulated payment → explicit confirmation → active Membership.
 
 Tests:
 
@@ -109,9 +109,9 @@ Security: No payment provider, trial, yearly billing or client-side entitlement 
 
 Commit: grouped with C03 after the pending-Plan gate.
 
-Next: C03 â€” pending Plan redirect after Login/Register.
+Next: C03 — pending Plan redirect after Login/Register.
 
-## C03 â€” Pending Plan redirect after Login/Register
+## C03 — Pending Plan redirect after Login/Register
 
 Status: PASS
 
@@ -130,7 +130,7 @@ Changes:
 
 Tests:
 
-- Member/guest flow code paths reviewed for Plan â†’ Register, Plan â†’ Login, normal login and non-member stale state.
+- Member/guest flow code paths reviewed for Plan → Register, Plan → Login, normal login and non-member stale state.
 - `frontend: npx.cmd tsc --noEmit`: PASS.
 - `frontend: npm.cmd run build`: PASS; existing Vite large-chunk warning documented.
 - `git diff --check`: PASS.
@@ -141,9 +141,9 @@ Security: Role policy remains backend-authoritative; pending Plan never grants m
 
 Commit: `ab047f1`.
 
-Next: C04 â€” Program Exercise validation.
+Next: C04 — Program Exercise validation.
 
-## C04 â€” Program Exercise validation
+## C04 — Program Exercise validation
 
 Status: PASS
 
@@ -170,9 +170,9 @@ Security: Validation remains server-side and ownership/lifecycle checks are unch
 
 Commit: `1a7e457`.
 
-Next: C05 â€” Booking slot snapshot design.
+Next: C05 — Booking slot snapshot design.
 
-## C05 â€” Booking slot snapshot design
+## C05 — Booking slot snapshot design
 
 Status: PASS
 
@@ -198,9 +198,9 @@ Security: Snapshot authority is server-side and remains independent of request-b
 
 Commit: `190e76e`.
 
-Next: C06 â€” additive migration and disposable verification.
+Next: C06 — additive migration and disposable verification.
 
-## C06 â€” Booking snapshot migration
+## C06 — Booking snapshot migration
 
 Status: PASS
 
@@ -217,7 +217,7 @@ Changes:
 Tests:
 
 - Migration syntax and SQL Server batch boundaries reviewed.
-- Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_CLOSURE_20260807` applied 0010â€“0017 successfully.
+- Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_CLOSURE_20260807` applied 0010–0017 successfully.
 - Disposable migration status reported `pending=0` and `checksum mismatches=0` before the pre-existing catalog post-verifier attempted to read absent ProductOptions in this intentionally pre-0001 fixture; the Coach-specific verifier passed with `pending=[]` and `checksum_mismatches=[]`.
 - Snapshot columns are nullable and the `CK_Bookings_SessionMode` constraint is present on the disposable database.
 - Canonical database has not been changed; disposable database cleanup completed after verification.
@@ -228,9 +228,9 @@ Security: No historical data is guessed or rewritten.
 
 Commit: `61fb8f3`.
 
-Next: C07 â€” authoritative Booking snapshot enforcement.
+Next: C07 — authoritative Booking snapshot enforcement.
 
-## C07 â€” Backend authoritative Booking snapshot
+## C07 — Backend authoritative Booking snapshot
 
 Status: PASS
 
@@ -249,9 +249,9 @@ Security: JWT Member identity, active Membership, entitlement, quota, Coach stat
 
 Database: Tested on disposable `GYMFIT_DB_COACH_FINAL_CLOSURE_20260807`; dropped after PASS. Canonical database unchanged.
 
-Next: C08 â€” appointment snapshot display.
+Next: C08 — appointment snapshot display.
 
-## C08 â€” Frontend appointment mode/location
+## C08 — Frontend appointment mode/location
 
 Status: PASS
 
@@ -267,9 +267,9 @@ Tests:
 - `frontend: npx.cmd tsc --noEmit`: PASS; frontend build gate remains PASS from C03 and is rerun in C13.
 - Responsive markup remains wrapped/flexible for the existing appointment layouts.
 
-Next: C09 â€” schedule generation outcome response.
+Next: C09 — schedule generation outcome response.
 
-## C09 â€” Schedule generation response
+## C09 — Schedule generation response
 
 Status: PASS
 
@@ -284,9 +284,9 @@ Tests:
 - Final closure harness passed first generation, idempotent duplicate generation, mid-program generation, outside-program and outside-assignment outcome counters.
 - Existing concurrency acceptance remains scheduled for C17.
 
-Next: C10 â€” priority entitlement contract.
+Next: C10 — priority entitlement contract.
 
-## C10 â€” Priority booking entitlement contract
+## C10 — Priority booking entitlement contract
 
 Status: PASS
 
@@ -298,9 +298,9 @@ Decision:
 
 Evidence: Final closure harness verified Starter/Pro/Elite typed behavior and confirmed the consumed entitlement set contains no priority key.
 
-Next: C11 â€” branch clarification.
+Next: C11 — branch clarification.
 
-## C11 â€” Branch clarification
+## C11 — Branch clarification
 
 Status: PASS
 
@@ -310,9 +310,9 @@ Documentation contract:
 - Closure/release branch: `coach2`.
 - Coach1 history and commits are preserved; this closure does not rewrite history.
 
-Next: C12 â€” final closure acceptance harness.
+Next: C12 — final closure acceptance harness.
 
-## C12 â€” Final closure acceptance harness
+## C12 — Final closure acceptance harness
 
 Status: PASS
 
@@ -323,12 +323,12 @@ Changes:
 
 Evidence:
 
-- Disposable `GYMFIT_DB_COACH_FINAL_CLOSURE_20260807` applied 0010â€“0017 and was automatically dropped.
+- Disposable `GYMFIT_DB_COACH_FINAL_CLOSURE_20260807` applied 0010–0017 and was automatically dropped.
 - Harness verdict PASS with 50 assertions covering pending/confirm/upgrade/downgrade, inverted reps, authoritative Booking snapshots, spoof rejection, immutable snapshots, same-slot race, schedule outcomes/idempotency/mid-program, Starter/Pro/Elite and deferred priority behavior.
 
-Next: C13 â€” pre-deployment build gate.
+Next: C13 — pre-deployment build gate.
 
-## C13 â€” Pre-deployment build gate
+## C13 — Pre-deployment build gate
 
 Status: PASS
 
@@ -344,9 +344,9 @@ Tests:
 
 Known non-blocking install warnings: existing npm audit vulnerability/deprecation reports; no dependency mutation was made.
 
-Next: C14 â€” canonical database preflight.
+Next: C14 — canonical database preflight.
 
-## C14 â€” Canonical database preflight
+## C14 — Canonical database preflight
 
 Status: PASS
 
@@ -354,8 +354,8 @@ Evidence:
 
 - Branch is `coach2`; target is `GYMFIT_DB` on local SQL Server `DESKTOP-0PI1Q6Q:1433` with `NODE_ENV=development`.
 - Required foundation and SchemaMigrations tables are present.
-- Read-only status through `0017`: `0010 APPLIED`, `0011â€“0017 PENDING`, checksum mismatches `0`.
-- The only pending Coach boundary is `0011â€“0017`; no unrelated migration was pulled into the apply boundary.
+- Read-only status through `0017`: `0010 APPLIED`, `0011–0017 PENDING`, checksum mismatches `0`.
+- The only pending Coach boundary is `0011–0017`; no unrelated migration was pulled into the apply boundary.
 - No secrets were printed and no canonical mutation occurred in C14.
 Decision: target is a verified local development/canonical database; proceed through the approved Coach migration boundary.
 
