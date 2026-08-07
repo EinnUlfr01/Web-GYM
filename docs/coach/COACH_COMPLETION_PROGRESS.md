@@ -1,5 +1,38 @@
 # Coach1 Completion Progress
 
+## Phase 28 - Performance and index review
+
+Status: PASS (disposable query-plan/statistics review, evidence-backed indexes, frontend stale-request protection, regression gates and cleanup)
+
+- Branch was verified as `coach1` before and after execution. This phase stayed within Coach performance scope: one disposable performance acceptance script, one additive Coach migration `0016`, a targeted entitlement query optimization and AbortSignal plumbing for Coach/Booking list requests. No Marketplace/Seller source or migration `0100`-`0111` was changed.
+- The first harness attempt stopped before fixture completion because the SQL CTE alias `offsets` conflicted with SQL Server syntax. A second harness issue showed that `SET SHOWPLAN_XML` must be the only statement in its batch. Both were harness defects, corrected before any PASS result; no product data was treated as evidence from those failed runs.
+- `backend/src/scripts/coach-performance-acceptance.ts` now creates an isolated fixture only when `COACH_PERFORMANCE_ACCEPTANCE=1` and `DB_NAME` starts with `GYMFIT_DB_COACH_ACCEPTANCE_PHASE28_`. It seeds 60 Members, 60 Assignments, 240 Schedules, 120 Bookings, 60 member sessions, legacy sessions, seven weekly Availability rules, 24 exceptions and 250 Notifications. It captures runtime `STATISTICS XML`, `STATISTICS IO/TIME`, operator summaries and API latency for Members, Assignments, Schedules, Dashboard, Notifications, Bookings, Booking summary, Availability and Plans/Entitlements.
+- Baseline evidence on `GYMFIT_DB_COACH_ACCEPTANCE_PHASE28_PERF_20260806` showed clustered scans for the high-cardinality Coach Member and filtered Booking queries. After applying `0016` only on that disposable database, Coach Members changed to `Index Seek` and Users logical reads fell from 120 to 4; the filtered Booking query changed to `Index Seek` and logical reads fell from 4 to 3. Schedule and Notification query plans remained bounded with their existing indexes, so no redundant Schedule/Notification index was added.
+- Added `db/migrations/0016_coach_performance_indexes.sql`, additive and idempotent, with indexes for CRM assignment scope, active Member name ordering, Coach/Member Booking status-date filtering and Membership user/status/date lookup. The migration was applied only to the disposable fixture, then rerun with `0 pending migrations` and `0 checksum mismatches`.
+- `listPlanEntitlements(planIds)` now pushes the requested Plan ID filter into SQL with parameterized `IN` values instead of reading every entitlement and filtering in memory. Frontend Coach Programs, Members and Appointments list requests now use `AbortController`/Axios `signal`; Booking and Coach Workspace list services accept optional cancellation signals, preventing stale responses from replacing newer filters/pages. Existing availability cancellation behavior remains intact.
+
+Commands and runtime evidence:
+
+- `npm.cmd run acceptance:coach-performance` with the seeded disposable fixture: PASS; all plan/statistics assertions and API smoke checks returned `200`.
+- Post-migration `COACH_PERFORMANCE_SKIP_SEED=1 npm.cmd run acceptance:coach-performance`: PASS; plan operators, IO/TIME and API smoke rechecked after `0016`.
+- `npm.cmd run db:migrate -- --through=0016`: PASS; second run reported `Applied migrations: 28`, `Pending migrations: 0`, `Checksum mismatches: 0`.
+- Backend `npm.cmd run build`: PASS.
+- Backend `npm.cmd run lint`: PASS with 0 errors and 461 existing `no-explicit-any` warnings.
+- Frontend `npx.cmd tsc --noEmit`: PASS.
+- Frontend `npm.cmd run build`: PASS with the existing Vite large-chunk warning.
+- `git diff --check`: PASS; only the repository's existing LF/CRLF normalization warnings were reported.
+
+Cleanup and scope evidence:
+
+- Exact disposable backend PID `16044` was stopped and port `51228` verified closed. Exact database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE28_PERF_20260806` was dropped. No migration remained running and the canonical database was not changed.
+- Phase 28 code checkpoint: `674279e perf(coach): review coach query plans and indexes`.
+- Browser QA and full final Coach acceptance remain intentionally reserved for Phase 29; this phase did not start Phase 29.
+
+Transition:
+
+- Phase 28 is complete. Phase 29 is selected as `NOT_STARTED`; no Phase 29 work was started in this checkpoint.
+- Known warnings are unchanged: repository-wide ESLint `no-explicit-any` warnings, the Vite large-chunk warning and existing React Router future-flag notices. None is a Phase 28 failure.
+
 ## Phase 27 - Security, IDOR and concurrency hardening
 
 Status: PASS (completion security acceptance, Coach regression matrix, build/lint/typecheck and disposable cleanup)

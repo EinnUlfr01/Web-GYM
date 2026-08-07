@@ -1,11 +1,11 @@
 {
   "branch": "coach1",
-  "activePhase": "28",
+  "activePhase": "29",
   "activeStatus": "NOT_STARTED",
-  "lastCompletedPhase": "27",
-  "nextPhase": "28",
-  "checkpointDate": "2026-08-06",
-  "lastCommit": "414366a test(coach): add completion security and concurrency acceptance",
+  "lastCompletedPhase": "28",
+  "nextPhase": "29",
+  "checkpointDate": "2026-08-07",
+  "lastCommit": "674279e perf(coach): review coach query plans and indexes",
   "blocker": null,
   "scopeGuard": {
     "marketplaceSellerExcluded": true,
@@ -17,5 +17,6 @@
   "phase25WorktreeChanges": "Phase 25 migration/backend/API/acceptance committed in 54fe846; documentation checkpoint committed separately after state update.",
   "phase26WorktreeChanges": "Phase 26 frontend lifecycle UI/type/API changes committed in 65d4455; documentation checkpoint committed in 4081bd8. Browser QA passed through a temporary disposable-only origin-normalizing proxy; disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE26_UIQA_20260806 was dropped, exact QA processes were stopped, browser tabs were finalized, canonicalDatabaseChanged=false.",
   "phase27WorktreeChanges": "Phase 27 completion security/concurrency acceptance script and npm command committed in 414366a; documentation checkpoint committed separately after state update. Four disposable databases and QA processes were cleaned up; canonicalDatabaseChanged=false and migrationRunning=false.",
+  "phase28WorktreeChanges": "Phase 28 performance acceptance harness, evidence-backed migration 0016 indexes, SQL entitlement filtering and Coach/Booking AbortSignal request cancellation committed in 674279e. Disposable database GYMFIT_DB_COACH_ACCEPTANCE_PHASE28_PERF_20260806 and backend PID 16044 were cleaned up; canonicalDatabaseChanged=false and migrationRunning=false.",
   "safeToStartNextPhase": false
 }
