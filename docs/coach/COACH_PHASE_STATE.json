@@ -5,7 +5,7 @@
   "lastCompletedPhase": "29",
   "nextPhase": null,
   "checkpointDate": "2026-08-07",
-  "lastCommit": "d20fdd6 docs(coach): complete final audit evidence",
+  "lastCommit": "d8808bf docs(coach): clarify migration deployment boundary",
   "blocker": null,
   "scopeGuard": {
     "marketplaceSellerExcluded": true,

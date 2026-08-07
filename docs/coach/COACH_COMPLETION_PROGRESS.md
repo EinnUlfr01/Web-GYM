@@ -51,6 +51,7 @@ Cleanup and transition:
 - Phase 29 is complete. The state transitions to `DONE` with `activeStatus=PASS`, `lastCompletedPhase=29`, `nextPhase=null`, `blocker=null` and `safeToStartNextPhase=false`.
 - Final checkpoint commit: `803e4b0 docs(coach): finalize coach1 completion handover`.
 - Final audit evidence commit: `d20fdd6 docs(coach): complete final audit evidence`.
+- Migration boundary clarification commit: `d8808bf docs(coach): clarify migration deployment boundary`.
 - Known non-blocking warnings are documented in `COACH_KNOWN_LIMITATIONS.md`. No Phase 30 is planned or required.
 
 ## Phase 28 - Performance and index review

@@ -36,6 +36,7 @@ The canonical migration verifier's pending result is therefore documented as a d
 - Branch: `coach1`.
 - Final checkpoint commit: `803e4b0 docs(coach): finalize coach1 completion handover`.
 - Final audit evidence commit: `d20fdd6 docs(coach): complete final audit evidence`.
+- Migration boundary clarification commit: `d8808bf docs(coach): clarify migration deployment boundary`.
 - Canonical database changed: `false`.
 - Migration running at handover: `false`.
 - QA services stopped and disposable Phase 29 browser database dropped.
