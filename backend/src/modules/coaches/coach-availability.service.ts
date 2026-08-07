@@ -15,6 +15,7 @@ import { todayInTimeZone } from '../../utils/timezone';
 
 export const AVAILABILITY_MODES = ['ONLINE', 'IN_PERSON', 'BOTH'] as const;
 export type AvailabilityMode = (typeof AVAILABILITY_MODES)[number];
+export type BookableAvailabilityMode = Exclude<AvailabilityMode, 'BOTH'>;
 export const AVAILABILITY_EXCEPTION_TYPES = ['BLOCK', 'OPEN'] as const;
 export type AvailabilityExceptionType = (typeof AVAILABILITY_EXCEPTION_TYPES)[number];
 
@@ -65,7 +66,7 @@ export interface AvailabilityException {
 export interface AvailabilitySlot {
   start_time: string;
   end_time: string;
-  mode: AvailabilityMode;
+  mode: BookableAvailabilityMode;
   location: string | null;
   source: 'WEEKLY_RULE' | 'OPEN_EXCEPTION';
   booked: boolean;
@@ -202,10 +203,11 @@ function assertExceptionInput(input: AvailabilityExceptionInput): void {
   if (input.mode != null && !AVAILABILITY_MODES.includes(input.mode)) throw new AppError(400, 'Unsupported availability mode');
 }
 
-function profileModeAllows(profileMode: AvailabilityMode | null, sourceMode: AvailabilityMode): AvailabilityMode | null {
-  if (!profileMode || profileMode === 'BOTH') return sourceMode;
-  if (sourceMode === 'BOTH' || sourceMode === profileMode) return profileMode;
-  return null;
+function concreteModes(profileMode: AvailabilityMode | null, sourceMode: AvailabilityMode): BookableAvailabilityMode[] {
+  if (profileMode && profileMode !== 'BOTH' && sourceMode !== 'BOTH' && profileMode !== sourceMode) return [];
+  if (profileMode && profileMode !== 'BOTH') return [profileMode];
+  if (sourceMode === 'BOTH') return ['ONLINE', 'IN_PERSON'];
+  return [sourceMode];
 }
 
 function loadWindowSlots(
@@ -215,18 +217,20 @@ function loadWindowSlots(
 ): Array<Omit<AvailabilitySlot, 'booked' | 'past'>> {
   const slots: Array<Omit<AvailabilitySlot, 'booked' | 'past'>> = [];
   for (const window of windows) {
-    const mode = profileModeAllows(profileMode, window.mode);
-    if (!mode) continue;
-    const start = timeToMinutes(window.start_time);
-    const end = timeToMinutes(window.end_time);
-    for (let cursor = start; cursor + COACH_BOOKING_DURATION_MINUTES <= end; cursor += COACH_BOOKING_DURATION_MINUTES) {
-      slots.push({
-        start_time: minutesToTime(cursor),
-        end_time: addMinutesToTime(minutesToTime(cursor), COACH_BOOKING_DURATION_MINUTES),
-        mode,
-        location: window.location ?? profileLocation ?? null,
-        source: window.source,
-      });
+    for (const mode of concreteModes(profileMode, window.mode)) {
+      const location = mode === 'ONLINE' ? window.location ?? null : window.location ?? profileLocation ?? null;
+      if (mode === 'IN_PERSON' && !location) continue;
+      const start = timeToMinutes(window.start_time);
+      const end = timeToMinutes(window.end_time);
+      for (let cursor = start; cursor + COACH_BOOKING_DURATION_MINUTES <= end; cursor += COACH_BOOKING_DURATION_MINUTES) {
+        slots.push({
+          start_time: minutesToTime(cursor),
+          end_time: addMinutesToTime(minutesToTime(cursor), COACH_BOOKING_DURATION_MINUTES),
+          mode,
+          location,
+          source: window.source,
+        });
+      }
     }
   }
   return slots;
@@ -368,11 +372,16 @@ export async function assertBookableSlot(
   date: string,
   startTime: string,
   endTime: string,
+  requestedMode?: BookableAvailabilityMode,
 ): Promise<AvailabilitySlot> {
   if (!isTimeString(startTime) || !isTimeString(endTime)) throw new AppError(400, 'Booking time must use HH:mm');
   const snapshot = await getAvailabilitySnapshot(coachId, date, { executor: transaction, lock: true, includePrivateNotes: false });
-  const authoritativeSlot = snapshot.slots.find(slot => slot.start_time === startTime && slot.end_time === endTime && !slot.booked && !slot.past);
+  const candidates = snapshot.slots.filter(slot => slot.start_time === startTime && slot.end_time === endTime && !slot.booked && !slot.past);
+  const authoritativeSlot = requestedMode ? candidates.find(slot => slot.mode === requestedMode) : candidates.length === 1 ? candidates[0] : undefined;
   if (!snapshot.booking_enabled || !authoritativeSlot) {
+    if (snapshot.booking_enabled && candidates.length > 1 && !requestedMode) {
+      throw new AppError(409, 'A concrete booking mode is required for this availability slot', 'COACH_AVAILABILITY_MODE_REQUIRED');
+    }
     throw new AppError(409, 'The selected appointment slot is not available', 'COACH_AVAILABILITY_SLOT_UNAVAILABLE');
   }
   return authoritativeSlot;

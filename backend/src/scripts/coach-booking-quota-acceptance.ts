@@ -141,39 +141,39 @@ async function run(): Promise<void> {
 
   const starterQuota = await call('GET', `/bookings/quota?date=${currentDate}`, accounts.starter);
   check(starterQuota.status === 200 && !(dataOf<Quota>(starterQuota).included) && dataOf<Quota>(starterQuota).remaining === 0, 'Starter-like Membership is excluded from Coach Booking');
-  const starterBooking = await call('POST', '/bookings', accounts.starter, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00' });
+  const starterBooking = await call('POST', '/bookings', accounts.starter, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00', sessionMode: 'ONLINE' });
   check(starterBooking.status === 403 && Boolean(starterBooking.data.errors) && JSON.stringify(starterBooking.data.errors).includes('COACH_BOOKING_NOT_INCLUDED'), 'Starter booking is blocked server-side');
-  const noMembershipBooking = await call('POST', '/bookings', accounts.noMembership, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00' });
+  const noMembershipBooking = await call('POST', '/bookings', accounts.noMembership, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00', sessionMode: 'ONLINE' });
   check(noMembershipBooking.status === 403, 'Member without active Membership is blocked');
 
   const proInitial = await call('GET', `/bookings/quota?date=${currentDate}`, accounts.pro);
   check(proInitial.status === 200 && dataOf<Quota>(proInitial).included && dataOf<Quota>(proInitial).monthlyLimit === 2 && dataOf<Quota>(proInitial).used === 0 && dataOf<Quota>(proInitial).remaining === 2, 'Pro quota starts at two remaining reservations');
-  const firstPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00' });
-  const secondPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '09:00' });
+  const firstPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '08:00', sessionMode: 'ONLINE' });
+  const secondPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '09:00', sessionMode: 'ONLINE' });
   check(firstPro.status === 201 && secondPro.status === 201, 'Pro can create reservations up to its monthly limit');
   const proFull = await call('GET', `/bookings/quota?date=${currentDate}`, accounts.pro);
   check(proFull.status === 200 && dataOf<Quota>(proFull).used === 2 && dataOf<Quota>(proFull).remaining === 0, 'Pro quota reports used and remaining counts');
-  const thirdPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '10:00' });
+  const thirdPro = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '10:00', sessionMode: 'ONLINE' });
   check(thirdPro.status === 409 && Boolean(thirdPro.data.errors) && JSON.stringify(thirdPro.data.errors).includes('COACH_BOOKING_QUOTA_EXCEEDED'), 'Pro third reservation is rejected at quota boundary');
   const cancelledPro = await call('PUT', `/bookings/${Number(dataOf<{ id: number }>(firstPro).id)}/status`, accounts.pro, { status: 'cancelled' });
   check(cancelledPro.status === 200, 'Member can cancel a quota-consuming reservation');
-  const afterCancel = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '10:00' });
+  const afterCancel = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachA.id, date: currentDate, startTime: '10:00', sessionMode: 'ONLINE' });
   check(afterCancel.status === 409, 'Cancelled reservation does not refund monthly quota');
-  const nextMonthBooking = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachB.id, date: nextDate, startTime: '08:00' });
+  const nextMonthBooking = await call('POST', '/bookings', accounts.pro, { coachId: accounts.coachB.id, date: nextDate, startTime: '08:00', sessionMode: 'ONLINE' });
   check(nextMonthBooking.status === 201, 'Quota is evaluated against the requested Asia/Ho_Chi_Minh calendar month');
   const nextMonthQuota = await call('GET', `/bookings/quota?date=${nextDate}`, accounts.pro);
   check(nextMonthQuota.status === 200 && dataOf<Quota>(nextMonthQuota).used === 1 && dataOf<Quota>(nextMonthQuota).remaining === 1, 'next-month quota is independent from the current month');
 
   const eliteQuota = await call('GET', `/bookings/quota?date=${currentDate}`, accounts.elite);
   check(eliteQuota.status === 200 && dataOf<Quota>(eliteQuota).included && dataOf<Quota>(eliteQuota).monthlyLimit === null && dataOf<Quota>(eliteQuota).remaining === null, 'Elite quota is unlimited');
-  const eliteBooking = await call('POST', '/bookings', accounts.elite, { coachId: accounts.coachA.id, date: currentDate, startTime: '11:00' });
+  const eliteBooking = await call('POST', '/bookings', accounts.elite, { coachId: accounts.coachA.id, date: currentDate, startTime: '11:00', sessionMode: 'ONLINE' });
   check(eliteBooking.status === 201, 'Elite can create Coach Booking without a finite quota');
 
-  const raceSeed = await call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachA.id, date: currentDate, startTime: '12:00' });
+  const raceSeed = await call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachA.id, date: currentDate, startTime: '12:00', sessionMode: 'ONLINE' });
   check(raceSeed.status === 201, 'quota race fixture consumes one Pro reservation');
   const race = await Promise.all([
-    call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachA.id, date: currentDate, startTime: '13:00' }),
-    call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachB.id, date: currentDate, startTime: '14:00' }),
+    call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachA.id, date: currentDate, startTime: '13:00', sessionMode: 'ONLINE' }),
+    call('POST', '/bookings', accounts.proRace, { coachId: accounts.coachB.id, date: currentDate, startTime: '14:00', sessionMode: 'ONLINE' }),
   ]);
   check(race.map(item => item.status).sort((a, b) => a - b).join(',') === '201,409', 'concurrent last-quota requests allow only one reservation');
 

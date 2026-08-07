@@ -95,8 +95,8 @@ export interface MembershipState {
   pendingPayment: MembershipPayment | null;
 }
 
-export async function getPlans(): Promise<Plan[]> {
-  const { data } = await api.get('/plans');
+export async function getPlans(signal?: AbortSignal): Promise<Plan[]> {
+  const { data } = await api.get('/plans', { signal });
   return (data.data as PlanRaw[]).map(mapPlan);
 }
 
@@ -125,8 +125,8 @@ function mapMembershipState(raw: { lifecycle: MembershipLifecycle | null; member
   };
 }
 
-export async function getMyMembership(): Promise<MembershipState> {
-  const { data } = await api.get('/plans/my-membership');
+export async function getMyMembership(signal?: AbortSignal): Promise<MembershipState> {
+  const { data } = await api.get('/plans/my-membership', { signal });
   return mapMembershipState(data.data);
 }
 

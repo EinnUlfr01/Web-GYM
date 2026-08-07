@@ -30,7 +30,7 @@ export interface CoachAvailabilityException {
 export interface CoachAvailabilitySlot {
   start_time: string;
   end_time: string;
-  mode: CoachSessionMode;
+  mode: Exclude<CoachSessionMode, 'BOTH'>;
   location: string | null;
   source: 'WEEKLY_RULE' | 'OPEN_EXCEPTION';
   booked: boolean;
@@ -85,13 +85,13 @@ interface ApiResponse<T> { data: T }
 export interface CoachPagination { page: number; limit: number; total: number; totalPages: number }
 export interface CoachListResult { items: Coach[]; coaches: Coach[]; pagination: CoachPagination }
 
-export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }): Promise<CoachListResult> {
-  const response = await api.get<ApiResponse<CoachListResult>>('/coaches', { params });
+export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }, options?: { signal?: AbortSignal }): Promise<CoachListResult> {
+  const response = await api.get<ApiResponse<CoachListResult>>('/coaches', { params, signal: options?.signal });
   return response.data.data;
 }
 
-export async function getPublicCoach(coachId: number | string): Promise<Coach> {
-  const response = await api.get<ApiResponse<Coach>>(`/coaches/${coachId}`);
+export async function getPublicCoach(coachId: number | string, options?: { signal?: AbortSignal }): Promise<Coach> {
+  const response = await api.get<ApiResponse<Coach>>(`/coaches/${coachId}`, { signal: options?.signal });
   return response.data.data;
 }
 

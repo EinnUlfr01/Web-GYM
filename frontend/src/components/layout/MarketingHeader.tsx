@@ -58,7 +58,9 @@ export default function MarketingHeader() {
 
   const dashboardRoute = isAuthenticated && user ? roleHome(user.role) : '/dashboard';
   const accountLinks: NavigationItem[] = [
-    { to: '/seller/apply', label: 'Kênh người bán', icon: Store, match: 'exact' },
+    ...(isAuthenticated && user && (user.role === 'member' || user.role === 'seller')
+      ? [{ to: '/seller/apply', label: user.role === 'seller' ? 'Hồ sơ Seller' : 'Kênh người bán', icon: Store, match: 'exact' as const }]
+      : []),
     {
       to: dashboardRoute,
       activeTo: isAuthenticated && user ? dashboardRoute : '/dashboard',

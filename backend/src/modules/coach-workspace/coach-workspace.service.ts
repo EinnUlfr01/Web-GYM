@@ -2,7 +2,6 @@ import { getPool, query, sql } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { getProgress as getMemberProgress, getSession as getMemberSession } from '../member-workout/member-workout.service';
 import { assertIanaTimeZone, todayInTimeZone } from '../../utils/timezone';
-import { COACH_BOOKING_TIME_ZONE } from '../../utils/coachBooking';
 import { createNotification } from '../notifications/notifications.service';
 
 export const MAX_PAGE_SIZE = 50;
@@ -213,36 +212,6 @@ export async function assertProgramOwner(coachId: number, programId: number) {
   return result.recordset[0];
 }
 
-async function assertProgramDraft(coachId: number, programId: number) {
-  const program = await assertProgramOwner(coachId, programId);
-  if (program.lifecycle_status !== 'DRAFT') {
-    throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  }
-  return program;
-}
-
-async function assertDayOwner(coachId: number, dayId: number) {
-  const result = await query<{ id: number; program_id: number; week_number: number; day_number: number; lifecycle_status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' }>(
-    `SELECT d.id,d.program_id,d.week_number,d.day_number,p.lifecycle_status FROM dbo.WorkoutProgramDays d
-     JOIN dbo.WorkoutPrograms p ON p.id=d.program_id AND p.owner_coach_id=@coachId WHERE d.id=@dayId`,
-    { coachId, dayId },
-  );
-  if (!result.recordset[0]) throw new AppError(404, 'Program day not found');
-  return result.recordset[0];
-}
-
-async function assertProgramExerciseOwner(coachId: number, programExerciseId: number) {
-  const result = await query<{ id: number; program_day_id: number; program_id: number; lifecycle_status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' }>(
-    `SELECT pe.id,pe.program_day_id,d.program_id,p.lifecycle_status FROM dbo.WorkoutProgramExercises pe
-     JOIN dbo.WorkoutProgramDays d ON d.id=pe.program_day_id
-     JOIN dbo.WorkoutPrograms p ON p.id=d.program_id AND p.owner_coach_id=@coachId
-     WHERE pe.id=@programExerciseId`,
-    { coachId, programExerciseId },
-  );
-  if (!result.recordset[0]) throw new AppError(404, 'Program exercise not found');
-  return result.recordset[0];
-}
-
 export async function assertAssignment(coachId: number, assignmentId: number) {
   const result = await query<{
     id: number;
@@ -267,18 +236,37 @@ export async function assertAssignment(coachId: number, assignmentId: number) {
   return result.recordset[0];
 }
 
-async function assertSchedule(coachId: number, scheduleId: number) {
-  const result = await query<{ id: number; assignment_id: number; scheduled_date: string; status: string; schedule_timezone: string }>(
-    `SELECT s.id,s.assignment_id,s.scheduled_date,s.status,a.schedule_timezone
-     FROM dbo.CoachProgramSchedules s
-     JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
-     JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
-     JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
-     WHERE s.id=@scheduleId`,
-    { coachId, scheduleId },
-  );
-  if (!result.recordset[0]) throw new AppError(404, 'Schedule not found');
-  return result.recordset[0];
+type LockedSchedule = {
+  id: number;
+  assignment_id: number;
+  program_day_id: number;
+  scheduled_date: string;
+  status: string;
+  schedule_timezone: string;
+  assignment_status: string;
+  assignment_start_date: string;
+  assignment_end_date: string | null;
+  program_duration_weeks: number;
+};
+
+async function lockScheduleForMutation(tx: sql.Transaction, coachId: number, scheduleId: number): Promise<LockedSchedule> {
+  const result = await new sql.Request(tx)
+    .input('scheduleId', sql.Int, scheduleId)
+    .input('coachId', sql.Int, coachId)
+    .query<LockedSchedule>(
+      `SELECT s.id,s.assignment_id,s.program_day_id,s.scheduled_date,s.status,a.schedule_timezone,
+              a.status AS assignment_status,a.start_date AS assignment_start_date,a.end_date AS assignment_end_date,
+              p.duration_weeks AS program_duration_weeks
+       FROM dbo.CoachProgramSchedules s WITH (UPDLOCK,HOLDLOCK)
+       JOIN dbo.CoachProgramAssignments a WITH (UPDLOCK,HOLDLOCK) ON a.id=s.assignment_id AND a.coach_id=@coachId
+       JOIN dbo.WorkoutPrograms p WITH (UPDLOCK,HOLDLOCK) ON p.id=a.program_id
+       JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
+       JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1
+       WHERE s.id=@scheduleId`,
+    );
+  const schedule = result.recordset[0];
+  if (!schedule) throw new AppError(404, 'Schedule not found');
+  return schedule;
 }
 
 export type CoachAttentionSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -309,7 +297,7 @@ function attentionItem(input: Omit<CoachAttentionItem, 'memberId' | 'memberName'
 }
 
 async function getAttentionQueue(coachId: number, timezones: Array<{ schedule_timezone: string }>): Promise<CoachAttentionItem[]> {
-  const params: Record<string, unknown> = { coachId, skippedStart: addDays(todayInTimeZone(COACH_BOOKING_TIME_ZONE), -30) };
+  const params: Record<string, unknown> = { coachId };
   const dateClauses = timezones.map((row, index) => {
     const timeZone = String(row.schedule_timezone);
     assertTimeZone(timeZone);
@@ -319,13 +307,16 @@ async function getAttentionQueue(coachId: number, timezones: Array<{ schedule_ti
     params[`attentionExpiry${index}`] = addDays(today, 7);
     params[`attentionFutureEnd${index}`] = addDays(today, 14);
     params[`attentionPast${index}`] = addDays(today, -14);
+    params[`attentionSkippedStart${index}`] = addDays(today, -30);
     return `(a.schedule_timezone=@attentionTimezone${index} AND s.scheduled_date>=@attentionToday${index} AND s.scheduled_date<=@attentionFutureEnd${index})`;
   });
   const activeDateClauses = timezones.map((row, index) => `(a.schedule_timezone=@attentionTimezone${index} AND a.end_date>=@attentionToday${index} AND a.end_date<=@attentionExpiry${index})`);
   const historyDateClauses = timezones.map((row, index) => `(a.schedule_timezone=@attentionTimezone${index} AND s.scheduled_date>=@attentionPast${index} AND s.scheduled_date<@attentionToday${index})`);
+  const skippedDateClauses = timezones.map((row, index) => `(a.schedule_timezone=@attentionTimezone${index} AND s.scheduled_date>=@attentionSkippedStart${index} AND s.scheduled_date<@attentionToday${index})`);
   const futureWindow = dateClauses.length ? `AND (${dateClauses.join(' OR ')})` : 'AND 1=0';
   const activeWindow = activeDateClauses.length ? `AND (${activeDateClauses.join(' OR ')})` : 'AND 1=0';
   const historyWindow = historyDateClauses.length ? `AND (${historyDateClauses.join(' OR ')})` : 'AND 1=0';
+  const skippedWindow = skippedDateClauses.length ? `AND (${skippedDateClauses.join(' OR ')})` : 'AND 1=0';
   const scope = `JOIN dbo.CRMCustomers c ON c.user_id=a.member_id AND c.assigned_coach_id=@coachId
                  JOIN dbo.Users u ON u.id=a.member_id AND u.role=N'member' AND u.is_active=1`;
   const [pending, skipped, noWorkout, expiring, missingFuture, emptyDay, lowCompletion] = await Promise.all([
@@ -334,18 +325,27 @@ async function getAttentionQueue(coachId: number, timezones: Array<{ schedule_ti
            JOIN dbo.CRMCustomers c ON c.user_id=b.member_id AND c.assigned_coach_id=@coachId
            WHERE b.coach_id=@coachId AND b.status=N'pending' AND b.created_at<=DATEADD(hour,-24,SYSUTCDATETIME())
            ORDER BY b.created_at,b.id`, params),
-    query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,COUNT(*) AS skipped_count,MAX(s.scheduled_date) AS created_from
-           FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
-           ${scope}
-           WHERE s.status=N'SKIPPED'
-           GROUP BY a.id,a.member_id,u.name
+     query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,COUNT(*) AS skipped_count,MAX(s.scheduled_date) AS created_from
+            FROM dbo.CoachProgramSchedules s JOIN dbo.CoachProgramAssignments a ON a.id=s.assignment_id AND a.coach_id=@coachId
+            ${scope}
+            WHERE s.status=N'SKIPPED' AND a.status=N'ACTIVE' ${skippedWindow}
+            GROUP BY a.id,a.member_id,u.name
            HAVING COUNT(*)>=2
            ORDER BY skipped_count DESC,created_from,a.id`, params),
     query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,a.updated_at AS created_from
-           FROM dbo.CoachProgramAssignments a ${scope}
-           WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'
-             AND NOT EXISTS (SELECT 1 FROM dbo.MemberWorkoutSessions ms WHERE ms.member_id=a.member_id AND ms.started_at>=DATEADD(day,-7,SYSUTCDATETIME()))
-             AND NOT EXISTS (SELECT 1 FROM dbo.WorkoutSessions ws WHERE ws.user_id=a.member_id AND ws.started_at>=DATEADD(day,-7,SYSUTCDATETIME()))
+            FROM dbo.CoachProgramAssignments a ${scope}
+            WHERE a.coach_id=@coachId AND a.status=N'ACTIVE'
+              AND NOT EXISTS (
+                SELECT 1 FROM dbo.MemberWorkoutSessions ms
+                JOIN dbo.CoachProgramAssignments current_a ON current_a.id=ms.assignment_id
+                WHERE ms.member_id=a.member_id AND current_a.id=a.id AND current_a.coach_id=@coachId
+                  AND current_a.status=N'ACTIVE' AND ms.started_at>=DATEADD(day,-7,SYSUTCDATETIME())
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM dbo.WorkoutSessions ws
+                JOIN dbo.Workouts current_w ON current_w.id=ws.workout_id AND current_w.coach_id=@coachId
+                WHERE ws.user_id=a.member_id AND ws.started_at>=DATEADD(day,-7,SYSUTCDATETIME())
+              )
            ORDER BY a.updated_at,a.id`, params),
     query(`SELECT TOP 20 a.id AS assignment_id,a.member_id,u.name AS member_name,a.end_date AS created_from
            FROM dbo.CoachProgramAssignments a ${scope}
@@ -533,13 +533,38 @@ export async function createProgram(coachId: number, data: Record<string, unknow
 }
 
 export async function updateProgram(coachId: number, programId: number, data: Record<string, unknown>) {
-  await assertProgramDraft(coachId, programId);
-  const result = await query(`UPDATE dbo.WorkoutPrograms SET name=@name,description=@description,goal=@goal,difficulty=@difficulty,duration_weeks=@durationWeeks,days_per_week=@daysPerWeek,updated_at=SYSUTCDATETIME()
-    OUTPUT INSERTED.id,INSERTED.name,INSERTED.description,INSERTED.goal,INSERTED.difficulty,INSERTED.duration_weeks,INSERTED.days_per_week,INSERTED.owner_coach_id,INSERTED.is_active,
-           INSERTED.root_program_id,INSERTED.version_number,INSERTED.lifecycle_status,INSERTED.published_at,INSERTED.cloned_from_program_id,INSERTED.created_at,INSERTED.updated_at
-    WHERE id=@programId AND owner_coach_id=@coachId AND lifecycle_status=N'DRAFT'`, { ...data, description: data.description ?? null, programId, coachId });
-  if (!result.recordset[0]) throw new AppError(409, 'Program was changed before update completed', 'PROGRAM_VERSION_CONFLICT');
-  return result.recordset[0];
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    await lockProgramDraft(tx, coachId, programId);
+    const durationWeeks = Number(data.durationWeeks);
+    const maxDay = await new sql.Request(tx)
+      .input('programIdForDuration', sql.Int, programId)
+      .query<{ maxWeek: number | null }>('SELECT MAX(week_number) AS maxWeek FROM dbo.WorkoutProgramDays WHERE program_id=@programIdForDuration');
+    const maxWeek = maxDay.recordset[0]?.maxWeek == null ? 0 : Number(maxDay.recordset[0].maxWeek);
+    if (durationWeeks < maxWeek) {
+      throw new AppError(409, `Program duration cannot be shorter than existing Day week ${maxWeek}`, 'PROGRAM_DURATION_TOO_SHORT');
+    }
+    const result = await new sql.Request(tx)
+      .input('name', sql.NVarChar(200), data.name)
+      .input('description', sql.NVarChar(sql.MAX), data.description ?? null)
+      .input('goal', sql.NVarChar(40), data.goal)
+      .input('difficulty', sql.NVarChar(20), data.difficulty)
+      .input('durationWeeks', sql.TinyInt, durationWeeks)
+      .input('daysPerWeek', sql.TinyInt, data.daysPerWeek)
+      .input('programId', sql.Int, programId)
+      .input('coachId', sql.Int, coachId)
+      .query(`UPDATE dbo.WorkoutPrograms SET name=@name,description=@description,goal=@goal,difficulty=@difficulty,duration_weeks=@durationWeeks,days_per_week=@daysPerWeek,updated_at=SYSUTCDATETIME()
+        OUTPUT INSERTED.id,INSERTED.name,INSERTED.description,INSERTED.goal,INSERTED.difficulty,INSERTED.duration_weeks,INSERTED.days_per_week,INSERTED.owner_coach_id,INSERTED.is_active,
+               INSERTED.root_program_id,INSERTED.version_number,INSERTED.lifecycle_status,INSERTED.published_at,INSERTED.cloned_from_program_id,INSERTED.created_at,INSERTED.updated_at
+        WHERE id=@programId AND owner_coach_id=@coachId AND lifecycle_status=N'DRAFT'`);
+    if (!result.recordset[0]) throw new AppError(409, 'Program was changed before update completed', 'PROGRAM_VERSION_CONFLICT');
+    await tx.commit();
+    return result.recordset[0];
+  } catch (error) {
+    try { await tx.rollback(); } catch { /* preserve original error */ }
+    throw error;
+  }
 }
 
 export async function setProgramActive(coachId: number, programId: number, active: boolean) {
@@ -558,16 +583,98 @@ export async function setProgramActive(coachId: number, programId: number, activ
 const programVersionSelect = `id,name,description,goal,difficulty,duration_weeks,days_per_week,owner_coach_id,is_active,
   root_program_id,version_number,lifecycle_status,published_at,cloned_from_program_id,created_at,updated_at`;
 
+type LockedProgram = { id: number; duration_weeks: number };
+
+async function lockProgramDraft(tx: sql.Transaction, coachId: number, programId: number): Promise<LockedProgram> {
+  const result = await new sql.Request(tx)
+    .input('programId', sql.Int, programId)
+    .input('coachId', sql.Int, coachId)
+    .query<{ id: number; duration_weeks: number; lifecycle_status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' }>(
+      `SELECT id,duration_weeks,lifecycle_status
+       FROM dbo.WorkoutPrograms WITH (UPDLOCK,HOLDLOCK)
+       WHERE id=@programId AND owner_coach_id=@coachId`,
+    );
+  const program = result.recordset[0];
+  if (!program) throw new AppError(404, 'Program not found');
+  if (program.lifecycle_status !== 'DRAFT') {
+    throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
+  }
+  return { id: Number(program.id), duration_weeks: Number(program.duration_weeks) };
+}
+
+async function lockDayDraft(tx: sql.Transaction, coachId: number, dayId: number) {
+  const result = await new sql.Request(tx)
+    .input('dayId', sql.Int, dayId)
+    .input('coachId', sql.Int, coachId)
+    .query<{ id: number; program_id: number; week_number: number; day_number: number; duration_weeks: number; lifecycle_status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' }>(
+      `SELECT d.id,d.program_id,d.week_number,d.day_number,p.duration_weeks,p.lifecycle_status
+       FROM dbo.WorkoutProgramDays d
+       JOIN dbo.WorkoutPrograms p WITH (UPDLOCK,HOLDLOCK) ON p.id=d.program_id AND p.owner_coach_id=@coachId
+       WHERE d.id=@dayId`,
+    );
+  const day = result.recordset[0];
+  if (!day) throw new AppError(404, 'Program day not found');
+  if (day.lifecycle_status !== 'DRAFT') {
+    throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
+  }
+  return day;
+}
+
+async function lockProgramExerciseDraft(tx: sql.Transaction, coachId: number, programExerciseId: number) {
+  const result = await new sql.Request(tx)
+    .input('programExerciseId', sql.Int, programExerciseId)
+    .input('coachId', sql.Int, coachId)
+    .query<{
+      id: number; program_day_id: number; program_id: number; duration_weeks: number; lifecycle_status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+      target_sets: number | null; target_reps_min: number | null; target_reps_max: number | null; target_weight: number | null;
+      target_duration_seconds: number | null; rest_seconds: number | null; tempo: string | null; coach_note: string | null;
+    }>(
+      `SELECT pe.id,pe.program_day_id,d.program_id,p.duration_weeks,p.lifecycle_status,
+              pe.target_sets,pe.target_reps_min,pe.target_reps_max,pe.target_weight,
+              pe.target_duration_seconds,pe.rest_seconds,pe.tempo,pe.coach_note
+       FROM dbo.WorkoutProgramExercises pe
+       JOIN dbo.WorkoutProgramDays d ON d.id=pe.program_day_id
+       JOIN dbo.WorkoutPrograms p WITH (UPDLOCK,HOLDLOCK) ON p.id=d.program_id AND p.owner_coach_id=@coachId
+       WHERE pe.id=@programExerciseId`,
+    );
+  const exercise = result.recordset[0];
+  if (!exercise) throw new AppError(404, 'Program exercise not found');
+  if (exercise.lifecycle_status !== 'DRAFT') {
+    throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
+  }
+  return exercise;
+}
+
+function assertMergedExerciseTargets(input: { targetRepsMin: number | null; targetRepsMax: number | null; targetDurationSeconds: number | null }): void {
+  if (input.targetRepsMin == null && input.targetRepsMax == null && input.targetDurationSeconds == null) {
+    throw new AppError(400, 'At least a reps or duration target is required', 'PROGRAM_EXERCISE_TARGET_REQUIRED');
+  }
+  if (input.targetRepsMin != null && input.targetRepsMax != null && input.targetRepsMin > input.targetRepsMax) {
+    throw new AppError(400, 'targetRepsMin must not exceed targetRepsMax', 'PROGRAM_EXERCISE_REPS_INVALID');
+  }
+}
+
 export async function publishProgram(coachId: number, programId: number) {
   const tx = (await getPool()).transaction();
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   try {
-    const current = await new sql.Request(tx)
+    const current = await lockProgramDraft(tx, coachId, programId);
+    const days = await new sql.Request(tx)
       .input('programId', sql.Int, programId)
-      .input('coachId', sql.Int, coachId)
-      .query<{ id: number; lifecycle_status: string }>(`SELECT id,lifecycle_status FROM dbo.WorkoutPrograms WITH (UPDLOCK,HOLDLOCK) WHERE id=@programId AND owner_coach_id=@coachId`);
-    if (!current.recordset[0]) throw new AppError(404, 'Program not found');
-    if (current.recordset[0].lifecycle_status !== 'DRAFT') throw new AppError(409, 'Only Draft Program versions can be published', 'PROGRAM_VERSION_TRANSITION_INVALID');
+      .query<{ id: number; week_number: number; exercise_count: number; invalid_exercise_count: number }>(
+        `SELECT d.id,d.week_number,COUNT(pe.id) AS exercise_count,
+                SUM(CASE WHEN pe.id IS NOT NULL AND (e.id IS NULL OR e.is_active<>1
+                  OR (pe.target_reps_min IS NULL AND pe.target_reps_max IS NULL AND pe.target_duration_seconds IS NULL)
+                  OR (pe.target_reps_min IS NOT NULL AND pe.target_reps_max IS NOT NULL AND pe.target_reps_min>pe.target_reps_max)) THEN 1 ELSE 0 END) AS invalid_exercise_count
+         FROM dbo.WorkoutProgramDays d
+         LEFT JOIN dbo.WorkoutProgramExercises pe ON pe.program_day_id=d.id
+         LEFT JOIN dbo.Exercises e ON e.id=pe.exercise_id
+         WHERE d.program_id=@programId
+         GROUP BY d.id,d.week_number`,
+      );
+    const notReady = days.recordset.length === 0 || days.recordset.some(day =>
+      Number(day.week_number) > current.duration_weeks || Number(day.exercise_count) < 1 || Number(day.invalid_exercise_count ?? 0) > 0);
+    if (notReady) throw new AppError(409, 'Program is not ready to publish', 'PROGRAM_NOT_READY_TO_PUBLISH');
     const updated = await new sql.Request(tx)
       .input('programId', sql.Int, programId)
       .input('coachId', sql.Int, coachId)
@@ -705,35 +812,64 @@ export async function archiveProgram(coachId: number, programId: number) {
 }
 
 export async function createDay(coachId: number, programId: number, data: Record<string, unknown>) {
-  await assertProgramDraft(coachId, programId);
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   const weekNumber = Number(data.weekNumber); const dayNumber = Number(data.dayNumber);
-  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 104 || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
   try {
-    const result = await query(`INSERT dbo.WorkoutProgramDays(program_id,week_number,day_number,title,description,sort_order) OUTPUT INSERTED.* SELECT @programId,@weekNumber,@dayNumber,@title,@description,COALESCE(MAX(sort_order),-1)+1 FROM dbo.WorkoutProgramDays WHERE program_id=@programId`, { programId, weekNumber, dayNumber, title: data.title, description: data.description ?? null });
+    const program = await lockProgramDraft(tx, coachId, programId);
+    if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > program.duration_weeks || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
+    const result = await new sql.Request(tx)
+      .input('programId', sql.Int, programId)
+      .input('weekNumber', sql.TinyInt, weekNumber)
+      .input('dayNumber', sql.TinyInt, dayNumber)
+      .input('title', sql.NVarChar(200), data.title)
+      .input('description', sql.NVarChar(sql.MAX), data.description ?? null)
+      .query(`INSERT dbo.WorkoutProgramDays(program_id,week_number,day_number,title,description,sort_order)
+        OUTPUT INSERTED.*
+        SELECT @programId,@weekNumber,@dayNumber,@title,@description,COALESCE(MAX(sort_order),-1)+1
+        FROM dbo.WorkoutProgramDays WHERE program_id=@programId`);
+    await tx.commit();
     return result.recordset[0];
-  } catch (error) { if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
+  } catch (error) { try { await tx.rollback(); } catch {} if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
 }
 
 export async function updateDay(coachId: number, dayId: number, data: Record<string, unknown>) {
-  const current = await assertDayOwner(coachId, dayId);
-  if (current.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   const weekNumber = Number(data.weekNumber); const dayNumber = Number(data.dayNumber);
-  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 104 || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
-  if (Number(current.week_number) !== weekNumber || Number(current.day_number) !== dayNumber) {
-    const scheduled = await query<{ count: number }>('SELECT COUNT(*) AS count FROM dbo.CoachProgramSchedules WHERE program_day_id=@dayId', { dayId });
-    if (Number(scheduled.recordset[0].count) > 0) throw new AppError(409, 'Program Day position is locked after scheduling', 'PROGRAM_DAY_POSITION_LOCKED');
-  }
   try {
-    const result = await query(`UPDATE dbo.WorkoutProgramDays SET week_number=@weekNumber,day_number=@dayNumber,title=@title,description=@description,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@dayId`, { weekNumber, dayNumber, title: data.title, description: data.description ?? null, dayId });
+    const current = await lockDayDraft(tx, coachId, dayId);
+    if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > Number(current.duration_weeks) || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) throw new AppError(400, 'Program Day week/day is out of range');
+    if (Number(current.week_number) !== weekNumber || Number(current.day_number) !== dayNumber) {
+      const scheduled = await new sql.Request(tx).input('dayId', sql.Int, dayId).query<{ count: number }>('SELECT COUNT(*) AS count FROM dbo.CoachProgramSchedules WHERE program_day_id=@dayId');
+      if (Number(scheduled.recordset[0].count) > 0) throw new AppError(409, 'Program Day position is locked after scheduling', 'PROGRAM_DAY_POSITION_LOCKED');
+    }
+    const result = await new sql.Request(tx)
+      .input('weekNumber', sql.TinyInt, weekNumber)
+      .input('dayNumber', sql.TinyInt, dayNumber)
+      .input('title', sql.NVarChar(200), data.title)
+      .input('description', sql.NVarChar(sql.MAX), data.description ?? null)
+      .input('dayId', sql.Int, dayId)
+      .query(`UPDATE dbo.WorkoutProgramDays SET week_number=@weekNumber,day_number=@dayNumber,title=@title,description=@description,updated_at=SYSUTCDATETIME()
+        OUTPUT INSERTED.* WHERE id=@dayId`);
+    if (!result.recordset[0]) throw new AppError(409, 'Program Day changed before update completed', 'PROGRAM_VERSION_CONFLICT');
+    await tx.commit();
     return result.recordset[0];
-  } catch (error) { if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
+  } catch (error) { try { await tx.rollback(); } catch {} if (isUniqueConstraintError(error)) throw new AppError(409, 'Program Day week/day already exists', 'PROGRAM_DAY_POSITION_CONFLICT'); throw error; }
 }
 
 export async function deleteDay(coachId: number, dayId: number) {
-  const current = await assertDayOwner(coachId, dayId);
-  if (current.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  try { await query('DELETE FROM dbo.WorkoutProgramDays WHERE id=@dayId', { dayId }); }
-  catch (error) { if ((error as { number?: number }).number === 547) throw new AppError(409, 'Program day is referenced by a schedule'); throw error; }
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    await lockDayDraft(tx, coachId, dayId);
+    await new sql.Request(tx).input('dayId', sql.Int, dayId).query('DELETE FROM dbo.WorkoutProgramDays WHERE id=@dayId');
+    await tx.commit();
+  } catch (error) {
+    try { await tx.rollback(); } catch {}
+    if ((error as { number?: number }).number === 547) throw new AppError(409, 'Program day is referenced by a schedule');
+    throw error;
+  }
 }
 
 async function reorder(tx: sql.Transaction, table: string, parentColumn: string, parentId: number, ids: number[], ownerCoachId: number, joinTable: string, joinColumn: string) {
@@ -746,37 +882,95 @@ async function reorder(tx: sql.Transaction, table: string, parentColumn: string,
 }
 
 export async function reorderDays(coachId: number, programId: number, ids: number[]) {
-  await assertProgramDraft(coachId, programId); const tx = (await getPool()).transaction(); await tx.begin();
+  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   try { await reorder(tx, 'WorkoutProgramDays', 'program_id', programId, ids, coachId, 'WorkoutPrograms', 'program_id'); await tx.commit(); }
   catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
 export async function createProgramExercise(coachId: number, dayId: number, data: Record<string, unknown>) {
-  const day = await assertDayOwner(coachId, dayId);
-  if (day.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  await getExercise(Number(data.exerciseId));
-  const active = await query('SELECT id FROM dbo.Exercises WHERE id=@exerciseId AND is_active=1', { exerciseId: data.exerciseId }); if (!active.recordset[0]) throw new AppError(400, 'Exercise must be active');
-  const result = await query(`INSERT dbo.WorkoutProgramExercises(program_day_id,exercise_id,sort_order,target_sets,target_reps_min,target_reps_max,target_weight,target_duration_seconds,rest_seconds,tempo,coach_note) OUTPUT INSERTED.* SELECT @dayId,@exerciseId,COALESCE(MAX(sort_order),-1)+1,@targetSets,@targetRepsMin,@targetRepsMax,@targetWeight,@targetDurationSeconds,@restSeconds,@tempo,@coachNote FROM dbo.WorkoutProgramExercises WHERE program_day_id=@dayId`, { dayId, exerciseId: data.exerciseId, targetSets: data.targetSets ?? null, targetRepsMin: data.targetRepsMin ?? null, targetRepsMax: data.targetRepsMax ?? null, targetWeight: data.targetWeight ?? null, targetDurationSeconds: data.targetDurationSeconds ?? null, restSeconds: data.restSeconds ?? null, tempo: data.tempo ?? null, coachNote: data.coachNote ?? null });
-  return result.recordset[0];
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    await lockDayDraft(tx, coachId, dayId);
+    const active = await new sql.Request(tx).input('exerciseId', sql.Int, Number(data.exerciseId)).query('SELECT id FROM dbo.Exercises WHERE id=@exerciseId AND is_active=1');
+    if (!active.recordset[0]) throw new AppError(400, 'Exercise must be active');
+    const result = await new sql.Request(tx)
+      .input('dayId', sql.Int, dayId)
+      .input('exerciseId', sql.Int, Number(data.exerciseId))
+      .input('targetSets', sql.TinyInt, data.targetSets ?? null)
+      .input('targetRepsMin', sql.SmallInt, data.targetRepsMin ?? null)
+      .input('targetRepsMax', sql.SmallInt, data.targetRepsMax ?? null)
+      .input('targetWeight', sql.Decimal(8, 2), data.targetWeight ?? null)
+      .input('targetDurationSeconds', sql.Int, data.targetDurationSeconds ?? null)
+      .input('restSeconds', sql.Int, data.restSeconds ?? null)
+      .input('tempo', sql.NVarChar(40), data.tempo ?? null)
+      .input('coachNote', sql.NVarChar(2000), data.coachNote ?? null)
+      .query(`INSERT dbo.WorkoutProgramExercises(program_day_id,exercise_id,sort_order,target_sets,target_reps_min,target_reps_max,target_weight,target_duration_seconds,rest_seconds,tempo,coach_note)
+        OUTPUT INSERTED.*
+        SELECT @dayId,@exerciseId,COALESCE(MAX(sort_order),-1)+1,@targetSets,@targetRepsMin,@targetRepsMax,@targetWeight,@targetDurationSeconds,@restSeconds,@tempo,@coachNote
+        FROM dbo.WorkoutProgramExercises WHERE program_day_id=@dayId`);
+    await tx.commit();
+    return result.recordset[0];
+  } catch (error) { try { await tx.rollback(); } catch {} if (isUniqueConstraintError(error)) throw new AppError(409, 'Exercise is already present in this Program Day', 'PROGRAM_EXERCISE_CONFLICT'); throw error; }
 }
 
 export async function updateProgramExercise(coachId: number, id: number, data: Record<string, unknown>) {
-  const current = await assertProgramExerciseOwner(coachId, id);
-  if (current.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  const result = await query(`UPDATE dbo.WorkoutProgramExercises SET target_sets=@targetSets,target_reps_min=@targetRepsMin,target_reps_max=@targetRepsMax,target_weight=@targetWeight,target_duration_seconds=@targetDurationSeconds,rest_seconds=@restSeconds,tempo=@tempo,coach_note=@coachNote,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@id`, { id, targetSets: data.targetSets ?? null, targetRepsMin: data.targetRepsMin ?? null, targetRepsMax: data.targetRepsMax ?? null, targetWeight: data.targetWeight ?? null, targetDurationSeconds: data.targetDurationSeconds ?? null, restSeconds: data.restSeconds ?? null, tempo: data.tempo ?? null, coachNote: data.coachNote ?? null }); return result.recordset[0];
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const current = await lockProgramExerciseDraft(tx, coachId, id);
+    const merged: {
+      targetSets: number | null;
+      targetRepsMin: number | null;
+      targetRepsMax: number | null;
+      targetWeight: number | null;
+      targetDurationSeconds: number | null;
+      restSeconds: number | null;
+      tempo: string | null;
+      coachNote: string | null;
+    } = {
+      targetSets: data.targetSets === undefined ? current.target_sets : data.targetSets as number | null,
+      targetRepsMin: data.targetRepsMin === undefined ? current.target_reps_min : data.targetRepsMin as number | null,
+      targetRepsMax: data.targetRepsMax === undefined ? current.target_reps_max : data.targetRepsMax as number | null,
+      targetWeight: data.targetWeight === undefined ? current.target_weight : data.targetWeight as number | null,
+      targetDurationSeconds: data.targetDurationSeconds === undefined ? current.target_duration_seconds : data.targetDurationSeconds as number | null,
+      restSeconds: data.restSeconds === undefined ? current.rest_seconds : data.restSeconds as number | null,
+      tempo: data.tempo === undefined ? current.tempo : data.tempo as string | null,
+      coachNote: data.coachNote === undefined ? current.coach_note : data.coachNote as string | null,
+    };
+    assertMergedExerciseTargets(merged);
+    const result = await new sql.Request(tx)
+      .input('id', sql.Int, id)
+      .input('targetSets', sql.TinyInt, merged.targetSets ?? null)
+      .input('targetRepsMin', sql.SmallInt, merged.targetRepsMin ?? null)
+      .input('targetRepsMax', sql.SmallInt, merged.targetRepsMax ?? null)
+      .input('targetWeight', sql.Decimal(8, 2), merged.targetWeight ?? null)
+      .input('targetDurationSeconds', sql.Int, merged.targetDurationSeconds ?? null)
+      .input('restSeconds', sql.Int, merged.restSeconds ?? null)
+      .input('tempo', sql.NVarChar(40), merged.tempo ?? null)
+      .input('coachNote', sql.NVarChar(2000), merged.coachNote ?? null)
+      .query(`UPDATE dbo.WorkoutProgramExercises SET target_sets=@targetSets,target_reps_min=@targetRepsMin,target_reps_max=@targetRepsMax,target_weight=@targetWeight,target_duration_seconds=@targetDurationSeconds,rest_seconds=@restSeconds,tempo=@tempo,coach_note=@coachNote,updated_at=SYSUTCDATETIME()
+        OUTPUT INSERTED.* WHERE id=@id`);
+    if (!result.recordset[0]) throw new AppError(409, 'Program exercise changed before update completed', 'PROGRAM_VERSION_CONFLICT');
+    await tx.commit();
+    return result.recordset[0];
+  } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
 export async function deleteProgramExercise(coachId: number, id: number) {
-  const current = await assertProgramExerciseOwner(coachId, id);
-  if (current.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  await query('DELETE FROM dbo.WorkoutProgramExercises WHERE id=@id', { id });
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    await lockProgramExerciseDraft(tx, coachId, id);
+    await new sql.Request(tx).input('id', sql.Int, id).query('DELETE FROM dbo.WorkoutProgramExercises WHERE id=@id');
+    await tx.commit();
+  } catch (error) { try { await tx.rollback(); } catch {} throw error; }
 }
 
 export async function reorderProgramExercises(coachId: number, dayId: number, ids: number[]) {
-  const day = await assertDayOwner(coachId, dayId);
-  if (day.lifecycle_status !== 'DRAFT') throw new AppError(409, 'Published or archived Program versions are immutable; clone a new Draft version', 'PROGRAM_VERSION_IMMUTABLE');
-  const tx = (await getPool()).transaction(); await tx.begin();
+  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   try {
+    await lockDayDraft(tx, coachId, dayId);
     const valid = await new sql.Request(tx).input('dayId', sql.Int, dayId).input('coachId', sql.Int, coachId).query(`SELECT pe.id FROM dbo.WorkoutProgramExercises pe JOIN dbo.WorkoutProgramDays d ON d.id=pe.program_day_id JOIN dbo.WorkoutPrograms p ON p.id=d.program_id AND p.owner_coach_id=@coachId WHERE pe.program_day_id=@dayId`);
     const allowed = valid.recordset.map((row: { id: number }) => Number(row.id)); const unique = new Set(ids); if (ids.length !== allowed.length || unique.size !== ids.length || ids.some(item => !allowed.includes(item))) throw new AppError(400, 'Order must contain exactly the current items');
     await new sql.Request(tx).input('dayId', sql.Int, dayId).query('UPDATE dbo.WorkoutProgramExercises SET sort_order=sort_order+10000 WHERE program_day_id=@dayId');
@@ -1105,13 +1299,91 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
 }
 
 export async function reschedule(coachId: number, scheduleId: number, scheduledDate: string) {
-  const schedule = await assertSchedule(coachId, scheduleId); const date = dateOnly(scheduledDate); assertTimeZone(schedule.schedule_timezone); const today = todayInTimeZone(schedule.schedule_timezone); if (schedule.status !== 'SCHEDULED' || date < today) throw new AppError(409, 'Only future scheduled items can be rescheduled');
-  const result = await query(`UPDATE dbo.CoachProgramSchedules SET scheduled_date=@scheduledDate,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@scheduleId AND status=N'SCHEDULED'`, { scheduledDate: date, scheduleId }); return result.recordset[0];
+  const date = dateOnly(scheduledDate);
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const schedule = await lockScheduleForMutation(tx, coachId, scheduleId);
+    assertTimeZone(schedule.schedule_timezone);
+    const today = todayInTimeZone(schedule.schedule_timezone);
+    const assignmentStart = datePart(schedule.assignment_start_date);
+    const assignmentEnd = schedule.assignment_end_date ? datePart(schedule.assignment_end_date) : null;
+    const programEnd = Number(schedule.program_duration_weeks) > 0
+      ? addDays(assignmentStart, Number(schedule.program_duration_weeks) * 7 - 1)
+      : null;
+    if (schedule.status !== 'SCHEDULED' || schedule.assignment_status !== 'ACTIVE' || date < today) {
+      throw new AppError(409, 'Only future scheduled items on active assignments can be rescheduled');
+    }
+    if (date < assignmentStart || (assignmentEnd && date > assignmentEnd) || (programEnd && date > programEnd)) {
+      throw new AppError(409, 'Rescheduled date is outside assignment or program bounds', 'SCHEDULE_DATE_OUT_OF_BOUNDS');
+    }
+
+    const exactConflict = await new sql.Request(tx)
+      .input('conflictAssignmentId', sql.Int, schedule.assignment_id)
+      .input('conflictProgramDayId', sql.Int, schedule.program_day_id)
+      .input('conflictDate', sql.Date, date)
+      .input('conflictScheduleId', sql.Int, scheduleId)
+      .query<{ id: number }>(
+        `SELECT TOP 1 id FROM dbo.CoachProgramSchedules WITH (UPDLOCK,HOLDLOCK)
+         WHERE assignment_id=@conflictAssignmentId AND program_day_id=@conflictProgramDayId
+           AND scheduled_date=@conflictDate AND id<>@conflictScheduleId`,
+      );
+    if (exactConflict.recordset[0]) throw new AppError(409, 'A schedule already exists for the selected date', 'SCHEDULE_DATE_CONFLICT');
+
+    const dayConflict = await new sql.Request(tx)
+      .input('dayConflictAssignmentId', sql.Int, schedule.assignment_id)
+      .input('dayConflictDate', sql.Date, date)
+      .input('dayConflictScheduleId', sql.Int, scheduleId)
+      .query<{ id: number }>(
+        `SELECT TOP 1 id FROM dbo.CoachProgramSchedules WITH (UPDLOCK,HOLDLOCK)
+         WHERE assignment_id=@dayConflictAssignmentId AND scheduled_date=@dayConflictDate
+           AND id<>@dayConflictScheduleId AND status<>N'CANCELLED'`,
+      );
+    if (dayConflict.recordset[0]) throw new AppError(409, 'The assignment already has a schedule on the selected date', 'SCHEDULE_DATE_CONFLICT');
+
+    const result = await new sql.Request(tx)
+      .input('scheduledDate', sql.Date, date)
+      .input('scheduleId', sql.Int, scheduleId)
+      .query<LockedSchedule>(
+        `UPDATE dbo.CoachProgramSchedules
+         SET scheduled_date=@scheduledDate,updated_at=SYSUTCDATETIME()
+         OUTPUT INSERTED.*
+         WHERE id=@scheduleId AND status=N'SCHEDULED'`,
+      );
+    if (!result.recordset[0]) throw new AppError(409, 'Schedule changed before reschedule completed', 'SCHEDULE_VERSION_CONFLICT');
+    await tx.commit();
+    return result.recordset[0];
+  } catch (error) {
+    try { await tx.rollback(); } catch { /* preserve original error */ }
+    if ((error as { number?: number }).number === 2601 || (error as { number?: number }).number === 2627) {
+      throw new AppError(409, 'A schedule already exists for the selected date', 'SCHEDULE_DATE_CONFLICT');
+    }
+    throw error;
+  }
 }
 
 export async function cancelSchedule(coachId: number, scheduleId: number) {
-  const schedule = await assertSchedule(coachId, scheduleId); assertTimeZone(schedule.schedule_timezone); if (schedule.status !== 'SCHEDULED' || datePart(schedule.scheduled_date) < todayInTimeZone(schedule.schedule_timezone)) throw new AppError(409, 'Only future scheduled items can be cancelled');
-  const result = await query(`UPDATE dbo.CoachProgramSchedules SET status=N'CANCELLED',updated_at=SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id=@scheduleId AND status=N'SCHEDULED'`, { scheduleId }); return result.recordset[0];
+  const tx = (await getPool()).transaction();
+  await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  try {
+    const schedule = await lockScheduleForMutation(tx, coachId, scheduleId);
+    assertTimeZone(schedule.schedule_timezone);
+    if (schedule.status !== 'SCHEDULED' || schedule.assignment_status !== 'ACTIVE' || datePart(schedule.scheduled_date) < todayInTimeZone(schedule.schedule_timezone)) {
+      throw new AppError(409, 'Only future scheduled items on active assignments can be cancelled');
+    }
+    const result = await new sql.Request(tx)
+      .input('scheduleId', sql.Int, scheduleId)
+      .query<LockedSchedule>(
+        `UPDATE dbo.CoachProgramSchedules SET status=N'CANCELLED',updated_at=SYSUTCDATETIME()
+         OUTPUT INSERTED.* WHERE id=@scheduleId AND status=N'SCHEDULED'`,
+      );
+    if (!result.recordset[0]) throw new AppError(409, 'Schedule changed before cancellation completed', 'SCHEDULE_VERSION_CONFLICT');
+    await tx.commit();
+    return result.recordset[0];
+  } catch (error) {
+    try { await tx.rollback(); } catch { /* preserve original error */ }
+    throw error;
+  }
 }
 
 export async function listSessions(coachId: number, memberId: number, page: number, limit: number) {

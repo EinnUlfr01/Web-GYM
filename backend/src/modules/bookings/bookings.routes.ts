@@ -20,11 +20,13 @@ const canonicalBooking = z.object({
   coachId: z.coerce.number().int().positive(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  sessionMode: z.enum(['ONLINE', 'IN_PERSON']).optional(),
   note: z.string().trim().max(500).optional(),
 }).strict().transform(value => ({
   coach_id: value.coachId,
   booking_date: value.date,
   start_time: value.startTime,
+  session_mode: value.sessionMode,
   notes: value.note,
 }));
 
@@ -34,6 +36,7 @@ const legacyBooking = z.object({
   booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   start_time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
   end_time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  session_mode: z.enum(['ONLINE', 'IN_PERSON']).optional(),
   notes: z.string().trim().max(500).optional(),
 }).strict();
 const booking = z.union([canonicalBooking, legacyBooking]);

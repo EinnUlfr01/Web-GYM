@@ -97,6 +97,7 @@ import ReviewsPage from './pages/reviews/ReviewsPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import { MemberProgressExercisesPage, MemberProgressPage, MemberProgressSessionsPage, MemberWorkoutHomePage, MemberWorkoutProgramPage, MemberWorkoutScheduleDetailPage, MemberWorkoutSchedulePage, MemberWorkoutSessionDetailPage, MemberWorkoutSessionsPage } from './pages/workouts/MemberWorkoutPages';
 import { canAccess, roleHome, Role } from './auth/accessPolicy';
+import ChatbotWidget from './features/chatbot/ChatbotWidget';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated,initialized } = useAuthStore();
@@ -117,6 +118,7 @@ export default function App() {
   return (
     <>
       <CommandMenu />
+      <ChatbotWidget />
       <Routes>
         {/* PUBLIC */}
         <Route path="/" element={<MarketingHeaderWrapper><LandingPage /></MarketingHeaderWrapper>} />

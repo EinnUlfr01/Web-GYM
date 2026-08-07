@@ -144,6 +144,11 @@ async function run() {
   const programB = await call('POST', '/coach/workout-programs', accounts.coachB, { name: 'Admin Acceptance Program B', goal: 'GENERAL_FITNESS', difficulty: 'BEGINNER', durationWeeks: 1, daysPerWeek: 1 });
   check(programB.status === 201, 'Coach B creates Program');
   const programBId = Number(data<Json>(programB).id);
+  const dayB = await call('POST', `/coach/workout-programs/${programBId}/days`, accounts.coachB, { weekNumber: 1, dayNumber, title: 'Acceptance Reassign Day' });
+  check(dayB.status === 201, 'Coach B creates Reassign Program Day');
+  const dayBId = Number(data<Json>(dayB).id);
+  const programExerciseB = await call('POST', `/coach/workout-program-days/${dayBId}/exercises`, accounts.coachB, { exerciseId, targetSets: 1, targetRepsMin: 8, targetRepsMax: 12, targetWeight: 20 });
+  check(programExerciseB.status === 201, 'Coach B adds Exercise to Reassign Program');
   check((await call('POST', `/coach/workout-programs/${programBId}/publish`, accounts.coachB, {})).status === 200, 'Coach B publishes Program before reassignment');
   const reassignmentPayload = { newCoachId: accounts.coachB.id, programId: programBId, startDate: today, scheduleTimezone: 'Asia/Ho_Chi_Minh' };
   const reassignmentAttempts = await Promise.all([1, 2].map(() => call('POST', `/admin/coaches/${accounts.coachA.id}/members/${accounts.memberA.id}/reassign`, accounts.admin, reassignmentPayload)));

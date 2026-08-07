@@ -22,8 +22,8 @@ export interface NotificationPage {
 
 interface ApiResponse<T> { data: T }
 
-export async function getNotifications(params?: { page?: number; limit?: number }): Promise<NotificationPage> {
-  const response = await api.get<ApiResponse<NotificationPage>>('/notifications', { params });
+export async function getNotifications(params?: { page?: number; limit?: number }, options?: { signal?: AbortSignal }): Promise<NotificationPage> {
+  const response = await api.get<ApiResponse<NotificationPage>>('/notifications', { params, signal: options?.signal });
   return response.data.data;
 }
 

@@ -38,7 +38,16 @@ function datePlus(days: number): string {
 }
 
 async function cleanup(): Promise<void> {
-  const users = await query<{ id: number }>('SELECT id FROM dbo.Users WHERE email LIKE @prefix', { prefix: `%-${suffix}@example.test` });
+  const users = await query<{ id: number }>(
+    `SELECT id FROM dbo.Users
+     WHERE email LIKE @coachPattern OR email LIKE @memberPattern OR email LIKE @adminPattern OR email LIKE @sellerPattern`,
+    {
+      coachPattern: 'coach-booking-%@example.test',
+      memberPattern: 'member-booking-%@example.test',
+      adminPattern: 'admin-booking-%@example.test',
+      sellerPattern: 'seller-booking-%@example.test',
+    },
+  );
   const ids = users.recordset.map(row => Number(row.id));
   if (ids.length === 0) return;
   const csv = ids.join(',');
@@ -180,7 +189,7 @@ async function run(): Promise<void> {
   check((await call('POST', '/bookings', accounts.admin, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 403, 'Admin cannot create member booking');
   check((await call('POST', '/bookings', accounts.seller, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 403, 'Seller cannot create member booking');
 
-  const created = await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00', note: 'Real pending booking' });
+  const created = await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00', sessionMode: 'ONLINE', note: 'Real pending booking' });
   check(created.status === 201 && created.data.data.status === 'pending' && created.data.data.end_time.slice(0, 5) === '11:00', 'member creates a pending 60-minute booking');
   check(typeof created.data.data.booking_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(created.data.data.booking_date)
     && typeof created.data.data.start_time === 'string' && typeof created.data.data.end_time === 'string'
@@ -190,18 +199,18 @@ async function run(): Promise<void> {
   check(memberList.status === 200 && Array.isArray(memberList.data.data) && memberList.data.data.every((item: any) => typeof item.booking_date === 'string' && typeof item.start_time === 'string' && typeof item.created_at === 'string'), 'list response uses normalized Booking DTO');
   const memberDetail = await call('GET', `/bookings/${bookingId}`, accounts.memberA);
   check(memberDetail.status === 200 && typeof memberDetail.data.data.updated_at === 'string', 'detail response uses normalized Booking DTO');
-  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00' })).status === 409, 'exact duplicate/Coach overlap is rejected');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.suspended.id, date: bookingDate, startTime: '10:00' })).status === 404, 'suspended Coach cannot be booked');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.disabled.id, date: bookingDate, startTime: '10:00' })).status === 404, 'booking-disabled Coach cannot be booked');
-  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 201, 'Member can book a different active Coach');
-  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00' })).status === 409, 'Member overlap is rejected');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '13:00', note: 'x'.repeat(501) })).status === 400, 'oversized note is rejected');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: '2026-02-31', startTime: '10:00' })).status === 400, 'invalid booking date is rejected');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:30' })).status === 409, 'booking outside a database availability window is rejected');
+  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:00', sessionMode: 'ONLINE' })).status === 409, 'exact duplicate/Coach overlap is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.suspended.id, date: bookingDate, startTime: '10:00', sessionMode: 'IN_PERSON' })).status === 404, 'suspended Coach cannot be booked');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.disabled.id, date: bookingDate, startTime: '10:00', sessionMode: 'ONLINE' })).status === 404, 'booking-disabled Coach cannot be booked');
+  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00', sessionMode: 'ONLINE' })).status === 201, 'Member can book a different active Coach');
+  check((await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '10:00', sessionMode: 'ONLINE' })).status === 409, 'Member overlap is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: bookingDate, startTime: '13:00', sessionMode: 'ONLINE', note: 'x'.repeat(501) })).status === 400, 'oversized note is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: '2026-02-31', startTime: '10:00', sessionMode: 'ONLINE' })).status === 400, 'invalid booking date is rejected');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '10:30', sessionMode: 'ONLINE' })).status === 409, 'booking outside a database availability window is rejected');
 
   const concurrent = await Promise.all([
-    call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00' }),
-    call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00' }),
+    call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00', sessionMode: 'ONLINE' }),
+    call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: secondDate, startTime: '10:00', sessionMode: 'ONLINE' }),
   ]);
   check(concurrent.map(item => item.status).sort((a, b) => a - b).join(',') === '201,409', 'concurrent same-slot requests are serialized');
 
@@ -220,7 +229,7 @@ async function run(): Promise<void> {
   const coachSummary = await call('GET', '/bookings/summary', accounts.coachA);
   check(coachSummary.status === 200 && coachSummary.data.data.confirmed >= 1 && coachSummary.data.data.upcoming >= 1 && coachSummary.data.data.timezone === COACH_BOOKING_TIME_ZONE, 'Coach booking summary returns scoped upcoming metrics and timezone');
 
-  const legacy = await call('POST', '/bookings', accounts.memberB, { coach_id: accounts.coachA.id, booking_date: secondDate, start_time: '13:00', end_time: '14:00' });
+  const legacy = await call('POST', '/bookings', accounts.memberB, { coach_id: accounts.coachA.id, booking_date: secondDate, start_time: '13:00', end_time: '14:00', session_mode: 'IN_PERSON' });
   check(legacy.status === 201 && legacy.data.data.status === 'pending', 'legacy snake_case create payload remains compatible');
   const cancelled = await call('PUT', `/bookings/${Number(legacy.data.data.id)}/status`, accounts.memberB, { status: 'cancelled' });
   check(cancelled.status === 200 && cancelled.data.data.status === 'cancelled', 'Member cancels own booking');

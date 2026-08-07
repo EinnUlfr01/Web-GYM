@@ -17,17 +17,22 @@ const reasonMessage = (reason: unknown): { status?: number; message: string } =>
 function realSlots(value: CoachAvailability | null, coach: Coach | null): CoachAvailabilitySlot[] {
   if (!value) return [];
   const current = (value.slots || []).filter(slot => !slot.booked && !slot.past);
-  if (current.length > 0) return current.filter((slot, index, all) => all.findIndex(item => item.start_time === slot.start_time) === index);
+  if (current.length > 0) return current;
+  if (!coach) return [];
+  const concreteMode = coach.sessionMode;
+  if (concreteMode !== 'ONLINE' && concreteMode !== 'IN_PERSON') return [];
   return (value.available_slots || []).map(startTime => ({
     start_time: startTime,
     end_time: `${String(Number(startTime.slice(0, 2)) + 1).padStart(2, '0')}:${startTime.slice(3, 5)}`,
-    mode: coach?.sessionMode || 'BOTH',
-    location: coach?.location || null,
+    mode: concreteMode,
+    location: concreteMode === 'ONLINE' ? null : coach.location || null,
     source: 'WEEKLY_RULE' as const,
     booked: false,
     past: false,
   }));
 }
+
+const slotKeyFor = (value: CoachAvailabilitySlot): string => `${value.start_time}-${value.end_time}-${value.mode}-${value.location || ''}`;
 
 export default function CoachBooking() {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +53,7 @@ export default function CoachBooking() {
 
   const dates = useMemo(() => coachDateOptions(), []);
   const slots = useMemo(() => realSlots(availability, coach), [availability, coach]);
-  const selectedSlot = slots.find(value => value.start_time === slot) || null;
+  const selectedSlot = slots.find(value => slotKeyFor(value) === slot) || null;
 
   useEffect(() => {
     if (!id || !user || user.role !== 'member') return;
@@ -100,7 +105,8 @@ export default function CoachBooking() {
     setSubmitting(true);
     setError('');
     try {
-      await createBooking({ coachId: coach.id, date, startTime: slot, note: note.trim() || undefined });
+      if (!selectedSlot) return;
+      await createBooking({ coachId: coach.id, date, startTime: selectedSlot.start_time, sessionMode: selectedSlot.mode, note: note.trim() || undefined });
       navigate('/appointments', { replace: true });
     } catch (reason: unknown) {
       const value = reasonMessage(reason);
@@ -115,7 +121,7 @@ export default function CoachBooking() {
       {quota?.included && <p className="mt-6 text-sm text-[#94a3b8]">Coach booking quota for {quota.bookingMonth}: {quota.monthlyLimit === null ? `${quota.used} used · Unlimited` : `${quota.used}/${quota.monthlyLimit} used · ${quota.remaining} remaining`}.</p>}
       <form onSubmit={submit} className="mt-8 space-y-7">
         {step === 1 && <div><label htmlFor="booking-date" className="block text-sm font-medium text-white">Appointment date</label><select id="booking-date" disabled={!coach.bookingEnabled} value={date} onChange={event => { setDate(event.target.value); setStep(2); }} className="mt-2 w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-3 text-white"><option value="">Choose a date</option>{dates.map(option => <option key={option.value} value={option.value}>{option.label} · {option.value}</option>)}</select></div>}
-        {step >= 2 && <div><div className="flex items-center justify-between"><label className="block text-sm font-medium text-white">Available slots</label><button type="button" onClick={() => setStep(1)} className="text-xs text-[#60a5fa]">Change date</button></div>{slotsLoading ? <div className="mt-3 flex items-center gap-2 text-sm text-[#94a3b8]"><Loader2 size={15} className="animate-spin" />Loading real slots...</div> : slots.length === 0 ? <p className="mt-3 text-sm text-[#94a3b8]">No bookable slot is configured for this date.</p> : <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">{slots.map(value => <button type="button" key={`${value.start_time}-${value.mode}-${value.location || ''}`} onClick={() => { setSlot(value.start_time); setStep(3); }} className={`rounded-lg border p-3 text-left text-sm ${slot === value.start_time ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-[#334155] bg-[#020617] text-[#cbd5e1] hover:border-[#2563eb]'}`}><strong className="block"><Clock size={14} className="mr-1 inline" />{value.start_time}–{value.end_time}</strong><span className="mt-1 block text-xs opacity-80">{modeLabel(value.mode)}{value.location ? ` · ${value.location}` : ''}</span></button>)}</div>}</div>}
+        {step >= 2 && <div><div className="flex items-center justify-between"><label className="block text-sm font-medium text-white">Available slots</label><button type="button" onClick={() => setStep(1)} className="text-xs text-[#60a5fa]">Change date</button></div>{slotsLoading ? <div className="mt-3 flex items-center gap-2 text-sm text-[#94a3b8]"><Loader2 size={15} className="animate-spin" />Loading real slots...</div> : slots.length === 0 ? <p className="mt-3 text-sm text-[#94a3b8]">No bookable slot is configured for this date.</p> : <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">{slots.map(value => <button type="button" key={slotKeyFor(value)} onClick={() => { setSlot(slotKeyFor(value)); setStep(3); }} className={`rounded-lg border p-3 text-left text-sm ${slot === slotKeyFor(value) ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-[#334155] bg-[#020617] text-[#cbd5e1] hover:border-[#2563eb]'}`}><strong className="block"><Clock size={14} className="mr-1 inline" />{value.start_time}–{value.end_time}</strong><span className="mt-1 block text-xs opacity-80">{modeLabel(value.mode)}{value.location ? ` · ${value.location}` : ''}</span></button>)}</div>}</div>}
         {step === 3 && selectedSlot && <div className="space-y-5"><div className="rounded-xl border border-[#334155] bg-[#020617] p-4 text-sm text-[#cbd5e1]"><p><Calendar size={15} className="mr-2 inline text-[#60a5fa]" />{date}</p><p className="mt-2"><Clock size={15} className="mr-2 inline text-[#60a5fa]" />{selectedSlot.start_time}–{selectedSlot.end_time} · {availability?.duration_minutes || 60} min</p><p className="mt-2">Mode: {modeLabel(selectedSlot.mode)}</p>{selectedSlot.location && <p className="mt-2"><MapPin size={15} className="mr-2 inline text-[#60a5fa]" />{selectedSlot.location}</p>}</div><label htmlFor="booking-note" className="block text-sm font-medium text-white">Note (optional)<textarea id="booking-note" value={note} maxLength={500} onChange={event => setNote(event.target.value)} rows={4} className="mt-2 w-full rounded-lg border border-[#334155] bg-[#020617] px-3 py-3 text-white" placeholder="Goal or note for the Coach" /></label><button type="submit" disabled={!date || !slot || submitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-5 py-3 font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle size={17} />} Submit booking request</button><p className="text-center text-xs text-[#64748b]">The appointment starts as PENDING until the Coach confirms it.</p></div>}
       </form></div></div></div>;
 }

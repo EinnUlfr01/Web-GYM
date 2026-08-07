@@ -30,6 +30,7 @@ export interface CreateBookingPayload {
   coachId: number;
   date: string;
   startTime: string;
+  sessionMode?: Exclude<BookingSessionMode, 'BOTH'>;
   note?: string;
 }
 

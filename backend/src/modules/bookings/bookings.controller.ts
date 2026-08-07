@@ -17,7 +17,7 @@ import {
   normalizeSqlTime,
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
-import { assertBookableSlot, type AvailabilitySlot } from '../coaches/coach-availability.service';
+import { assertBookableSlot, type AvailabilitySlot, type BookableAvailabilityMode } from '../coaches/coach-availability.service';
 import { getActiveMembershipPlan, getActiveMembershipPlanForTransaction } from '../plans/entitlements.service';
 import { todayInTimeZone } from '../../utils/timezone';
 import { createNotification } from '../notifications/notifications.service';
@@ -30,6 +30,7 @@ interface NormalizedCreateBooking {
   booking_date: string;
   start_time: string;
   end_time?: string;
+  session_mode?: BookableAvailabilityMode;
   notes?: string;
 }
 
@@ -250,7 +251,7 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
              AND COALESCE(cp.booking_enabled,1)=1`,
       );
       if (!coach.recordset[0]) throw new AppError(404, 'Coach not found or booking is disabled');
-      const authoritativeSlot = await assertBookableSlot(tx, coachId, body.booking_date, body.start_time, endTime);
+      const authoritativeSlot = await assertBookableSlot(tx, coachId, body.booking_date, body.start_time, endTime, body.session_mode);
 
       // Range locks protect the overlap checks while the filtered unique index protects exact duplicates.
       const coachConflict = await new sql.Request(tx)

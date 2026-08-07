@@ -171,6 +171,10 @@ async function createPublishedProgram(owner: Account, exerciseId: number, name: 
     exerciseId, targetSets: 3, targetRepsMin: 8, targetRepsMax: 12, targetWeight: 20, restSeconds: 60,
   });
   check(programExercise.status === 201, `${name} Exercise created`);
+  const raceExercise = await call('POST', `/coach/workout-program-days/${Number(dataOf<{ id: number }>(raceDay).id)}/exercises`, owner, {
+    exerciseId, targetSets: 3, targetRepsMin: 8, targetRepsMax: 12, targetWeight: 20, restSeconds: 60,
+  });
+  check(raceExercise.status === 201, `${name} Race Day Exercise created`);
   const published = await call('POST', `/coach/workout-programs/${programId}/publish`, owner, {});
   check(published.status === 200, `${name} published`);
   return { id: programId, dayId, programExerciseId: Number(dataOf<{ id: number }>(programExercise).id) };
@@ -235,10 +239,10 @@ async function run(): Promise<void> {
   check((await call('GET', `/coach/members/${accounts.memberA.id}/context`, accounts.memberA)).status === 403, 'Member cannot read Coach private context');
 
   const bookingDate = datePlus(2);
-  const ownBooking = await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '08:00' });
+  const ownBooking = await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: bookingDate, startTime: '08:00', sessionMode: 'ONLINE' });
   check(ownBooking.status === 201, 'Member can create an entitled Coach Booking');
   const ownBookingId = Number(dataOf<{ id: number }>(ownBooking).id);
-  const crossBooking = await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '09:00' });
+  const crossBooking = await call('POST', '/bookings', accounts.memberB, { coachId: accounts.coachB.id, date: bookingDate, startTime: '09:00', sessionMode: 'ONLINE' });
   check(crossBooking.status === 201, 'Second Member creates a different Coach Booking');
   const crossBookingId = Number(dataOf<{ id: number }>(crossBooking).id);
   check((await call('GET', `/bookings/${ownBookingId}`, accounts.memberB)).status === 404, 'Member B cannot read Member A Booking');
@@ -249,11 +253,11 @@ async function run(): Promise<void> {
   check((await call('GET', '/bookings/quota', accounts.admin)).status === 403, 'Admin cannot bypass Member quota endpoint');
   check((await call('GET', `/bookings/quota?date=${bookingDate}`, accounts.memberA)).status === 200, 'Member quota is self-scoped');
   const slotRace = await Promise.all([
-    call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: datePlus(3), startTime: '12:00' }),
-    call('POST', '/bookings', accounts.memberC, { coachId: accounts.coachB.id, date: datePlus(3), startTime: '12:00' }),
+    call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachB.id, date: datePlus(3), startTime: '12:00', sessionMode: 'ONLINE' }),
+    call('POST', '/bookings', accounts.memberC, { coachId: accounts.coachB.id, date: datePlus(3), startTime: '12:00', sessionMode: 'ONLINE' }),
   ]);
   check(slotRace.map(item => item.status).sort((a, b) => a - b).join(',') === '201,409', 'Concurrent same-slot booking has one winner');
-  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: datePlus(4), startTime: '08:00', memberId: accounts.memberB.id })).status === 400, 'Booking rejects client member identity spoofing');
+  check((await call('POST', '/bookings', accounts.memberA, { coachId: accounts.coachA.id, date: datePlus(4), startTime: '08:00', sessionMode: 'ONLINE', memberId: accounts.memberB.id })).status === 400, 'Booking rejects client member identity spoofing');
 
   const notificationId = Number((await query<{ id: number }>(`SELECT TOP (1) id FROM dbo.Notifications WHERE recipient_user_id=@recipient AND deduplication_key LIKE @pattern ORDER BY id DESC`, { recipient: accounts.coachA.id, pattern: `booking:${ownBookingId}:%` })).recordset[0]?.id);
   check(Number.isInteger(notificationId) && notificationId > 0, 'Booking trigger created a Coach notification');
@@ -300,6 +304,10 @@ async function run(): Promise<void> {
 
   const publishRaceProgram = await call('POST', '/coach/workout-programs', accounts.coachA, { name: 'Security Publish Race', goal: 'MOBILITY', difficulty: 'BEGINNER', durationWeeks: 1, daysPerWeek: 1 });
   const publishRaceId = Number(dataOf<{ id: number }>(publishRaceProgram).id);
+  const publishRaceDay = await call('POST', `/coach/workout-programs/${publishRaceId}/days`, accounts.coachA, { weekNumber: 1, dayNumber: weekday(today), title: 'Publish Race Day' });
+  check(publishRaceDay.status === 201, 'Publish race Program Day created');
+  const publishRaceExercise = await call('POST', `/coach/workout-program-days/${Number(dataOf<{ id: number }>(publishRaceDay).id)}/exercises`, accounts.coachA, { exerciseId, targetSets: 2, targetRepsMin: 8, targetRepsMax: 12, restSeconds: 60 });
+  check(publishRaceExercise.status === 201, 'Publish race Program Exercise created');
   const publishRace = await Promise.all([1, 2].map(() => call('POST', `/coach/workout-programs/${publishRaceId}/publish`, accounts.coachA, {})));
   check(publishRace.map(item => item.status).sort((a, b) => a - b).join(',') === '200,409', 'Concurrent Program publish has one winner');
   const cloneRace = await Promise.all([1, 2].map(() => call('POST', `/coach/workout-programs/${programA.id}/clone-version`, accounts.coachA, {})));
