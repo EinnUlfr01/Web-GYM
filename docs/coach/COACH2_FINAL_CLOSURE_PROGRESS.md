@@ -327,3 +327,37 @@ Evidence:
 - Harness verdict PASS with 50 assertions covering pending/confirm/upgrade/downgrade, inverted reps, authoritative Booking snapshots, spoof rejection, immutable snapshots, same-slot race, schedule outcomes/idempotency/mid-program, Starter/Pro/Elite and deferred priority behavior.
 
 Next: C13 — pre-deployment build gate.
+
+## C13 — Pre-deployment build gate
+
+Status: PASS
+
+Tests:
+
+- Backend `npm.cmd ci`: PASS.
+- Backend `npm.cmd run build`: PASS.
+- Backend `npm.cmd run lint`: PASS with 0 errors and 461 existing `no-explicit-any` warnings.
+- Frontend `npm.cmd ci`: PASS.
+- Frontend `npx.cmd tsc --noEmit`: PASS.
+- Frontend `npm.cmd run build`: PASS with the existing Vite large-chunk warning.
+- `git diff --check`: PASS.
+
+Known non-blocking install warnings: existing npm audit vulnerability/deprecation reports; no dependency mutation was made.
+
+Next: C14 — canonical database preflight.
+
+## C14 — Canonical database preflight
+
+Status: PASS
+
+Evidence:
+
+- Branch is `coach2`; target is `GYMFIT_DB` on local SQL Server `DESKTOP-0PI1Q6Q:1433` with `NODE_ENV=development`.
+- Required foundation and SchemaMigrations tables are present.
+- Read-only status through `0017`: `0010 APPLIED`, `0011–0017 PENDING`, checksum mismatches `0`.
+- The only pending Coach boundary is `0011–0017`; no unrelated migration was pulled into the apply boundary.
+- No secrets were printed and no canonical mutation occurred in C14.
+
+Decision: target is a verified local development/canonical database, so additive Coach migrations 0011–0017 are safe to apply through the official runner after verifier commit.
+
+Next: C15 — apply approved Coach migrations.
