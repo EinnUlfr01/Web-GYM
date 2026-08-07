@@ -15,10 +15,11 @@ Verdict: `COACH_MODULE_OPERATIONAL_CAPACITY_COMPLETE`
 | Notifications | PASS | `0014` upgraded the existing table; self-scope, read lifecycle and dedup passed |
 | Program versioning | PASS | `0015` applied; publish/clone/archive and immutable assignment checks passed |
 | Performance indexes | PASS | `0016` applied only on disposable fixtures; idempotency and query-plan evidence passed |
-| Canonical database | READ-ONLY | `0010` applied, `0011`-`0016` pending, zero checksum mismatches; no apply performed |
+| Disposable Coach migration verifier | PASS | `0010`-`0016` applied; verifier returned `pending=[]`, zero checksum mismatches and required Coach shape/index counts |
+| Canonical database | READ-ONLY / DEPLOYMENT PENDING | `0010` applied, `0011`-`0016` pending, zero checksum mismatches; no apply performed |
 | Marketplace/Seller range | PROTECTED | `0100`-`0111` unchanged and checksum-matching |
 
-The disposable Phase 29 migration run applied the Coach migrations through `0016`, was rerun with zero pending migrations and zero checksum mismatches, and the exact database was dropped afterward.
+The disposable Phase 29 migration run applied the Coach migrations through `0016`, the migration verifier exited successfully, the runner was rerun without pending migrations or checksum mismatches, and the exact database was dropped afterward. Running the same verifier against canonical correctly reports the pending deployment boundary because `0011`-`0016` have not been authorized/applied there.
 
 ## Backend acceptance
 

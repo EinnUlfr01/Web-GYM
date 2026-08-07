@@ -29,6 +29,8 @@ Two final browser QA fixes were included in this handover: `min-w-0` was added t
 
 `COACH_DATABASE_DEPLOYMENT.md` records the disposable migration evidence and canonical read-only status. Canonical deployment of pending Coach migrations `0011`-`0016` remains an authorized release operation. Marketplace/Seller migrations `0100`-`0111` are explicitly excluded.
 
+The canonical migration verifier's pending result is therefore documented as a deployment boundary; the fully migrated disposable verifier and idempotency rerun both passed before cleanup.
+
 ## Scope and safety
 
 - Branch: `coach1`.

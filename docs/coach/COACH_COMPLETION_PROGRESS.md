@@ -6,6 +6,7 @@ Status: PASS (full Coach acceptance, browser QA, migration verification, build g
 
 - Branch was verified as `coach1` before and after the final run. Phase 29 was the last valid phase in the Master Prompt (`Phase 00` through `Phase 29`); no Phase 30 exists and none was started. The final scope remained Coach, Member Workout, Coach Booking, Membership/Entitlement, Availability, Notifications, Program Versioning and Admin Coach only.
 - No Marketplace/Seller source, route or migration `0100`-`0111` was changed. The canonical database `GYMFIT_DB` was inspected read-only: migration `0010` is applied, `0011`-`0016` remain pending for a separately authorized deployment, checksum mismatches are zero, and all applied Marketplace/Seller migrations `0100`-`0111` match their checksums. `canonicalDatabaseChanged=false` and `migrationRunning=false` throughout this phase.
+- Canonical `npm.cmd run verify:coach-migration` was intentionally not treated as a product failure: it reported `0010` applied and `0011`-`0016` pending, so the canonical database has no Availability rows/indexes yet. The same verifier exited PASS on disposable `GYMFIT_DB_COACH_ACCEPTANCE_FINAL_VERIFY_20260807` after `0010`-`0016` were applied, reporting `pending=[]`, `checksum_mismatches=[]`, `coach_profiles=1`, `coach_availability_rules=1`, `coach_availability_exceptions=1`, `unique_indexes=2` and `availability_indexes=2`. A second migration run reported 0 pending migrations and 0 checksum mismatches before the disposable database was dropped.
 
 Final runtime matrix:
 

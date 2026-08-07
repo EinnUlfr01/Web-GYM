@@ -18,6 +18,8 @@ The Coach completion work is additive and remains on branch `coach1`. Canonical 
 
 The disposable Phase 29 migration run completed through `0016`, was rerun without pending migrations or checksum mismatches, and was dropped. Canonical status showed `0010` applied and `0011`-`0016` pending, so deployment of those migrations requires the normal database owner/release approval.
 
+The final disposable verifier run on `GYMFIT_DB_COACH_ACCEPTANCE_FINAL_VERIFY_20260807` returned the required Coach shape and index counts with no pending migrations or checksum mismatches. The canonical verifier reports a nonzero result until `0011`-`0016` are deployed; that result is the expected read-only deployment boundary, not permission to apply migrations automatically.
+
 ## Safety and rollback
 
 - Do not rewrite a migration that has been applied. Use an additive forward-fix migration if a deployment issue is found.

@@ -3,6 +3,7 @@
 These items were observed during final validation and are documented rather than expanded into new scope.
 
 - Canonical `GYMFIT_DB` has Coach migrations `0011`-`0016` pending. This is an intentional deployment boundary, not an acceptance failure; the disposable migration and idempotency checks passed.
+- Consequently, `verify:coach-migration` against canonical reports the pending Availability/Entitlement/Context/Notification/Versioning/Performance tables and exits nonzero until release deployment. The same command passes on the fully migrated disposable verification database.
 - Backend lint has 461 existing `no-explicit-any` warnings and zero errors. Removing them is outside Phase 29 and does not change the PASS result.
 - Vite reports its existing large JavaScript chunk warning during production build. The build succeeds.
 - React Router emits existing future-flag notices in the browser console. No new application console errors were observed.
