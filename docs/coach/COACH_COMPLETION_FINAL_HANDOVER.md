@@ -21,6 +21,8 @@ The 30 Master Prompt phases are `Phase 00` through `Phase 29`. All phases are co
 
 The final test matrix is recorded in `COACH_COMPLETION_TEST_MATRIX.md`. Backend acceptance, frontend typecheck/build, migration verification, browser QA for Guest/Member/Coach/Admin at `375x812`, `768x1024` and `1440x900`, RBAC/IDOR and concurrency checks all passed.
 
+The final tier audit also covered Starter, Pro and Elite in clean browser sessions at all three viewports. Starter was blocked with the upgrade action, Pro showed its exhausted `2/2` quota, and Elite showed `Unlimited` and successfully created a disposable booking. The original Phase 00 baseline is preserved in `COACH_COMPLETION_BASELINE.md`.
+
 Two final browser QA fixes were included in this handover: `min-w-0` was added to the Coach Program Builder layout and Admin Exercise Library layout to remove mobile horizontal overflow. No backend production behavior or migration was changed in Phase 29.
 
 ## Database handover

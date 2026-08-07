@@ -29,6 +29,7 @@ The disposable Phase 29 migration run applied the Coach migrations through `0016
 | `npm.cmd run acceptance:coach-member-e2e` | PASS |
 | `npm.cmd run acceptance:admin-coach` | PASS |
 | `npm.cmd run acceptance:coach-booking` | PASS |
+| `npm.cmd run acceptance:coach-booking-quota` | PASS |
 | `npm.cmd run acceptance:coach-membership` | PASS |
 | `npm.cmd run acceptance:coach-entitlement` | PASS |
 | `npm.cmd run acceptance:coach-member-context` | PASS |
@@ -41,6 +42,8 @@ Coverage includes RBAC, IDOR, ownership, source-aware Session identity, schedule
 
 ## Build and static checks
 
+- Backend `npm.cmd ci`: PASS; npm reported 9 dependency audit findings, with no install failure.
+- Frontend `npm.cmd ci`: PASS; npm reported 7 dependency audit findings, with no install failure.
 - Backend `npm.cmd run build`: PASS.
 - Backend `npm.cmd run lint`: PASS, 0 errors; 461 existing `no-explicit-any` warnings.
 - Frontend `npx.cmd tsc --noEmit`: PASS.
@@ -54,11 +57,15 @@ Fresh sessions were used for Guest, Member, Coach and Admin against the disposab
 | Role | Covered flows | 375x812 | 768x1024 | 1440x900 |
 |---|---|---:|---:|---:|
 | Guest | Public Coach list/detail, booking login guard, private-route guard | PASS | PASS | PASS |
-| Member | Dashboard, Coach booking, appointments, workouts, membership, notifications | PASS | PASS | PASS |
+| Starter Member | Dashboard, blocked Coach booking and upgrade action | PASS | PASS | PASS |
+| Pro Member | Dashboard, exhausted 2/2 Coach quota | PASS | PASS | PASS |
+| Elite Member | Dashboard, unlimited Coach quota and real slot booking | PASS | PASS | PASS |
 | Coach | Dashboard, Availability, Appointments, Programs, Builder, Notifications | PASS | PASS | PASS |
 | Admin | Dashboard, Coach management, Exercise Library, Workout Governance | PASS | PASS | PASS |
 
 Final checks found no horizontal overflow and no new console errors. Existing React Router future-flag notices were the only console warnings.
+
+The tier fixture used disposable accounts and verified the authoritative browser text at every viewport: Starter was denied with `Review plans`, Pro showed `2/2 used · 0 remaining`, and Elite showed `Unlimited`; Elite also submitted a real booking that appeared in the Member appointments list.
 
 ## Final security and scope gates
 

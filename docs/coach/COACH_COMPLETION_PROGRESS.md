@@ -15,6 +15,7 @@ Final runtime matrix:
 - `npm.cmd run acceptance:coach-member-e2e`: PASS.
 - `npm.cmd run acceptance:admin-coach`: PASS.
 - `npm.cmd run acceptance:coach-booking`: PASS.
+- `npm.cmd run acceptance:coach-booking-quota`: PASS, including Starter blocked, Pro exhausted at 2/2, Elite unlimited, cancellation no-refund, month boundary and concurrent last-quota requests.
 - `npm.cmd run acceptance:coach-membership`: PASS.
 - `npm.cmd run acceptance:coach-entitlement`: PASS.
 - `npm.cmd run acceptance:coach-member-context`: PASS.
@@ -25,6 +26,8 @@ Final runtime matrix:
 
 Build gates:
 
+- Backend `npm.cmd ci`: PASS. NPM reported 9 dependency audit findings (3 low, 3 moderate, 3 high); no install failure.
+- Frontend `npm.cmd ci`: PASS. NPM reported 7 dependency audit findings (3 moderate, 4 high); no install failure.
 - Backend `npm.cmd run build`: PASS.
 - Backend `npm.cmd run lint`: PASS with 0 errors and 461 existing `no-explicit-any` warnings.
 - Frontend `npx.cmd tsc --noEmit`: PASS.
@@ -34,6 +37,7 @@ Build gates:
 Browser QA evidence:
 
 - Browser QA used a clean localhost origin with a disposable database and fresh Guest, Member, Coach and Admin sessions at `375x812`, `768x1024` and `1440x900`.
+- A dedicated tier fixture additionally verified Starter, Pro and Elite browser behavior at all three viewports: Starter displayed the server denial and `Review plans`; Pro displayed `2/2 used · 0 remaining`; Elite displayed `Unlimited`, exposed real slots and successfully created a disposable booking.
 - Guest public Coach list/detail, booking login guard and private-route protection passed. Member dashboard, Coach discovery/booking, appointments, workouts, membership and self-scoped notifications passed. Coach dashboard, Availability, Appointments, Programs, Published/Draft Builder, Notifications and source-aware session links passed. Admin dashboard, Coach management, Exercise Library and Workout Governance passed.
 - Notification bell/unread count, dropdown/list, mark-one-read, read-all, empty state and role isolation passed. Program Draft/Published/Archived badges, Publish/Clone/Archive, version links, Published read-only behavior and Assignment selector passed.
 - Mobile QA found and fixed two real overflow defects: `min-w-0` on the Coach Program Builder grid/content and Admin Exercise Library grid/content. Draft Builder width changed from `459` to `369` CSS pixels at 375px viewport; Admin Exercise Library changed from `381` to `375`. All final route checks had no horizontal overflow and no new console errors.
@@ -41,7 +45,8 @@ Browser QA evidence:
 
 Cleanup and transition:
 
-- Exact Phase 29 backend/Vite QA processes were stopped. Ports `51230`-`51232` were verified closed. The exact database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_BROWSER_20260807` was dropped and a read-only `DB_ID` check returned `null`. No other process or database was touched.
+- Exact Phase 29 backend/Vite QA processes were stopped. Ports `51230`-`51232` and the tier-audit ports `51233`-`51234` were verified closed. The exact databases `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_BROWSER_20260807` and `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_TIER_AUDIT_20260807` were dropped and read-only `DB_ID` checks returned `null`. No other process or database was touched.
+- The required Phase 00 artifact `COACH_COMPLETION_BASELINE.md` is present and records the original branch, HEAD, clean-worktree, migration and build/test evidence from checkpoint `0dfc201`.
 - Phase 29 is complete. The state transitions to `DONE` with `activeStatus=PASS`, `lastCompletedPhase=29`, `nextPhase=null`, `blocker=null` and `safeToStartNextPhase=false`.
 - Final checkpoint commit: `803e4b0 docs(coach): finalize coach1 completion handover`.
 - Known non-blocking warnings are documented in `COACH_KNOWN_LIMITATIONS.md`. No Phase 30 is planned or required.
