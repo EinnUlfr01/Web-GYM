@@ -30,6 +30,7 @@ Two final browser QA fixes were included in this handover: `min-w-0` was added t
 ## Scope and safety
 
 - Branch: `coach1`.
+- Final checkpoint commit: `803e4b0 docs(coach): finalize coach1 completion handover`.
 - Canonical database changed: `false`.
 - Migration running at handover: `false`.
 - QA services stopped and disposable Phase 29 browser database dropped.

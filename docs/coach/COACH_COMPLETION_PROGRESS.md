@@ -43,6 +43,7 @@ Cleanup and transition:
 
 - Exact Phase 29 backend/Vite QA processes were stopped. Ports `51230`-`51232` were verified closed. The exact database `GYMFIT_DB_COACH_ACCEPTANCE_PHASE29_BROWSER_20260807` was dropped and a read-only `DB_ID` check returned `null`. No other process or database was touched.
 - Phase 29 is complete. The state transitions to `DONE` with `activeStatus=PASS`, `lastCompletedPhase=29`, `nextPhase=null`, `blocker=null` and `safeToStartNextPhase=false`.
+- Final checkpoint commit: `803e4b0 docs(coach): finalize coach1 completion handover`.
 - Known non-blocking warnings are documented in `COACH_KNOWN_LIMITATIONS.md`. No Phase 30 is planned or required.
 
 ## Phase 28 - Performance and index review
