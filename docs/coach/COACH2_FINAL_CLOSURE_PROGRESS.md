@@ -171,3 +171,31 @@ Security: Validation remains server-side and ownership/lifecycle checks are unch
 Commit: pending explicit C04 commit.
 
 Next: C05 — Booking slot snapshot design.
+
+## C05 — Booking slot snapshot design
+
+Status: PASS
+
+Confirmed issue:
+
+- Booking rows had no durable mode/location snapshot even though Availability already resolved both values per slot.
+
+Changes:
+
+- Added `ADR_BOOKING_SLOT_SNAPSHOT.md`.
+- Chosen minimum snapshot is `session_mode` plus `location`.
+- Authority is the locked backend Availability slot; client mode/location will not be accepted as truth.
+- Existing rows remain nullable and are never backfilled from current Coach profile data.
+
+Tests:
+
+- Reviewed Booking schema, Availability slot calculation, transaction locking and Booking API DTO flow.
+- `git diff --check`: PASS.
+
+Database: Design only; no canonical or disposable database mutation in C05.
+
+Security: Snapshot authority is server-side and remains independent of request-body identity or display fields.
+
+Commit: pending explicit C05 documentation commit.
+
+Next: C06 — additive migration and disposable verification.
