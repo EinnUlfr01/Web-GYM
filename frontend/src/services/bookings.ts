@@ -1,6 +1,12 @@
 import api from '../api/axios';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+export type BookingSessionMode = 'ONLINE' | 'IN_PERSON' | 'BOTH';
+export const bookingSessionModeLabel: Record<BookingSessionMode, string> = {
+  ONLINE: 'Online',
+  IN_PERSON: 'Tại phòng tập',
+  BOTH: 'Online / tại phòng tập',
+};
 
 export interface Booking {
   id: number;
@@ -9,6 +15,8 @@ export interface Booking {
   booking_date: string;
   start_time: string;
   end_time: string;
+  session_mode: BookingSessionMode | null;
+  location: string | null;
   status: BookingStatus;
   notes: string | null;
   created_at: string;

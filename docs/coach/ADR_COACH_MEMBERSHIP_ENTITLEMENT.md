@@ -1,6 +1,6 @@
 # ADR: Coach Membership Entitlement and Quota
 
-Status: CANONICAL FOR `coach1`
+Status: CANONICAL FOR `coach1`; CLOSURE REVIEWED ON `coach2`
 
 ## Decision
 
@@ -17,6 +17,15 @@ Pending payment is represented by the Payment lifecycle and API DTO `PENDING_PAY
 - Quota, slot overlap and Membership state are checked in the same Booking transaction.
 - Admin and Coach roles do not bypass the Member Booking route.
 - Entitlements are structured rows, not parsed from `Plans.features` text.
+
+## Priority booking contract
+
+`COACH_PRIORITY_BOOKING` remains a historical specification placeholder and is not a
+consumed entitlement in the current Coach release. Migration `0012` and the runtime
+allow only `COACH_BOOKING_ENABLED` and `COACH_BOOKING_MONTHLY_LIMIT`; the current
+contract therefore does not reserve priority slots, reorder availability, bypass
+quota, or introduce an Elite-only queue. Any future priority behavior requires a
+separate additive migration and an explicit acceptance contract before implementation.
 
 ## Consequences
 

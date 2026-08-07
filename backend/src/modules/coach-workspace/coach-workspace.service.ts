@@ -1040,10 +1040,25 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
   if (boundedEnd < from) throw new AppError(409, 'No schedule dates remain within assignment and program bounds');
   const effectiveHorizonDays = daysBetween(from, boundedEnd) + 1;
   const days = await query(`SELECT id,week_number,day_number FROM dbo.WorkoutProgramDays WHERE program_id=@programId ORDER BY week_number,day_number,sort_order`, { programId: assignment.program_id });
-  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE); let inserted = 0; let skipped = 0;
+  const tx = (await getPool()).transaction(); await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  let inserted = 0;
+  let skipped = 0;
+  let skippedExisting = 0;
+  let skippedOutsideAssignment = 0;
+  let skippedOutsideProgram = 0;
   try {
-    for (let offset = 0; offset < effectiveHorizonDays; offset += 1) {
+    for (let offset = 0; offset < input.horizonDays; offset += 1) {
       const scheduledDate = addDays(from, offset);
+      if (assignmentEnd && scheduledDate > assignmentEnd) {
+        skipped += 1;
+        skippedOutsideAssignment += 1;
+        continue;
+      }
+      if (programEnd && scheduledDate > programEnd) {
+        skipped += 1;
+        skippedOutsideProgram += 1;
+        continue;
+      }
       const week = Math.floor(daysBetween(assignmentStart, scheduledDate) / 7) + 1;
       const dayNumber = mondayDay(scheduledDate);
       const day = days.recordset.find(row => Number(row.week_number) === week && Number(row.day_number) === dayNumber);
@@ -1057,7 +1072,10 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
                 ELSE SELECT 0 AS inserted`);
       const wasInserted = Number(result.recordset[0].inserted);
       inserted += wasInserted;
-      if (!wasInserted) skipped += 1;
+      if (!wasInserted) {
+        skipped += 1;
+        skippedExisting += 1;
+      }
     }
     if (inserted > 0) {
       await createNotification(tx, {
@@ -1073,9 +1091,14 @@ export async function generateSchedules(coachId: number, assignmentId: number, i
     return {
       inserted,
       skipped,
+      skippedExisting,
+      skippedOutsideAssignment,
+      skippedOutsideProgram,
       requestedFromDate: requestedFrom,
       fromDate: from,
       toDate: boundedEnd,
+      effectiveFromDate: from,
+      effectiveToDate: boundedEnd,
       horizonDays: effectiveHorizonDays,
     };
   } catch (error) { try { await tx.rollback(); } catch {} throw error; }

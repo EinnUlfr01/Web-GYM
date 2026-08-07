@@ -78,7 +78,7 @@ Security:
 
 - Scope exclusions confirmed: no Marketplace/Seller backend changes and no migration `0100`–`0111` changes.
 
-Commit: pending explicit documentation commit.
+Commit: `2ac6f6a`.
 
 Next: C02 — truthful public Membership UI.
 
@@ -139,7 +139,7 @@ Database: No migration or database mutation.
 
 Security: Role policy remains backend-authoritative; pending Plan never grants membership access.
 
-Commit: pending explicit C02/C03 commit.
+Commit: `ab047f1`.
 
 Next: C04 — Program Exercise validation.
 
@@ -168,7 +168,7 @@ Database: No migration or database mutation.
 
 Security: Validation remains server-side and ownership/lifecycle checks are unchanged.
 
-Commit: pending explicit C04 commit.
+Commit: `1a7e457`.
 
 Next: C05 — Booking slot snapshot design.
 
@@ -196,7 +196,7 @@ Database: Design only; no canonical or disposable database mutation in C05.
 
 Security: Snapshot authority is server-side and remains independent of request-body identity or display fields.
 
-Commit: pending explicit C05 documentation commit.
+Commit: `190e76e`.
 
 Next: C06 — additive migration and disposable verification.
 
@@ -220,12 +220,110 @@ Tests:
 - Disposable database `GYMFIT_DB_COACH_ACCEPTANCE_CLOSURE_20260807` applied 0010–0017 successfully.
 - Disposable migration status reported `pending=0` and `checksum mismatches=0` before the pre-existing catalog post-verifier attempted to read absent ProductOptions in this intentionally pre-0001 fixture; the Coach-specific verifier passed with `pending=[]` and `checksum_mismatches=[]`.
 - Snapshot columns are nullable and the `CK_Bookings_SessionMode` constraint is present on the disposable database.
-- Canonical database has not been changed; disposable cleanup is still required after this checkpoint.
+- Canonical database has not been changed; disposable database cleanup completed after verification.
 
 Database: Canonical database has not been changed.
 
 Security: No historical data is guessed or rewritten.
 
-Commit: pending explicit migration commit.
+Commit: `61fb8f3`.
 
 Next: C07 — authoritative Booking snapshot enforcement.
+
+## C07 — Backend authoritative Booking snapshot
+
+Status: PASS
+
+Changes:
+
+- `assertBookableSlot` now returns the exact locked, available Availability slot.
+- Booking creation persists only server-derived `session_mode` and `location`; client mode/location and identity fields are rejected by the strict request schema.
+- Booking list/detail/create/status DTO paths include nullable snapshot fields.
+
+Tests:
+
+- Final disposable closure harness passed authoritative `ONLINE` and `IN_PERSON` persistence, location persistence, client spoof rejection, Availability mutation immutability, status-mutation immutability and same-slot concurrency.
+- `npm.cmd run build`, `npm.cmd run lint`, `npx.cmd tsc --noEmit`, `npm.cmd run test:coach-booking-unit`: PASS.
+
+Security: JWT Member identity, active Membership, entitlement, quota, Coach state, locked Availability and conflict checks remain server-side and transactional.
+
+Database: Tested on disposable `GYMFIT_DB_COACH_FINAL_CLOSURE_20260807`; dropped after PASS. Canonical database unchanged.
+
+Next: C08 — appointment snapshot display.
+
+## C08 — Frontend appointment mode/location
+
+Status: PASS
+
+Changes:
+
+- Added typed nullable Booking snapshot fields and labels.
+- Member and Coach appointment list/detail pages display the stored snapshot without reading the current Coach profile.
+- Legacy NULL snapshots are conditionally rendered and do not crash.
+
+Tests:
+
+- Final closure harness returned and read both snapshot modes.
+- `frontend: npx.cmd tsc --noEmit`: PASS; frontend build gate remains PASS from C03 and is rerun in C13.
+- Responsive markup remains wrapped/flexible for the existing appointment layouts.
+
+Next: C09 — schedule generation outcome response.
+
+## C09 — Schedule generation response
+
+Status: PASS
+
+Changes:
+
+- Preserved assignment-relative `programWeek` and existing timezone/assignment/program bounds.
+- Added `skippedExisting`, `skippedOutsideAssignment`, `skippedOutsideProgram`, `effectiveFromDate` and `effectiveToDate` while retaining legacy response fields.
+- Added the matching frontend `ScheduleGenerationResult` type.
+
+Tests:
+
+- Final closure harness passed first generation, idempotent duplicate generation, mid-program generation, outside-program and outside-assignment outcome counters.
+- Existing concurrency acceptance remains scheduled for C17.
+
+Next: C10 — priority entitlement contract.
+
+## C10 — Priority booking entitlement contract
+
+Status: PASS
+
+Decision:
+
+- `COACH_PRIORITY_BOOKING` is documented as deferred/not consumed.
+- No priority reservation, queue, slot ordering, quota bypass or Elite-only behavior was added.
+- Existing `0012` and runtime entitlement keys remain unchanged.
+
+Evidence: Final closure harness verified Starter/Pro/Elite typed behavior and confirmed the consumed entitlement set contains no priority key.
+
+Next: C11 — branch clarification.
+
+## C11 — Branch clarification
+
+Status: PASS
+
+Documentation contract:
+
+- Execution branch: `coach1`.
+- Closure/release branch: `coach2`.
+- Coach1 history and commits are preserved; this closure does not rewrite history.
+
+Next: C12 — final closure acceptance harness.
+
+## C12 — Final closure acceptance harness
+
+Status: PASS
+
+Changes:
+
+- Added `backend/src/scripts/coach-final-closure-acceptance.ts` and `acceptance:coach-final-closure`.
+- Added the guarded disposable prefix `GYMFIT_DB_COACH_FINAL_CLOSURE_` to the Coach acceptance DB helper.
+
+Evidence:
+
+- Disposable `GYMFIT_DB_COACH_FINAL_CLOSURE_20260807` applied 0010–0017 and was automatically dropped.
+- Harness verdict PASS with 50 assertions covering pending/confirm/upgrade/downgrade, inverted reps, authoritative Booking snapshots, spoof rejection, immutable snapshots, same-slot race, schedule outcomes/idempotency/mid-program, Starter/Pro/Elite and deferred priority behavior.
+
+Next: C13 — pre-deployment build gate.

@@ -17,7 +17,7 @@ import {
   normalizeSqlTime,
 } from '../../utils/coachBooking';
 import { getCoaches as getPublicCoaches, getCoachAvailability as getPublicCoachAvailability } from '../coaches/coach.controller';
-import { assertBookableSlot } from '../coaches/coach-availability.service';
+import { assertBookableSlot, type AvailabilitySlot } from '../coaches/coach-availability.service';
 import { getActiveMembershipPlan, getActiveMembershipPlanForTransaction } from '../plans/entitlements.service';
 import { todayInTimeZone } from '../../utils/timezone';
 import { createNotification } from '../notifications/notifications.service';
@@ -40,6 +40,8 @@ export interface BookingRow {
   booking_date: string | Date;
   start_time: unknown;
   end_time: unknown;
+  session_mode: AvailabilitySlot['mode'] | null;
+  location: string | null;
   status: BookingStatus;
   notes: string | null;
   created_at: string | Date;
@@ -56,6 +58,8 @@ export interface BookingDto {
   booking_date: string;
   start_time: string;
   end_time: string;
+  session_mode: AvailabilitySlot['mode'] | null;
+  location: string | null;
   status: BookingStatus;
   notes: string | null;
   created_at: string;
@@ -84,6 +88,8 @@ export function mapBooking(row: BookingRow): BookingDto {
     booking_date: normalizeSqlDate(row.booking_date),
     start_time: normalizeSqlTime(row.start_time),
     end_time: normalizeSqlTime(row.end_time),
+    session_mode: row.session_mode ?? null,
+    location: row.location ?? null,
     status,
     notes: row.notes ?? null,
     created_at: normalizeSqlDateTime(row.created_at),
@@ -95,7 +101,7 @@ export function mapBooking(row: BookingRow): BookingDto {
 }
 
 function bookingSelect(scope: string): string {
-  return `SELECT b.id,b.coach_id,b.member_id,b.booking_date,b.start_time,b.end_time,b.status,b.notes,b.created_at,b.updated_at,
+  return `SELECT b.id,b.coach_id,b.member_id,b.booking_date,b.start_time,b.end_time,b.session_mode,b.location,b.status,b.notes,b.created_at,b.updated_at,
                  m.name AS member_name,c.name AS coach_name,c.avatar_url AS coach_avatar_url
           FROM dbo.Bookings b
           JOIN dbo.Users m ON m.id=b.member_id
@@ -244,7 +250,7 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
              AND COALESCE(cp.booking_enabled,1)=1`,
       );
       if (!coach.recordset[0]) throw new AppError(404, 'Coach not found or booking is disabled');
-      await assertBookableSlot(tx, coachId, body.booking_date, body.start_time, endTime);
+      const authoritativeSlot = await assertBookableSlot(tx, coachId, body.booking_date, body.start_time, endTime);
 
       // Range locks protect the overlap checks while the filtered unique index protects exact duplicates.
       const coachConflict = await new sql.Request(tx)
@@ -279,11 +285,13 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
         .input('bookingDate', sql.Date, body.booking_date)
         .input('startTime', sql.VarChar(5), body.start_time)
         .input('endTime', sql.VarChar(5), endTime)
+        .input('sessionMode', sql.NVarChar(20), authoritativeSlot.mode)
+        .input('location', sql.NVarChar(255), authoritativeSlot.location)
         .input('notes', sql.NVarChar(500), note)
         .query<BookingRow>(
-          `INSERT dbo.Bookings(coach_id,member_id,booking_date,start_time,end_time,status,notes,created_at,updated_at)
+          `INSERT dbo.Bookings(coach_id,member_id,booking_date,start_time,end_time,session_mode,location,status,notes,created_at,updated_at)
            OUTPUT INSERTED.*
-           VALUES(@coachId,@memberId,@bookingDate,@startTime,@endTime,N'pending',@notes,SYSUTCDATETIME(),SYSUTCDATETIME())`,
+           VALUES(@coachId,@memberId,@bookingDate,@startTime,@endTime,@sessionMode,@location,N'pending',@notes,SYSUTCDATETIME(),SYSUTCDATETIME())`,
         );
       await createNotification(tx, {
         recipientUserId: coachId,

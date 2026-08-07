@@ -5,7 +5,7 @@ import * as sql from 'mssql';
 import { config } from '../config/config';
 
 const requestedPrefix = process.env.COACH_DB_PREFIX || 'GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_';
-const allowedPrefixes = ['GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_', 'GYMFIT_DB_COACH_ACCEPTANCE_', 'GYMFIT_DB_COACH_E2E_FIX_', 'GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_'];
+const allowedPrefixes = ['GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_', 'GYMFIT_DB_COACH_ACCEPTANCE_', 'GYMFIT_DB_COACH_E2E_FIX_', 'GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_', 'GYMFIT_DB_COACH_FINAL_CLOSURE_'];
 if (!allowedPrefixes.includes(requestedPrefix)) throw new Error(`Unsupported Coach acceptance database prefix: ${requestedPrefix}`);
 const prefix = requestedPrefix;
 const target = config.db.database;

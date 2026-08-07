@@ -368,12 +368,14 @@ export async function assertBookableSlot(
   date: string,
   startTime: string,
   endTime: string,
-): Promise<void> {
+): Promise<AvailabilitySlot> {
   if (!isTimeString(startTime) || !isTimeString(endTime)) throw new AppError(400, 'Booking time must use HH:mm');
   const snapshot = await getAvailabilitySnapshot(coachId, date, { executor: transaction, lock: true, includePrivateNotes: false });
-  if (!snapshot.booking_enabled || !snapshot.available_slots.includes(startTime) || !snapshot.slots.some(slot => slot.start_time === startTime && slot.end_time === endTime && !slot.past)) {
+  const authoritativeSlot = snapshot.slots.find(slot => slot.start_time === startTime && slot.end_time === endTime && !slot.booked && !slot.past);
+  if (!snapshot.booking_enabled || !authoritativeSlot) {
     throw new AppError(409, 'The selected appointment slot is not available', 'COACH_AVAILABILITY_SLOT_UNAVAILABLE');
   }
+  return authoritativeSlot;
 }
 
 async function assertRuleDoesNotOverlap(executor: DbExecutor, coachId: number, input: AvailabilityRuleInput, excludedId?: number): Promise<void> {
