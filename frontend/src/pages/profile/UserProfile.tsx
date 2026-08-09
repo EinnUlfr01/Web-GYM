@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, Calendar, MapPin, Camera, Save, Award, Dumbbell, Clock } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';

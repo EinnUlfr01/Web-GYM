@@ -1,38 +1,27 @@
 # GymFit
 
-GymFit is a full-stack gym-management and commerce platform. It combines role-based member, coach, and administrator workflows with a public product catalog, variant-aware checkout, order/payment auditing, membership features, bookings, and media. The current source of truth is this branch plus the documents indexed in [`docs/README.md`](docs/README.md).
+GymFit is a full-stack gym-management and commerce platform with Member, Coach, Admin and Seller surfaces. The maintained documentation index is [`docs/README.md`](docs/README.md); source code, migration files and verified database state are authoritative over prose.
 
-## Current status
+## Roles and current status
 
-- Overall project: **IN PROGRESS**.
-- TASK-007: **COMPLETE** on `007c-order-management` at `427ad52996961648ffc622ca1bf2999a5aab3df4`; runtime, Gmail, Bank/QR, customer browser, and admin browser acceptance passed.
-- TASK-008 specification: **COMPLETE**; implementation: **NOT STARTED**.
-- Next action: complete the [TASK-008 Discovery Gate](docs/TASK-008_DISCOVERY_CHECKLIST.md) before designing migration `0006`.
+- Member: self-scoped workout execution, session history and progress.
+- Coach: Program/Day/Exercise authoring, Member assignment/schedules and scoped monitoring.
+- Admin: Coach status and Member scope management, shared Exercise Library and read-only Workout Governance.
+- Seller/Marketplace: maintained in the protected Marketplace documentation set and outside the Coach cleanup scope.
 
-Completed capabilities include JWT authentication and Admin/Coach/Member roles; public catalog; Admin Product/Image, Category, Brand, Variant, and Inventory management; variant-aware Cart/Checkout; customer and admin Orders; Bank QR payment notification; Gmail notifications; Payment and Order audit histories; and reservation, cancellation, expiration, delivery, and refund lifecycle handling.
+Coach migrations `0007`, `0008`, `0009` and the additive `0010_coach_profiles.sql` contract are verified on isolated acceptance databases. Coach Role, Member Workout, Admin Coach and Coach Booking runtime acceptance all pass; the browser checklist also passes at the required responsive viewports. The canonical `GYMFIT_DB` remains read-only with `0010` intentionally pending until an approved production migration window.
 
 ## Technology
 
-- Frontend: React 18, TypeScript, Vite, React Router 6, Zustand, Axios, Tailwind CSS, Recharts.
-- Backend: Node.js, Express 4, TypeScript, SQL Server (`mssql`), Zod/express-validator, JWT, bcrypt, Nodemailer, Winston.
-- Database: SQL Server; ordered, checksummed migrations `0001`-`0005` are applied to canonical database `GYMFIT_DB`.
-
-## Repository layout
-
-```text
-backend/         Express/TypeScript API
-frontend/        React/Vite application
-db/migrations/   Ordered SQL Server migrations and runner guidance
-docs/            Canonical technical documentation and historical archive
-logs/            Policy plus curated project history (never raw runtime logs)
-image/           Repository-managed static image assets
-```
+- Frontend: React 18, TypeScript, Vite, React Router, Zustand, Axios and Tailwind CSS.
+- Backend: Node.js, Express, TypeScript, SQL Server (`mssql`), Zod, JWT and Nodemailer.
+- Database: SQL Server with ordered, checksummed migrations.
 
 ## Quick start
 
-Prerequisites: Node.js, npm, and access to SQL Server. Configure local environment variables using [Setup and Environment](docs/SETUP_AND_ENVIRONMENT.md); never commit `.env` or secrets.
+Configure local variables with [`docs/SETUP_AND_ENVIRONMENT.md`](docs/SETUP_AND_ENVIRONMENT.md); never commit `.env` or secrets.
 
-```bash
+```powershell
 cd backend
 npm install
 npm run db:migrate:status
@@ -41,14 +30,22 @@ npm run dev
 
 In another terminal:
 
-```bash
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Use [Database and Migrations](docs/DATABASE_AND_MIGRATIONS.md) before applying migrations. See the [documentation index](docs/README.md), [developer workflow](docs/DEVELOPER_WORKFLOW.md), and [TASK-008 specification](docs/TASK-008_IMPLEMENTATION_SPEC.md).
+Read [`docs/DATABASE_AND_MIGRATIONS.md`](docs/DATABASE_AND_MIGRATIONS.md) before migration work. Acceptance mutations must use a guarded disposable database, never the canonical database.
 
-## Contribution workflow
+## Contribution and security
 
-Work on feature branches, stage files explicitly, update documentation with completed work, and do not push directly to `main`. See [`CONTRIBUTING.md`](CONTRIBUTING.md). Never commit `.env`, raw logs, backups, uploads, `node_modules`, `dist`, browser profiles, or acceptance artifacts.
+Use explicit branches and explicit staging. Backend authorization is authoritative; frontend guards are navigation UX only. The completed Coach work is on branch `coach`; see [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/README.md`](docs/README.md).
+
+## Coach appointments
+
+The public Coach catalog is backed by `GET /api/coaches` and `GET /api/coaches/:id`. Booking availability is served by `GET /api/coaches/:id/availability?date=YYYY-MM-DD`; the legacy `/api/bookings/coaches` paths delegate to the same controller/query.
+
+Member booking uses `POST /api/bookings` with `{ coachId, date, startTime, note }`. Appointments are fixed at 60 minutes in `Asia/Ho_Chi_Minh` and start as lowercase `pending`. Members use `/appointments`; Coaches use `/coach/appointments`. Appointment data is intentionally separate from Workout Schedule data.
+
+Apply `db/migrations/0010_coach_profiles.sql` on an isolated or explicitly approved database before using the new public profile fields. The guarded checks are `npm run test:coach-booking-unit`, `npm run verify:coach-migration` and `npm run acceptance:coach-booking`; the latter requires `COACH_BOOKING_ACCEPTANCE=1`, an isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_*` database, and a running API. Booking remains a 60-minute `Asia/Ho_Chi_Minh` appointment with lowercase `pending`/`confirmed`/`cancelled`/`completed`/`no_show` states, separate from Workout Schedule and without implicit Coach–Member assignment.

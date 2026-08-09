@@ -1,8 +1,10 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { Dumbbell, Mail, Lock, Eye, EyeOff, User, Phone, AlertCircle, CheckCircle } from 'lucide-react';
+import { clearPendingPlan, getPendingPlanCheckoutPath } from '../../services/plans';
+import { roleHome } from '../../auth/accessPolicy';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -94,7 +96,7 @@ export default function RegisterPage() {
     }
     
     if (!validatePassword(formData.password)) {
-      setError('Password must be at least 8 characters');
+      setError('Password must be 10–128 characters and include lowercase, uppercase, and a number');
       return;
     }
     
@@ -111,8 +113,10 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      await register({email:formData.email,password:formData.password,name:`${formData.firstName} ${formData.lastName}`.trim(),phone:formData.phone});
-      navigate('/dashboard',{replace:true});
+      const current = await register({email:formData.email,password:formData.password,name:`${formData.firstName} ${formData.lastName}`.trim(),phone:formData.phone});
+      const pendingCheckout = current.role === 'member' ? getPendingPlanCheckoutPath() : null;
+      if (current.role !== 'member') clearPendingPlan();
+      navigate(pendingCheckout || roleHome(current.role),{replace:true});
     } catch (err:unknown) {
       const response=(err as {response?:{data?:{message?:string}}}).response;
       setError(response?.data?.message||'Registration failed. Please try again.');
@@ -306,7 +310,7 @@ export default function RegisterPage() {
                 <span className={`text-xs ${passwordStrengthInfo.color}`}>{passwordStrengthInfo.text}</span>
               </div>
               {touched.password && !validatePassword(formData.password) && (
-                <p className="text-red-400 text-sm">Password must be at least 8 characters</p>
+                <p className="text-red-400 text-sm">Password must be 10–128 characters and include lowercase, uppercase, and a number</p>
               )}
             </div>
 

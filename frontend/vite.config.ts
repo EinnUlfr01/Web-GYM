@@ -25,9 +25,9 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          { urlPattern: /^\/api\//, handler: 'NetworkFirst', options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 300 } } },
-        ],
+        // Authenticated API responses must always come from the network. Only
+        // the precached static build assets are handled by this service worker.
+        runtimeCaching: [],
       },
     }),
   ],

@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import { Copy, RefreshCw, X } from "lucide-react";
 import { ordersApi } from "../../services/ordersApi";
+import OrderReviewActions from "../../components/reviews/OrderReviewActions";
 import type {
   CustomerOrderDetail,
   PaymentNotificationResult,
@@ -211,6 +212,9 @@ export default function CustomerOrderDetailPage() {
             Order status: <strong>{order.orderStatus}</strong>
           </p>
           <p>
+            Logistics: <strong>{order.logisticsStatus || "Đơn đã hủy"}</strong>
+          </p>
+          <p>
             Payment status: <strong>{labels[status]}</strong>
           </p>
           <p>Created: {new Date(order.createdAt).toLocaleString()}</p>
@@ -236,6 +240,38 @@ export default function CustomerOrderDetailPage() {
           <p>{order.country || "—"}</p>
         </section>
       </div>
+      <section className="space-y-4 rounded-xl border border-emerald-400/20 p-5">
+        <h2 className="text-lg font-semibold">Shop orders</h2>
+        {order.shopOrders.map((shopOrder) => (
+          <article key={shopOrder.id} className="rounded-lg border border-white/10 p-4">
+            <div className="flex flex-wrap justify-between gap-3">
+              <Link className="text-emerald-400" to={`/shops/${shopOrder.shop.slug}`}>
+                {shopOrder.shop.name}
+              </Link>
+              <span>{shopOrder.status}</span>
+              <strong>{money(shopOrder.subtotal, order.currency)}</strong>
+            </div>
+            {shopOrder.hubCheckFailed&&<p className="mt-3 rounded bg-amber-500/10 p-3 text-amber-200">Kiện hàng đang được GymFit xử lý thêm tại hub. Đơn tổng vẫn đang chờ các ShopOrder hoàn tất.</p>}
+            <div className="mt-3 grid gap-1 text-sm text-white/60 sm:grid-cols-2">
+              {shopOrder.pickedUpAt&&<span>Đã lấy: {new Date(shopOrder.pickedUpAt).toLocaleString()}</span>}
+              {shopOrder.inTransitToHubAt&&<span>Đang về hub: {new Date(shopOrder.inTransitToHubAt).toLocaleString()}</span>}
+              {shopOrder.receivedAtHubAt&&<span>Hub đã nhận: {new Date(shopOrder.receivedAtHubAt).toLocaleString()}</span>}
+              {shopOrder.hubCheckedAt&&<span>Đã kiểm tra hub: {new Date(shopOrder.hubCheckedAt).toLocaleString()}</span>}
+              {shopOrder.deliveredAt&&<span>Đã giao: {new Date(shopOrder.deliveredAt).toLocaleString()}</span>}
+            </div>
+            <ul className="mt-3 space-y-1 text-sm text-white/70">
+              {shopOrder.items.map((item) => (
+                <li key={item.id}>
+                  {item.productName} · {item.variantName} × {item.quantity}
+                </li>
+              ))}
+            </ul>
+            {shopOrder.refund&&<div className="mt-3 rounded bg-amber-500/10 p-3 text-sm text-amber-200"><p>Hoàn hàng hóa: {money(shopOrder.refund.merchandiseAmount,order.currency)}</p><p>Hoàn vận chuyển: {money(shopOrder.refund.shippingAmount,order.currency)}</p><p>Trạng thái hoàn tiền: {shopOrder.refund.status}</p></div>}
+            {shopOrder.compensationVoucher&&<div className="mt-3 rounded bg-emerald-500/10 p-3 text-sm text-emerald-200"><p>Voucher: {shopOrder.compensationVoucher.code} · {money(shopOrder.compensationVoucher.amount,order.currency)}</p><p>Đơn hàng hóa tối thiểu: {money(shopOrder.compensationVoucher.minimumOrderAmount,order.currency)}</p><p>Hạn dùng: {new Date(shopOrder.compensationVoucher.expiresAt).toLocaleString()} · Không áp dụng phí vận chuyển, không cộng dồn.</p></div>}
+          </article>
+        ))}
+      </section>
+      <OrderReviewActions order={order} />
       <section className="overflow-x-auto rounded-xl border border-slate-800">
         <h2 className="p-5 text-lg font-semibold">Items</h2>
         <table className="w-full min-w-[800px] text-sm">
@@ -247,6 +283,7 @@ export default function CustomerOrderDetailPage() {
               <th>Quantity</th>
               <th>Unit price</th>
               <th>Line total</th>
+              <th>Support</th>
             </tr>
           </thead>
           <tbody>
@@ -258,6 +295,15 @@ export default function CustomerOrderDetailPage() {
                 <td>{item.quantity}</td>
                 <td>{money(item.unitPrice, order.currency)}</td>
                 <td>{money(item.lineTotal, order.currency)}</td>
+                <td>
+                  {order.logisticsStatus === "DELIVERED" ? (
+                    <Link className="text-blue-400 underline" to={`/complaints?orderItemId=${item.id}`}>
+                      Khiếu nại sản phẩm
+                    </Link>
+                  ) : (
+                    <span className="text-slate-500">Có sau khi giao</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

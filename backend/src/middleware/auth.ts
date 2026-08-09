@@ -22,6 +22,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       `SELECT u.id,u.email,u.role,u.token_version FROM dbo.Users u
        JOIN dbo.AuthSessions s ON s.id=@sessionId AND s.user_id=u.id
        WHERE u.id=@userId AND u.is_active=1 AND u.token_version=@tokenVersion
+         AND (u.role<>N'coach' OR COALESCE(u.coach_status,N'ACTIVE')=N'ACTIVE')
          AND s.revoked_at IS NULL AND s.expires_at>SYSUTCDATETIME()`,
       { userId: decoded.userId, sessionId: decoded.sessionId, tokenVersion: decoded.tokenVersion },
     );

@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  Dumbbell, Users, Video, Calendar, Shield, Star, Play, ArrowRight,
+  Dumbbell, Users, Video, Calendar, Shield, Play, ArrowRight, Loader2,
   Zap, Heart, Trophy, Target, ChevronRight, ChevronDown, Quote,
   CheckCircle, Flame, TrendingUp, Award, Clock, MapPin, Wifi,
   Instagram, Twitter, Youtube, Facebook
 } from 'lucide-react';
 import VideoPreview from './VideoPreview';
+import { listPublicCoaches, type Coach } from '../../services/coaches';
 
 /* ──────────── Animated Counter ──────────── */
 function AnimatedCounter({ end, suffix = '', prefix = '' }: { end: number; suffix?: string; prefix?: string }) {
@@ -249,12 +250,15 @@ function Features() {
 
 /* ──────────── COACHES ──────────── */
 function CoachMarketplace() {
-  const coaches = [
-    { name: 'Alex Rivera', specialty: 'Strength & Conditioning', rating: 4.9, sessions: 342, image: 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=400&q=80', certifications: ['NASM', 'ACE'] },
-    { name: 'Sarah Chen', specialty: 'HIIT & Cardio', rating: 4.8, sessions: 289, image: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?w=400&q=80', certifications: ['ACSM', 'ISSA'] },
-    { name: 'Marcus Thompson', specialty: 'Yoga & Mobility', rating: 4.9, sessions: 198, image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80', certifications: ['RYT-500'] },
-    { name: 'Emma Rodriguez', specialty: 'CrossFit & Functional', rating: 4.7, sessions: 156, image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&q=80', certifications: ['CF-L2', 'NASM'] },
-  ];
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    listPublicCoaches({ page: 1, limit: 4 })
+      .then(value => setCoaches(value.coaches))
+      .catch(() => setError('Coach list could not be loaded.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <section className="section-padding relative">
@@ -263,55 +267,30 @@ function CoachMarketplace() {
         <Reveal className="text-center mb-16">
           <span className="premium-badge mb-4 inline-flex"><Users size={14} /> Expert Coaches</span>
           <h2 className="heading-2 mb-4">Train with <span className="text-gradient">World-Class</span> Coaches</h2>
-          <p className="text-[#94A3B8] max-w-2xl mx-auto text-lg">
-            Our certified coaches are dedicated to helping you reach your full potential.
-          </p>
+          <p className="text-[#94A3B8] max-w-2xl mx-auto text-lg">Coach profiles and booking availability come from the active database.</p>
         </Reveal>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {coaches.map((coach, i) => (
-            <motion.div
-              key={coach.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.1 }}
-              whileHover={{ y: -10 }}
-              className="group"
-            >
-              <Link to="/coaches">
-                <div className="relative rounded-2xl overflow-hidden mb-4 aspect-[3/4]">
-                  <img src={coach.image} alt={coach.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <div className="flex gap-2 mb-2">
-                      {coach.certifications.map(cert => (
-                        <span key={cert} className="premium-badge text-[10px]">{cert}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <h3 className="font-semibold text-white group-hover:text-[#22C55E] transition-colors">{coach.name}</h3>
-                <p className="text-sm text-[#22C55E] mb-2">{coach.specialty}</p>
-                <div className="flex items-center gap-3 text-sm text-[#94A3B8]">
-                  <span className="flex items-center gap-1"><Star size={14} className="text-[#FBBF24]" fill="#FBBF24" /> {coach.rating}</span>
-                  <span>•</span>
-                  <span>{coach.sessions} sessions</span>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
-        <Reveal className="text-center mt-12">
-          <Link to="/coaches" className="hero-btn-secondary inline-flex items-center gap-2">
-            View All Coaches <ArrowRight size={18} />
-          </Link>
-        </Reveal>
+        {loading && <div className="flex items-center justify-center gap-2 py-16 text-[#94A3B8]"><Loader2 size={22} className="animate-spin" />Loading coaches...</div>}
+        {!loading && error && <div className="py-12 text-center text-[#94A3B8]">{error}</div>}
+        {!loading && !error && coaches.length === 0 && <div className="py-12 text-center text-[#94A3B8]">No active coaches are available.</div>}
+        {!loading && !error && coaches.length > 0 && <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {coaches.map((coach, i) => <motion.div key={coach.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }} whileHover={{ y: -10 }} className="group">
+            <Link to={'/coaches/' + coach.id}>
+              <div className="relative mb-4 aspect-[3/4] overflow-hidden rounded-2xl">
+                {coach.avatarUrl ? <img src={coach.avatarUrl} alt={coach.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#2563eb] to-[#0ea5e9] text-5xl font-bold text-white">{coach.name.split(/\s+/).map(part => part[0] ?? '').join('').slice(0, 2)}</div>}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent" />
+              </div>
+              <h3 className="font-semibold text-white group-hover:text-[#22C55E] transition-colors">{coach.name}</h3>
+              <p className="mb-2 text-sm text-[#22C55E]">{coach.specialty || 'Fitness Coach'}</p>
+              <div className="text-sm text-[#94A3B8]">{coach.location || 'GYMFIT Coach'}{coach.experienceYears !== null && <span> · {coach.experienceYears} years experience</span>}</div>
+            </Link>
+          </motion.div>)}
+        </div>}
+        <Reveal className="text-center mt-12"><Link to="/coaches" className="hero-btn-secondary inline-flex items-center gap-2">View All Coaches <ArrowRight size={18} /></Link></Reveal>
       </div>
     </section>
   );
 }
+
 
 /* ──────────── TRANSFORMATIONS ──────────── */
 function TransformationStories() {

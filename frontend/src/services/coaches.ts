@@ -1,86 +1,185 @@
-import axios from 'axios';
+import api from '../api/axios';
 
-const API_BASE = 'http://localhost:5000/api';
+export type CoachSessionMode = 'ONLINE' | 'IN_PERSON' | 'BOTH';
+export type CoachAvailabilityExceptionType = 'BLOCK' | 'OPEN';
+
+export interface CoachAvailabilityRule {
+  id: number;
+  coach_id: number;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  mode: CoachSessionMode;
+  location: string | null;
+  is_active: boolean;
+}
+
+export interface CoachAvailabilityException {
+  id: number;
+  coach_id: number;
+  exception_date: string;
+  exception_type: CoachAvailabilityExceptionType;
+  start_time: string | null;
+  end_time: string | null;
+  mode: CoachSessionMode | null;
+  location: string | null;
+  note: string | null;
+  is_active: boolean;
+}
+
+export interface CoachAvailabilitySlot {
+  start_time: string;
+  end_time: string;
+  mode: Exclude<CoachSessionMode, 'BOTH'>;
+  location: string | null;
+  source: 'WEEKLY_RULE' | 'OPEN_EXCEPTION';
+  booked: boolean;
+  past: boolean;
+}
+
+export interface CoachSelfProfile {
+  coachId: number;
+  name: string;
+  specialty: string | null;
+  bio: string | null;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string | null;
+  bookingEnabled: boolean;
+}
 
 export interface Coach {
-  id: string;
+  id: number;
   name: string;
-  email: string;
-  phone?: string;
-  avatar_url?: string;
-  is_active: number;
-  created_at: string;
-  workout_count: number;
-  avgRating?: number;
-  totalMembers?: number;
-  totalSessions?: number;
+  avatarUrl: string | null;
+  specialty: string | null;
+  bio: string | null;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string | null;
+  bookingEnabled: boolean;
 }
 
-export interface CoachDetail extends Coach {
-  specialty?: string;
-  bio?: string;
-  rating?: number;
-  reviews?: number;
-  price?: number;
-  location?: string;
-  experience?: string;
-  certifications?: string[];
-  available?: boolean;
-  availableSlots?: string[];
-  memberResults?: { name: string; result: string }[];
-  reviewsList?: { user: string; rating: number; text: string; date: string }[];
+export type CoachDetail = Coach;
+
+export interface CoachAvailability {
+  active: boolean;
+  booking_enabled: boolean;
+  bookingEnabled?: boolean;
+  date: string;
+  coach_id: number;
+  available_slots: string[];
+  booked_slots: string[];
+  duration_minutes: number;
+  timezone: string;
+  mode: CoachSessionMode | null;
+  location: string | null;
+  session_mode?: CoachSessionMode | null;
+  profile_location?: string | null;
+  rules: CoachAvailabilityRule[];
+  exceptions: CoachAvailabilityException[];
+  slots: CoachAvailabilitySlot[];
 }
 
-export async function getCoaches(params?: { search?: string; page?: number; limit?: number }): Promise<Coach[]> {
-  try {
-    const q = new URLSearchParams();
-    if (params?.search) q.set('search', params.search);
-    if (params?.page) q.set('page', String(params.page));
-    if (params?.limit) q.set('limit', String(params.limit));
-    
-    const res = await axios.get(`${API_BASE}/coaches?${q}`);
-    return res.data?.data?.coaches ?? [];
-  } catch {
-    return [];
-  }
+interface ApiResponse<T> { data: T }
+export interface CoachPagination { page: number; limit: number; total: number; totalPages: number }
+export interface CoachListResult { items: Coach[]; coaches: Coach[]; pagination: CoachPagination }
+
+export async function listPublicCoaches(params?: { search?: string; page?: number; limit?: number }, options?: { signal?: AbortSignal }): Promise<CoachListResult> {
+  const response = await api.get<ApiResponse<CoachListResult>>('/coaches', { params, signal: options?.signal });
+  return response.data.data;
 }
 
-export async function getCoachById(id: string): Promise<CoachDetail | null> {
-  try {
-    const res = await axios.get(`${API_BASE}/coaches/${id}`);
-    const data = res.data?.data;
-    if (!data) return null;
-    
-    // Map DB data to CoachDetail with defaults
-    return {
-      id: String(data.id),
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      avatar_url: data.avatar_url,
-      is_active: data.is_active,
-      created_at: data.created_at,
-      workout_count: data.workout_count || 0,
-      specialty: 'Personal Training',
-      bio: `Experienced fitness coach with ${data.workout_count || 0} workout programs.`,
-      rating: 4.5,
-      reviews: Math.floor(Math.random() * 50) + 20,
-      price: 50 + Math.floor(Math.random() * 30),
-      location: 'Online / Gym',
-      experience: '5+ years',
-      certifications: ['NASM Certified', 'CrossFit Level 1'],
-      available: true,
-      availableSlots: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-      memberResults: [
-        { name: 'Member 1', result: 'Achieved fitness goals' },
-        { name: 'Member 2', result: 'Improved strength significantly' },
-      ],
-      reviewsList: [
-        { user: 'Client A', rating: 5, text: 'Great coach!', date: '1 week ago' },
-        { user: 'Client B', rating: 4, text: 'Very knowledgeable', date: '2 weeks ago' },
-      ],
-    };
-  } catch {
-    return null;
-  }
+export async function getPublicCoach(coachId: number | string, options?: { signal?: AbortSignal }): Promise<Coach> {
+  const response = await api.get<ApiResponse<Coach>>(`/coaches/${coachId}`, { signal: options?.signal });
+  return response.data.data;
 }
+
+export async function getCoachAvailability(coachId: number | string, date: string, signal?: AbortSignal): Promise<CoachAvailability> {
+  const response = await api.get<ApiResponse<CoachAvailability>>(`/coaches/${coachId}/availability`, { params: { date }, signal });
+  return response.data.data;
+}
+
+export interface CoachAvailabilityRuleInput {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  mode: CoachSessionMode;
+  location?: string | null;
+  isActive?: boolean;
+}
+
+export interface CoachAvailabilityExceptionInput {
+  exceptionDate: string;
+  exceptionType: CoachAvailabilityExceptionType;
+  startTime?: string | null;
+  endTime?: string | null;
+  mode?: CoachSessionMode | null;
+  location?: string | null;
+  note?: string | null;
+  isActive?: boolean;
+}
+
+export async function getMyCoachAvailability(date: string, signal?: AbortSignal): Promise<CoachAvailability> {
+  const response = await api.get<ApiResponse<CoachAvailability>>('/coach/availability', { params: { date }, signal, headers: { 'Cache-Control': 'no-cache' } });
+  return response.data.data;
+}
+
+export async function listMyAvailabilityRules(includeInactive = false): Promise<CoachAvailabilityRule[]> {
+  const response = await api.get<ApiResponse<CoachAvailabilityRule[]>>('/coach/availability/rules', { params: { includeInactive }, headers: { 'Cache-Control': 'no-cache' } });
+  return Array.isArray(response.data.data) ? response.data.data : [];
+}
+
+export async function createMyAvailabilityRule(input: CoachAvailabilityRuleInput): Promise<CoachAvailabilityRule> {
+  const response = await api.post<ApiResponse<CoachAvailabilityRule>>('/coach/availability/rules', input);
+  return response.data.data;
+}
+
+export async function updateMyAvailabilityRule(id: number, input: Partial<CoachAvailabilityRuleInput>): Promise<CoachAvailabilityRule> {
+  const response = await api.patch<ApiResponse<CoachAvailabilityRule>>(`/coach/availability/rules/${id}`, input);
+  return response.data.data;
+}
+
+export async function deleteMyAvailabilityRule(id: number): Promise<void> {
+  await api.delete(`/coach/availability/rules/${id}`);
+}
+
+export async function listMyAvailabilityExceptions(includeInactive = false): Promise<CoachAvailabilityException[]> {
+  const response = await api.get<ApiResponse<CoachAvailabilityException[]>>('/coach/availability/exceptions', { params: { includeInactive }, headers: { 'Cache-Control': 'no-cache' } });
+  return Array.isArray(response.data.data) ? response.data.data : [];
+}
+
+export async function createMyAvailabilityException(input: CoachAvailabilityExceptionInput): Promise<CoachAvailabilityException> {
+  const response = await api.post<ApiResponse<CoachAvailabilityException>>('/coach/availability/exceptions', input);
+  return response.data.data;
+}
+
+export async function updateMyAvailabilityException(id: number, input: Partial<CoachAvailabilityExceptionInput>): Promise<CoachAvailabilityException> {
+  const response = await api.patch<ApiResponse<CoachAvailabilityException>>(`/coach/availability/exceptions/${id}`, input);
+  return response.data.data;
+}
+
+export async function deleteMyAvailabilityException(id: number): Promise<void> {
+  await api.delete(`/coach/availability/exceptions/${id}`);
+}
+
+export async function getMyCoachProfile(): Promise<CoachSelfProfile> {
+  const response = await api.get<ApiResponse<CoachSelfProfile>>('/coach/profile');
+  return response.data.data;
+}
+
+export async function updateMyCoachProfile(input: {
+  specialty: string;
+  bio: string;
+  experienceYears: number | null;
+  sessionMode: CoachSessionMode | null;
+  location: string;
+  bookingEnabled: boolean;
+}): Promise<CoachSelfProfile> {
+  const response = await api.patch<ApiResponse<CoachSelfProfile>>('/coach/profile', input);
+  return response.data.data;
+}
+
+// Compatibility aliases for existing Coach pages; all calls use the canonical /api/coaches source.
+export const getCoaches = listPublicCoaches;
+export const getCoachById = async (id: string): Promise<CoachDetail> => getPublicCoach(id);

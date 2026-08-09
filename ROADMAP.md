@@ -1,36 +1,46 @@
 # GymFit Roadmap
 
-Updated 2026-07-15. Older roadmap statements that cancelled TASK-008 are superseded.
+Updated: 2026-08-04. Historical checkpoints are under `docs/archive/2026-08/` and `logs/`; current documentation is indexed by [`docs/README.md`](docs/README.md).
 
-## Security hardening interlock
+## Completed
 
-Auth/RBAC hardening occupies migration `0006` and is independent of TASK-008. TASK-008 remains not started; its first possible migration number is now `0007`, only after its Discovery Gate.
-
-## Completed foundation
-
-| Task | Status | Outcome |
+| Workstream | Status | Evidence |
 |---|---|---|
-| TASK-001 through TASK-006 | Complete | Core gym, authentication, roles, membership, operational and catalog foundations |
-| TASK-007A | Complete | Product/image, variant and inventory foundation |
-| TASK-007B | Complete | Admin catalog, variant, inventory and order management |
-| TASK-007C | Complete | Variant checkout, orders, payment, reservation, Gmail/Bank and lifecycle acceptance |
+| Core gym/auth/RBAC and TASK-001–TASK-007 | COMPLETE | Existing source and historical evidence |
+| Coach Program, Assignment and Schedule authoring | COMPLETE | Migration `0007`, Coach module handover |
+| Member Workout execution and Progress | COMPLETE | Migration `0008`, Coach module handover |
+| Admin Coach list/detail/status | COMPLETE | Migration `0009`, Admin acceptance |
+| Admin Member assign/reassign | COMPLETE | Transaction/concurrency/IDOR acceptance |
+| Admin Exercise Library | COMPLETE | Create/edit/activate/deactivate acceptance |
+| Admin Workout Governance | COMPLETE — READ-ONLY | Programs, Assignments, Schedules, Sessions, Progress acceptance |
+| Coach documentation consolidation | COMPLETE | `docs/coach/COACH_MODULE_HANDOVER.md` |
 
-## TASK-008 — WORKOUT PROGRAM AND MEMBER PROGRESS
+## Blocked
 
-TASK-008 was reopened after FULL TASK-007 acceptance. Its implementation has not started.
+| Workstream | Status | Owner | Action |
+|---|---|---|---|
+| Full-project clean migration install | BLOCKED_BY_MARKETPLACE_MIGRATION_0100 | Marketplace/Seller | Resolve `SellerApplications` baseline conflict separately |
+| Admin Program Builder | BLOCKED_ADMIN_PROGRAM_OWNERSHIP_MODEL | Coach/Admin architecture | Define and test an explicit Admin ownership model before adding features |
+| Browser visual verification | COMPLETE | Coach acceptance fixture | Guest, Member, Coach and Admin route checks passed at 375/768/1440; console has only React Router upgrade warnings |
 
-1. **008A — Exercise Library and Workout Programs.** Discovery resolved; migration `0006`; Exercise/Program APIs, ownership rules, program builder and Admin/Coach UI; Build Gate A passes.
-2. **008B — Member Assignments and Workout Sessions.** Coach-Member scope decided; migration `0007`; assignments, schedules, immutable session snapshots, set logs and Member workout flow; authorization/concurrency acceptance and Build Gate B pass.
-3. **008C — Member Progress and Final Project Acceptance.** Migration `0008` only if manual measurements require it; progress formulas/API/UI; privacy, timezone, browser, isolated-DB and final build acceptance pass.
+## Next
 
-Dependencies and gates: branch from the auth/RBAC closure; complete the [Discovery Gate](docs/TASK-008_DISCOVERY_CHECKLIST.md) before `0007`; never edit applied migrations; use isolated acceptance databases; update documentation before handoff.
+- Keep Coach contracts, migrations and authorization acceptance green.
+- Resolve Marketplace migration `0100` only on a separate Marketplace-owned workstream.
 
-Out of scope: AI, camera, pose estimation, automatic rep counting, medical diagnosis, nutrition, wearables, social feed/gamification expansion, live coaching, and new payment work.
+Marketplace, Seller, Video, Payment, Refund and Settlement remain protected/out of scope for Coach work.
 
-Final project completion requires all three subtasks, migrations and checksums, backend/frontend build gates, authorization/IDOR/concurrency tests, Admin/Coach/Member browser acceptance, acceptance cleanup, canonical DB integrity, documentation, commit, and branch push.
+## Coach appointment delivery
 
-Auth/RBAC closure: manual browser acceptance and offline cleanup passed; no browser automation was rerun.
+- Public Coach discovery now has one canonical data source and filters inactive or suspended Coaches.
+- Booking is a real pending appointment with fixed 60-minute slots, overlap/concurrency protection, ownership checks and lowercase state transitions.
+- Member appointment and Coach appointment routes are separate from Workout Schedule routes.
+- Migration `0010_coach_profiles.sql` is additive and must be applied only to a disposable/approved target after backup and status verification.
+- Browser acceptance passed against the guarded `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823` fixture. The Member flow created a real pending booking, the Coach confirmed it, self-profile booking was toggled off/on and public behavior was verified.
 
-Canonical migrations `0001–0006` are applied and auth/RBAC closure is complete. TASK-008 remains not started; it is unblocked and its next action is the Discovery Gate, followed by migration `0007` if required.
+## Coach completion evidence
 
-Dashboard UI redesign is complete and authenticated browser-accepted for Member, Coach and Admin at desktop/mobile breakpoints, including account switching and route guards. The isolated acceptance environment was removed. This frontend-only workstream does not start TASK-008 or change backend contracts.
+- Migration `0010_coach_profiles.sql`: applied transactionally on the isolated Coach Booking database; 22 applied, 0 pending and 0 checksum mismatches, with the unique Coach profile key verified.
+- Runtime: Coach Role, Member Workout E2E, Admin Coach, Coach Booking and regression-02/03 acceptance passed on disposable databases; each acceptance database was dropped after use.
+- Frontend: Guest `/coaches` search/detail/login guard, Member booking/detail/cancel, Coach appointment actions/profile, and Coach/Member/Admin workspace routes passed in the browser.
+- Latest audited implementation base: `47417e26452cf4646ed51ec03a2891410e304823`; final task commit is reported at handoff.

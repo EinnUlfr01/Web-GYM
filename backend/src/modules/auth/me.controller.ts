@@ -38,7 +38,7 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
     const stored = getUser.recordset[0].password;
     const valid = await bcrypt.compare(current_password, stored);
-    if (!valid) throw new AppError(401, 'Current password is incorrect');
+    if (!valid) throw new AppError(400, 'Current password is incorrect');
 
     const hashed = await bcrypt.hash(new_password, 12);
     await query(`UPDATE Users SET password=@password,token_version=token_version+1,updated_at=GETDATE() WHERE id=@id;

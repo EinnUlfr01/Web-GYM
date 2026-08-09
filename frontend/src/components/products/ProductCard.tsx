@@ -19,7 +19,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercent = hasDiscount ? Math.round((1 - variant.sale_price! / variant.price) * 100) : 0;
   const wishlisted = isInWishlist(product.id);
   const outOfStock = variant.available <= 0;
-  const isNew = product.is_on_sale === false && !hasDiscount && !product.is_featured;
+  const averageRating = product.averageRating;
 
   return (
     <motion.div
@@ -51,11 +51,6 @@ export default function ProductCard({ product }: ProductCardProps) {
               <Zap size={10} /> HOT
             </span>
           )}
-          {isNew && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold backdrop-blur-xl bg-gradient-to-r from-emerald-500/80 to-green-600/80 text-white border border-emerald-400/30 shadow-lg shadow-emerald-500/20">
-              NEW
-            </span>
-          )}
         </div>
 
         {outOfStock && (
@@ -81,6 +76,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-bold text-sm leading-tight text-white group-hover:text-orange-400 transition-colors duration-300 line-clamp-2">
             {name}
           </h3>
+        </Link>
+        <Link className="block text-xs text-slate-400 hover:text-emerald-400" to={`/shops/${product.shop.slug}`}>
+          {product.shop.name}{product.shop.isVerified?' · Đã xác minh':''}
         </Link>
 
         {/* Variant Chips */}
@@ -112,28 +110,27 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </span>
               </div>
             ) : (
-              <span className="text-lg font-extrabold text-white">
-                {formatCurrency(variant.effective_price)}
-              </span>
+              <span className="text-lg font-extrabold text-white">{product.minPrice===product.maxPrice?formatCurrency(product.minPrice):`${formatCurrency(product.minPrice)} – ${formatCurrency(product.maxPrice)}`}</span>
             )}
           </div>
-          {product.rating && (
+          {product.averageRating != null ? (
             <div className="flex items-center gap-1">
               <div className="flex">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
                     size={10}
-                    className={star <= Math.round(product.rating!) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
+                     className={star <= Math.round(averageRating ?? 0) ? 'text-yellow-400 fill-yellow-400' : 'text-dark-600'}
                   />
                 ))}
               </div>
               <span className="text-[10px] font-medium text-dark-400">
-                {product.review_count ? `(${product.review_count})` : ''}
+                 {averageRating?.toFixed(1)} ({product.reviewCount})
               </span>
             </div>
-          )}
+          ):<span className="text-[10px] text-slate-500">Chưa có đánh giá</span>}
         </div>
+        <p className="text-xs text-slate-400">{product.soldCount} đã bán · {product.commentCount} nhận xét</p>
 
         <p className={`text-xs font-medium ${outOfStock ? 'text-red-400' : 'text-emerald-400'}`}>
           {outOfStock ? 'Out of Stock' : `${variant.available} in stock`}

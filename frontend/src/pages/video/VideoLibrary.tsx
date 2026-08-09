@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Play, Clock, ChevronRight, TrendingUp, Star, Lock, Users, ArrowRight, AlertTriangle, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Badge from '../../components/ui/badge';
@@ -56,7 +56,7 @@ export default function VideoLibrary() {
       key={video.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.random() * 0.2 }}
+      transition={{ duration: 0.3 }}
       whileHover={{ scale: 1.02, y: -5 }}
       className="group cursor-pointer relative overflow-hidden"
       onClick={() => setPlayingVideo(video.videoUrl)}

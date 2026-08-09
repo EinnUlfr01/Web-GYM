@@ -20,7 +20,7 @@ export default function AnalyticsPage() {
         <StatCard title='Daily Active Users' value={dashboard?.dau || 0} icon={<Users size={20} />} />
         <StatCard title='Monthly Active Users' value={dashboard?.mau || 0} icon={<TrendingUp size={20} />} />
         <StatCard title='Daily Revenue' value={'$' + (dashboard?.dailyRevenue || 0)} icon={<DollarSign size={20} />} />
-        <StatCard title='Churn Rate' value={(dashboard?.churnRate?.toFixed(1) || 0) + '%'} icon={Percent} trend={{ value: 2, positive: false }} />
+        <StatCard title='Churn Rate' value={(dashboard?.churnRate?.toFixed(1) || 0) + '%'} icon={<Percent size={20} />} trend={{ value: 2, positive: false }} />
       </div>
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <div className='card'><h3 className='text-lg font-semibold mb-4'>Revenue Over Time</h3><div className='h-72'><ResponsiveContainer width='100%' height='100%'><LineChart data={revenue || []}><CartesianGrid strokeDasharray='3 3' stroke='#1e293b' /><XAxis dataKey='date' stroke='#64748B' fontSize={12} /><YAxis stroke='#64748B' fontSize={12} /><Tooltip contentStyle={{ background: '#111827', border: '1px solid #1e293b', borderRadius: 8 }} /><Line type='monotone' dataKey='revenue' stroke='#22C55E' strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div></div>

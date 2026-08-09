@@ -1,9 +1,9 @@
-﻿export interface User {
+export interface User {
   id: number;
   email: string;
   name: string;
   phone?: string;
-  role: 'member' | 'coach' | 'admin';
+  role: 'member' | 'coach' | 'admin' | 'seller';
   referral_code?: string;
   avatar_url?: string;
   is_active?: boolean;

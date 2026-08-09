@@ -1,11 +1,19 @@
 import nodemailer,{Transporter} from 'nodemailer';
+import { config } from '../../config/config';
 import { logger } from '../../utils/logger';
 import type { MailConfigurationField,MailConfigurationStatus,MailMessage,MailSendResult } from './mail.types';
 
 let transporter:Transporter|null=null;
 let transporterKey:string|null=null;
 
+function isAcceptanceTransport():boolean{
+  return process.env.MAIL_MODE==='acceptance'
+    && process.env.NODE_ENV==='test'
+    && /^GYMFIT_(?:DB_)?(?:SELLER\d+[A-Z]?_)?ACCEPTANCE_[A-Za-z0-9_]+$/i.test(config.db.database);
+}
+
 export function getMailConfigurationStatus():MailConfigurationStatus{
+  if(isAcceptanceTransport())return {configured:true,missingFields:[]};
   const missingFields:MailConfigurationField[]=[];
   const host=process.env.MAIL_HOST?.trim();
   const port=Number(process.env.MAIL_PORT);
@@ -40,6 +48,10 @@ function getTransporter():Transporter|null{
 export const mailService={
   configurationStatus:getMailConfigurationStatus,
   async send(message:MailMessage):Promise<MailSendResult>{
+    if(isAcceptanceTransport()){
+      logger.info('Mail delivery accepted by isolated acceptance transport',{recipientCount:message.to?1:0});
+      return {configured:true,attempted:true,sent:true,reason:'SENT'};
+    }
     const status=getMailConfigurationStatus();
     const transport=getTransporter();
     if(!status.configured||!transport){logger.warn('Mail delivery skipped: configuration incomplete');return {configured:false,attempted:false,sent:false,reason:'NOT_CONFIGURED'};}

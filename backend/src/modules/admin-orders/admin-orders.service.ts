@@ -4,6 +4,7 @@ import type {
   AdminOrderDetail,
   AdminOrderFilters,
   AdminOrderItem,
+  AdminShopOrder,
   AdminOrderListItem,
   OrderStatus,
   OrderStatusHistoryItem,
@@ -11,6 +12,7 @@ import type {
   PaymentStatusHistoryItem,
   UpdateOrderStatusInput,
 } from "./admin-orders.types";
+import { cancelParentShopOrders } from "../orders/order-reservation.service";
 
 type CountedOrder = AdminOrderListItem & { total_count: number };
 type OrderDetailRow = {
@@ -18,6 +20,10 @@ type OrderDetailRow = {
   orderNumber: string;
   userId: number;
   orderStatus: OrderStatus;
+  logisticsStatus:AdminOrderDetail["logisticsStatus"];
+  readyToShipAt:Date|null;
+  shippedAt:Date|null;
+  deliveredAt:Date|null;
   paymentStatus: AdminOrderDetail["paymentStatus"];
   subtotal: number;
   discountAmount: number;
@@ -42,8 +48,8 @@ type OrderDetailRow = {
 const transitions: Record<OrderStatus, readonly OrderStatus[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["PROCESSING", "CANCELLED"],
-  PROCESSING: ["SHIPPED", "CANCELLED"],
-  SHIPPED: ["DELIVERED"],
+  PROCESSING: ["CANCELLED"],
+  SHIPPED: [],
   DELIVERED: [],
   CANCELLED: [],
 };
@@ -121,17 +127,49 @@ export const adminOrdersService = {
       .request()
       .input("orderId", sql.Int, orderId)
       .query<OrderDetailRow>(
-        `SELECT id AS id,order_number AS orderNumber,user_id AS userId,order_status AS orderStatus,payment_status AS paymentStatus,subtotal AS subtotal,discount_amount AS discountAmount,shipping_amount AS shippingAmount,tax_amount AS taxAmount,total_amount AS totalAmount,currency AS currency,created_at AS createdAt,updated_at AS updatedAt,customer_name AS customerName,customer_email AS customerEmail,customer_phone AS customerPhone,shipping_address_line1 AS addressLine1,shipping_address_line2 AS addressLine2,shipping_city AS city,shipping_state AS state,shipping_postal_code AS postalCode,shipping_country AS country,payment_provider AS paymentProvider,payment_reference AS paymentReference FROM dbo.Orders WHERE id=@orderId`,
+        `SELECT id AS id,order_number AS orderNumber,user_id AS userId,order_status AS orderStatus,logistics_status AS logisticsStatus,ready_to_ship_at AS readyToShipAt,shipped_at AS shippedAt,delivered_at AS deliveredAt,payment_status AS paymentStatus,subtotal AS subtotal,discount_amount AS discountAmount,shipping_amount AS shippingAmount,tax_amount AS taxAmount,total_amount AS totalAmount,currency AS currency,created_at AS createdAt,updated_at AS updatedAt,customer_name AS customerName,customer_email AS customerEmail,customer_phone AS customerPhone,shipping_address_line1 AS addressLine1,shipping_address_line2 AS addressLine2,shipping_city AS city,shipping_state AS state,shipping_postal_code AS postalCode,shipping_country AS country,payment_provider AS paymentProvider,payment_reference AS paymentReference FROM dbo.Orders WHERE id=@orderId`,
       );
     const order = orderResult.recordset[0];
     if (!order) throw new AppError(404, "Order not found");
-    const [itemsResult, historyResult, paymentHistoryResult] =
+    const [itemsResult, shopOrderResult, historyResult, paymentHistoryResult,shopHistoryResult,logisticsHistoryResult] =
       await Promise.all([
         pool
           .request()
           .input("orderId", sql.Int, orderId)
           .query<AdminOrderItem>(
             "SELECT id AS id,product_id AS productId,variant_id AS variantId,product_name AS productName,variant_name AS variantName,sku AS sku,quantity AS quantity,unit_price AS unitPrice,line_total AS lineTotal,created_at AS createdAt FROM dbo.OrderItems WHERE order_id=@orderId ORDER BY id ASC",
+          ),
+        pool
+          .request()
+          .input("shopOrderParentId", sql.Int, orderId)
+          .query<{
+            shopOrderId:number;
+            shopOrderStatus:AdminShopOrder["status"];
+            shopOrderSubtotal:number;
+            shopOrderCreatedAt:Date;
+            shopOrderUpdatedAt:Date;
+            shopId:number;
+            shopName:string;
+            shopSlug:string;
+            itemId:number;
+            productId:number;
+            variantId:number;
+            productName:string;
+            variantName:string;
+            sku:string;
+            quantity:number;
+            unitPrice:number;
+            lineTotal:number;
+            itemCreatedAt:Date;
+            readyForPickupAt:Date|null;
+            pickedUpAt:Date|null;
+            inTransitToHubAt:Date|null;
+            receivedAtHubAt:Date|null;
+            hubCheckedAt:Date|null;
+            shopDeliveredAt:Date|null;
+            hubCheckReason:string|null;
+          }>(
+            "SELECT so.id AS shopOrderId,so.status AS shopOrderStatus,so.subtotal AS shopOrderSubtotal,so.ready_for_pickup_at AS readyForPickupAt,so.picked_up_at AS pickedUpAt,so.in_transit_to_hub_at AS inTransitToHubAt,so.received_at_hub_at AS receivedAtHubAt,so.hub_checked_at AS hubCheckedAt,so.delivered_at AS shopDeliveredAt,fail.note AS hubCheckReason,so.created_at AS shopOrderCreatedAt,so.updated_at AS shopOrderUpdatedAt,s.id AS shopId,s.name AS shopName,s.slug AS shopSlug,oi.id AS itemId,oi.product_id AS productId,oi.variant_id AS variantId,oi.product_name AS productName,oi.variant_name AS variantName,oi.sku,oi.quantity,oi.unit_price AS unitPrice,oi.line_total AS lineTotal,oi.created_at AS itemCreatedAt FROM dbo.ShopOrders so JOIN dbo.Shops s ON s.id=so.shop_id JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id OUTER APPLY (SELECT TOP 1 h.note FROM dbo.ShopOrderStatusHistory h WHERE h.shop_order_id=so.id AND h.new_status=N'HUB_CHECK_FAILED' ORDER BY h.created_at DESC,h.id DESC) fail WHERE so.order_id=@shopOrderParentId ORDER BY so.id,oi.id",
           ),
         pool
           .request()
@@ -145,12 +183,55 @@ export const adminOrdersService = {
           .query<PaymentStatusHistoryItem>(
             "SELECT h.id AS id,h.order_id AS orderId,h.previous_status AS previousStatus,h.new_status AS newStatus,h.changed_by AS changedBy,u.name AS changedByName,u.email AS changedByEmail,h.actor_type AS actorType,h.note AS note,h.payment_reference AS paymentReference,h.created_at AS createdAt FROM dbo.PaymentStatusHistory h LEFT JOIN dbo.Users u ON u.id=h.changed_by WHERE h.order_id=@orderId ORDER BY h.created_at DESC,h.id DESC",
           ),
+        pool.request().input("shopHistoryOrderId",sql.Int,orderId).query<{
+          id:number;shopOrderId:number;previousStatus:string|null;newStatus:string;changedBy:number|null;changedByName:string|null;note:string|null;createdAt:Date;
+        }>("SELECT h.id,h.shop_order_id AS shopOrderId,h.previous_status AS previousStatus,h.new_status AS newStatus,h.changed_by AS changedBy,u.name AS changedByName,h.note,h.created_at AS createdAt FROM dbo.ShopOrderStatusHistory h JOIN dbo.ShopOrders so ON so.id=h.shop_order_id LEFT JOIN dbo.Users u ON u.id=h.changed_by WHERE so.order_id=@shopHistoryOrderId ORDER BY h.created_at DESC,h.id DESC"),
+        pool.request().input("logisticsHistoryOrderId",sql.Int,orderId).query<{
+          id:number;previousStatus:string|null;newStatus:string;changedBy:number|null;changedByName:string|null;note:string|null;createdAt:Date;
+        }>("SELECT h.id,h.previous_status AS previousStatus,h.new_status AS newStatus,h.changed_by AS changedBy,u.name AS changedByName,h.note,h.created_at AS createdAt FROM dbo.OrderLogisticsStatusHistory h LEFT JOIN dbo.Users u ON u.id=h.changed_by WHERE h.order_id=@logisticsHistoryOrderId ORDER BY h.created_at DESC,h.id DESC"),
       ]);
+    const shopOrders:AdminShopOrder[] = [...new Set(shopOrderResult.recordset.map(row=>row.shopOrderId))]
+      .map(shopOrderId=>{
+        const rows=shopOrderResult.recordset.filter(row=>row.shopOrderId===shopOrderId);
+        const first=rows[0];
+        return {
+          id:shopOrderId,
+          shop:{id:first.shopId,name:first.shopName,slug:first.shopSlug},
+          status:first.shopOrderStatus,
+          subtotal:first.shopOrderSubtotal,
+          createdAt:first.shopOrderCreatedAt,
+          updatedAt:first.shopOrderUpdatedAt,
+          readyForPickupAt:first.readyForPickupAt,
+          pickedUpAt:first.pickedUpAt,
+          inTransitToHubAt:first.inTransitToHubAt,
+          receivedAtHubAt:first.receivedAtHubAt,
+          hubCheckedAt:first.hubCheckedAt,
+          deliveredAt:first.shopDeliveredAt,
+          hubCheckReason:first.hubCheckReason,
+          statusHistory:shopHistoryResult.recordset.filter(item=>item.shopOrderId===shopOrderId),
+          items:rows.map(row=>({
+            id:row.itemId,
+            productId:row.productId,
+            variantId:row.variantId,
+            productName:row.productName,
+            variantName:row.variantName,
+            sku:row.sku,
+            quantity:row.quantity,
+            unitPrice:row.unitPrice,
+            lineTotal:row.lineTotal,
+            createdAt:row.itemCreatedAt,
+          })),
+        };
+      });
     return {
       id: order.id,
       orderNumber: order.orderNumber,
       userId: order.userId,
       orderStatus: order.orderStatus,
+      logisticsStatus:order.logisticsStatus,
+      readyToShipAt:order.readyToShipAt,
+      shippedAt:order.shippedAt,
+      deliveredAt:order.deliveredAt,
       paymentStatus: order.paymentStatus,
       subtotal: order.subtotal,
       discountAmount: order.discountAmount,
@@ -178,8 +259,13 @@ export const adminOrdersService = {
         reference: order.paymentReference,
       },
       items: itemsResult.recordset,
+      shopOrders,
       statusHistory: historyResult.recordset,
       paymentHistory: paymentHistoryResult.recordset,
+      logisticsHistory:logisticsHistoryResult.recordset,
+      activeShopOrderCount:shopOrders.filter(item=>item.status!=="CANCELLED").length,
+      cancelledShopOrderCount:shopOrders.filter(item=>item.status==="CANCELLED").length,
+      blockingShopOrders:shopOrders.filter(item=>item.status!=="CANCELLED"&&item.status!=="HUB_CHECK_PASSED").map(item=>({id:item.id,status:item.status})),
     };
   },
 
@@ -249,10 +335,10 @@ export const adminOrdersService = {
         const orderItems = await transaction
           .request()
           .input("itemsOrderId", sql.Int, orderId)
-          .query<{ variantId: number; quantity: number }>(
-            "SELECT variant_id AS variantId, quantity FROM dbo.OrderItems WHERE order_id=@itemsOrderId ORDER BY variant_id ASC",
+          .query<{ itemId:number;variantId: number; quantity: number }>(
+            "SELECT id AS itemId,variant_id AS variantId,quantity FROM dbo.OrderItems WITH (UPDLOCK,HOLDLOCK) WHERE order_id=@itemsOrderId AND reservation_released_at IS NULL ORDER BY variant_id ASC,id ASC",
           );
-        if (!orderItems.recordset.length)
+        if (!orderItems.recordset.length && input.status==="DELIVERED")
           throw new AppError(404, "Order items not found");
         const adjustmentRows: Array<{
           variantId: number;
@@ -289,6 +375,11 @@ export const adminOrdersService = {
             .query(
               "UPDATE dbo.Inventory SET on_hand=@newOnHand,reserved=reserved-@quantity,updated_at=SYSUTCDATETIME() WHERE id=@inventoryId",
             );
+          await transaction.request()
+            .input("releasedItemId",sql.Int,item.itemId)
+            .input("releasedBy",sql.Int,adminId)
+            .input("releaseReason",sql.NVarChar(100),input.status==="DELIVERED"?"ORDER_DELIVERED":"ADMIN_PARENT_CANCELLED")
+            .query("UPDATE dbo.OrderItems SET reservation_released_at=SYSUTCDATETIME(),reservation_released_by=@releasedBy,reservation_release_reason=@releaseReason WHERE id=@releasedItemId AND reservation_released_at IS NULL");
           if (input.status === "DELIVERED")
             adjustmentRows.push({
               variantId: item.variantId,
@@ -334,7 +425,7 @@ export const adminOrdersService = {
         .input("orderId", sql.Int, orderId)
         .input("status", sql.NVarChar(30), input.status)
         .query(
-          "UPDATE dbo.Orders SET order_status=@status,reservation_expires_at=CASE WHEN @status IN (N'CANCELLED',N'DELIVERED') THEN NULL ELSE reservation_expires_at END,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
+          "UPDATE dbo.Orders SET order_status=@status,logistics_status=CASE WHEN @status=N'CANCELLED' THEN NULL ELSE logistics_status END,reservation_expires_at=CASE WHEN @status IN (N'CANCELLED',N'DELIVERED') THEN NULL ELSE reservation_expires_at END,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
         );
       await transaction
         .request()
@@ -345,6 +436,13 @@ export const adminOrdersService = {
         .input("note", sql.NVarChar(500), input.note ?? null)
         .query(
           "INSERT dbo.OrderStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@orderId,@previousStatus,@newStatus,@changedBy,@note,SYSUTCDATETIME())",
+        );
+      if (input.status === "CANCELLED")
+        await cancelParentShopOrders(
+          transaction,
+          orderId,
+          adminId,
+          input.note?.trim() || "ADMIN_CANCELLED",
         );
       await transaction.commit();
       started = false;

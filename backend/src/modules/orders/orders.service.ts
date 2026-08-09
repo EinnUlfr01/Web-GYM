@@ -4,20 +4,24 @@ import { getPool, sql } from "../../config/database";
 import { AppError } from "../../middleware/errorHandler";
 import { mailService } from "../mail/mail.service";
 import {
+  cancelParentShopOrders,
   insertOrderStatusHistory,
   releaseOrderReservation,
 } from "./order-reservation.service";
 import { getBankTransferPublicConfig } from "./payment-configuration";
 import { orderReservationConfig } from "./order-reservation.config";
+import {loadCommissionConfiguration} from "../marketplace-finance/marketplace-finance.service";
 import type {
   AdminPaymentStatusInput,
   AdminPaymentStatusResult,
   CreateOrderInput,
+  CreateOrderItemInput,
   CreateOrderResult,
   CustomerCancelOrderInput,
   CustomerCancelOrderResult,
   CustomerOrderDetail,
   CustomerOrderItem,
+  CustomerShopOrder,
   CustomerOrderListFilters,
   CustomerOrderSummary,
   OrderCreationRow,
@@ -59,6 +63,9 @@ function orderCurrency(): string {
   const currency = (process.env.ORDER_CURRENCY || "VND").trim().toUpperCase();
   return /^[A-Z]{3}$/.test(currency) ? currency : "VND";
 }
+
+const moneyToMinor = (value: number): number => Math.round(Number(value) * 100);
+const minorToMoney = (value: number): number => value / 100;
 
 async function insertPaymentStatusHistory(
   transaction: Transaction,
@@ -116,15 +123,35 @@ export const ordersService = {
           )
       ).recordset[0];
       if (!user) throw new AppError(404, "User not found");
+      const cart = (
+        await tx
+          .request()
+          .input("cartBuyerId", sql.Int, userId)
+          .query<{ id: number; version: number }>(
+            "SELECT id,version FROM dbo.Carts WITH (UPDLOCK,HOLDLOCK) WHERE buyer_id=@cartBuyerId",
+          )
+      ).recordset[0];
+      if (!cart) throw new AppError(409, "Server Cart is empty");
+      if (cart.version !== input.cartVersion)
+        throw new AppError(409, "CART_CONFLICT: Cart changed before checkout");
+      const checkoutItems = (
+        await tx
+          .request()
+          .input("checkoutCartId", sql.Int, cart.id)
+          .query<CreateOrderItemInput>(
+            "SELECT id AS cartItemId,variant_id AS variantId,quantity FROM dbo.CartItems WITH (UPDLOCK,HOLDLOCK) WHERE cart_id=@checkoutCartId ORDER BY variant_id",
+          )
+      ).recordset;
+      if (checkoutItems.length === 0) throw new AppError(409, "Server Cart is empty");
+      if (checkoutItems.length > 50)
+        throw new AppError(409, "Cart exceeds checkout item limit (50)");
       const rows: OrderCreationRow[] = [];
-      for (const item of [...input.items].sort(
-        (a, b) => a.variantId - b.variantId,
-      )) {
+      for (const item of checkoutItems) {
         const result = await tx
           .request()
           .input("variantId", sql.Int, item.variantId)
           .query<OrderCreationRow>(
-            "SELECT v.id AS variantId,v.product_id AS productId,p.product_name AS productName,v.variant_name AS variantName,v.sku,v.price,v.sale_price AS salePrice,i.on_hand AS onHand,i.reserved FROM dbo.ProductVariants v WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Products p ON p.id=v.product_id JOIN dbo.Inventory i WITH (UPDLOCK,HOLDLOCK) ON i.variant_id=v.id WHERE v.id=@variantId",
+            "SELECT v.id AS variantId,v.product_id AS productId,p.shop_id AS shopId,s.name AS shopName,s.slug AS shopSlug,p.product_name AS productName,v.variant_name AS variantName,v.sku,v.price,v.sale_price AS salePrice,i.on_hand AS onHand,i.reserved FROM dbo.ProductVariants v WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Products p WITH (UPDLOCK,HOLDLOCK) ON p.id=v.product_id JOIN dbo.Shops s WITH (UPDLOCK,HOLDLOCK) ON s.id=p.shop_id JOIN dbo.Inventory i WITH (UPDLOCK,HOLDLOCK) ON i.variant_id=v.id WHERE v.id=@variantId AND p.is_active=1 AND p.moderation_status=N'PUBLISHED' AND s.status=N'ACTIVE' AND v.is_active=1",
           );
         const row = result.recordset[0];
         if (!row)
@@ -132,19 +159,8 @@ export const ordersService = {
             404,
             `Variant ${item.variantId} or Inventory not found`,
           );
-        if (!row.productId) throw new AppError(404, "Product not found");
-        const state = (
-          await tx
-            .request()
-            .input("variantId", sql.Int, item.variantId)
-            .query<{ variant_active: boolean; product_active: boolean }>(
-              "SELECT v.is_active AS variant_active,p.is_active AS product_active FROM dbo.ProductVariants v JOIN dbo.Products p ON p.id=v.product_id WHERE v.id=@variantId",
-            )
-        ).recordset[0];
-        if (!state?.product_active)
-          throw new AppError(409, "Product is not active");
-        if (!state.variant_active)
-          throw new AppError(409, "Variant is not active");
+        if (row.productId === null || row.productId === undefined)
+          throw new AppError(404, "Product not found");
         if (row.onHand - row.reserved < item.quantity)
           throw new AppError(
             409,
@@ -159,21 +175,33 @@ export const ordersService = {
           ),
         });
       }
+      const subtotalMinor = checkoutItems.reduce((sum, item) => {
+        const row = rows.find(
+          (candidate) => candidate.variantId === item.variantId,
+        );
+        if (!row) throw new AppError(409, "Order variant resolution failed");
+        return sum + moneyToMinor(row.price) * item.quantity;
+      }, 0);
+      let voucher:{id:number;amount:number}|null=null;
+      if(input.voucherCode){
+        const voucherResult=await tx.request().input("voucherCode",sql.NVarChar(64),input.voucherCode.trim()).input("voucherBuyerId",sql.Int,userId).query<{id:number;amount:number;minimumOrderAmount:number;status:string;expiresAt:Date}>(
+          "SELECT id,amount,minimum_order_amount AS minimumOrderAmount,status,expires_at AS expiresAt FROM dbo.CompensationVouchers WITH (UPDLOCK,HOLDLOCK) WHERE code=@voucherCode AND buyer_id=@voucherBuyerId",
+        );
+        const candidate=voucherResult.recordset[0];
+        if(!candidate)throw new AppError(404,"Compensation voucher not found");
+        if(candidate.status!=="AVAILABLE")throw new AppError(409,"Compensation voucher is not available");
+        if(candidate.expiresAt<=new Date())throw new AppError(409,"Compensation voucher has expired");
+        if(minorToMoney(subtotalMinor)<Number(candidate.minimumOrderAmount))throw new AppError(409,"Minimum merchandise subtotal for voucher is not met");
+        voucher={id:candidate.id,amount:Number(candidate.amount)};
+      }
       const pricing = {
-        subtotal: input.items.reduce((sum, item) => {
-          const row = rows.find(
-            (candidate) => candidate.variantId === item.variantId,
-          );
-          if (!row) throw new AppError(409, "Order variant resolution failed");
-          return sum + row.price * item.quantity;
-        }, 0),
-        discountAmount: 0,
+        subtotal: minorToMoney(subtotalMinor),
+        discountAmount: voucher?Math.min(voucher.amount,minorToMoney(subtotalMinor)):0,
         shippingAmount: 0,
         taxAmount: 0,
         currency: orderCurrency(),
       };
-      pricing.subtotal = Math.round(pricing.subtotal * 100) / 100;
-      const pricingTotal = pricing.subtotal;
+      const pricingTotal = pricing.subtotal-pricing.discountAmount+pricing.shippingAmount+pricing.taxAmount;
       const inserted = await tx
         .request()
         .input("orderNumber", sql.NVarChar(50), orderNumber())
@@ -202,13 +230,77 @@ export const ordersService = {
           "DECLARE @InsertedOrder TABLE(id INT,order_number NVARCHAR(50),created_at DATETIME2); INSERT dbo.Orders(order_number,user_id,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,order_status,payment_status,payment_provider,reservation_expires_at,created_at,updated_at) OUTPUT INSERTED.id,INSERTED.order_number,INSERTED.created_at INTO @InsertedOrder VALUES(@orderNumber,@userId,@customerName,@customerEmail,@customerPhone,@line1,@line2,@city,@state,@postal,@country,@subtotal,@discount,@shipping,@tax,@total,@currency,N'PENDING',N'UNPAID',N'BANK_TRANSFER',DATEADD(MINUTE,@reservationMinutes,SYSUTCDATETIME()),SYSUTCDATETIME(),SYSUTCDATETIME()); SELECT id,order_number,created_at FROM @InsertedOrder;",
         );
       const order = inserted.recordset[0];
-      for (const item of input.items) {
+      await tx.request().input("logisticsHistoryOrderId",sql.Int,order.id).query(
+        "INSERT dbo.OrderLogisticsStatusHistory(order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@logisticsHistoryOrderId,NULL,N'WAITING_FOR_SHOPS',NULL,N'CREATED_AT_CHECKOUT',SYSUTCDATETIME())",
+      );
+      if(voucher){
+        await tx.request().input("usedVoucherId",sql.BigInt,voucher.id).input("usedOrderId",sql.Int,order.id).query(
+          "UPDATE dbo.CompensationVouchers SET status=N'USED',used_at=SYSUTCDATETIME(),used_order_id=@usedOrderId WHERE id=@usedVoucherId AND status=N'AVAILABLE' AND expires_at>SYSUTCDATETIME(); IF @@ROWCOUNT<>1 THROW 50702,'Voucher is no longer available.',1; UPDATE dbo.Orders SET compensation_voucher_id=@usedVoucherId WHERE id=@usedOrderId",
+        );
+      }
+      const shopGroups = new Map<number, {
+        shopId:number;
+        shopName:string;
+        shopSlug:string;
+        subtotalMinor:number;
+      }>();
+      const {rateBps:commissionRateBps}=await loadCommissionConfiguration(tx);
+      for (const item of checkoutItems) {
+        const row = rows.find(candidate => candidate.variantId === item.variantId);
+        if (!row) throw new AppError(409, "Order variant resolution failed");
+        const existing = shopGroups.get(row.shopId);
+        const lineMinor = moneyToMinor(row.price) * item.quantity;
+        if (existing) existing.subtotalMinor += lineMinor;
+        else shopGroups.set(row.shopId, {
+          shopId: row.shopId,
+          shopName: row.shopName,
+          shopSlug: row.shopSlug,
+          subtotalMinor: lineMinor,
+        });
+      }
+      const createdShopOrders = new Map<number, {
+        id:number;
+        shopId:number;
+        shopName:string;
+        shopSlug:string;
+        subtotal:number;
+      }>();
+      for (const group of [...shopGroups.values()].sort((a,b)=>a.shopId-b.shopId)) {
+        const shopOrderResult = await tx
+          .request()
+          .input("orderId", sql.Int, order.id)
+          .input("shopId", sql.Int, group.shopId)
+          .input("subtotal", sql.Decimal(18,2), minorToMoney(group.subtotalMinor))
+          .input("commissionRate",sql.Int,commissionRateBps)
+          .query<{id:number}>(
+            "DECLARE @commission DECIMAL(18,2)=ROUND(@subtotal*@commissionRate/10000.0,2); INSERT dbo.ShopOrders(order_id,shop_id,status,subtotal,commission_rate_snapshot,commission_base_amount,commission_amount,seller_net_before_adjustment,commission_snapshotted_at,created_at,updated_at) OUTPUT INSERTED.id VALUES(@orderId,@shopId,N'PENDING_PAYMENT',@subtotal,@commissionRate,@subtotal,@commission,@subtotal-@commission,SYSUTCDATETIME(),SYSUTCDATETIME(),SYSUTCDATETIME())",
+          );
+        const shopOrderId = shopOrderResult.recordset[0]?.id;
+        if (!shopOrderId) throw new AppError(409, "ShopOrder creation failed");
+        await tx
+          .request()
+          .input("shopOrderId", sql.Int, shopOrderId)
+          .query(
+            "INSERT dbo.ShopOrderStatusHistory(shop_order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@shopOrderId,NULL,N'PENDING_PAYMENT',NULL,N'CREATED_AT_CHECKOUT',SYSUTCDATETIME())",
+          );
+        createdShopOrders.set(group.shopId, {
+          id: shopOrderId,
+          shopId: group.shopId,
+          shopName: group.shopName,
+          shopSlug: group.shopSlug,
+          subtotal: minorToMoney(group.subtotalMinor),
+        });
+      }
+      for (const item of checkoutItems) {
         const row = rows.find(
           (candidate) => candidate.variantId === item.variantId,
         ) as OrderCreationRow;
-        const inventoryUpdate = await tx
+        const shopOrder = createdShopOrders.get(row.shopId);
+        if (!shopOrder) throw new AppError(409, "ShopOrder resolution failed");
+        await tx
           .request()
           .input("orderId", sql.Int, order.id)
+          .input("shopOrderId", sql.Int, shopOrder.id)
           .input("productId", sql.Int, row.productId)
           .input("variantId", sql.Int, row.variantId)
           .input("productName", sql.NVarChar(200), row.productName)
@@ -219,12 +311,12 @@ export const ordersService = {
           .input(
             "lineTotal",
             sql.Decimal(18, 2),
-            Math.round(row.price * item.quantity * 100) / 100,
+            minorToMoney(moneyToMinor(row.price) * item.quantity),
           )
           .query(
-            "INSERT dbo.OrderItems(order_id,product_id,variant_id,product_name,variant_name,sku,quantity,unit_price,line_total,created_at) VALUES(@orderId,@productId,@variantId,@productName,@variantName,@sku,@quantity,@unitPrice,@lineTotal,SYSUTCDATETIME())",
+            "INSERT dbo.OrderItems(order_id,shop_order_id,product_id,variant_id,product_name,variant_name,sku,quantity,unit_price,line_total,created_at) VALUES(@orderId,@shopOrderId,@productId,@variantId,@productName,@variantName,@sku,@quantity,@unitPrice,@lineTotal,SYSUTCDATETIME())",
           );
-        await tx
+        const inventoryUpdate = await tx
           .request()
           .input("variantId", sql.Int, row.variantId)
           .input("quantity", sql.Int, item.quantity)
@@ -238,6 +330,16 @@ export const ordersService = {
           );
         }
       }
+      const cartCleanup = await tx
+        .request()
+        .input("cleanupCartId", sql.Int, cart.id)
+        .input("cleanupVersion", sql.Int, cart.version)
+        .input("expectedItems", sql.Int, checkoutItems.length)
+        .query<{ version: number }>(
+          "DELETE dbo.CartItems WHERE cart_id=@cleanupCartId; IF @@ROWCOUNT<>@expectedItems THROW 50801,'Cart cleanup count mismatch.',1; UPDATE dbo.Carts SET version=version+1,updated_at=SYSUTCDATETIME() OUTPUT INSERTED.version WHERE id=@cleanupCartId AND version=@cleanupVersion;",
+        );
+      if (cartCleanup.rowsAffected[1] !== 1 || !cartCleanup.recordset[0])
+        throw new AppError(409, "CART_CONFLICT: Cart changed during checkout");
       await tx.commit();
       started = false;
       return {
@@ -249,8 +351,19 @@ export const ordersService = {
         subtotal: pricing.subtotal,
         totalAmount: pricingTotal,
         currency: pricing.currency,
-        itemCount: input.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: checkoutItems.reduce((sum, item) => sum + item.quantity, 0),
         createdAt: order.created_at,
+        shopOrders: [...createdShopOrders.values()].map(shopOrder => ({
+          id: shopOrder.id,
+          shop: {
+            id: shopOrder.shopId,
+            name: shopOrder.shopName,
+            slug: shopOrder.shopSlug,
+          },
+          status: "PENDING_PAYMENT",
+          subtotal: shopOrder.subtotal,
+        })),
+        cartVersion: cartCleanup.recordset[0].version,
       };
     } catch (error: unknown) {
       if (started) await tx.rollback();
@@ -287,11 +400,15 @@ export const ordersService = {
           total_amount: number;
           order_status: string;
           payment_status: string;
+          logistics_status:CustomerOrderDetail["logisticsStatus"];
+          ready_to_ship_at:Date|null;
+          shipped_at:Date|null;
+          delivered_at:Date|null;
           created_at: Date;
           updated_at: Date;
         }
       >(
-        "SELECT id,order_number,user_id,order_status,payment_status,payment_provider,payment_reference,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,created_at,updated_at,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country FROM dbo.Orders WHERE id=@orderId",
+        "SELECT id,order_number,user_id,order_status,logistics_status,ready_to_ship_at,shipped_at,delivered_at,payment_status,payment_provider,payment_reference,subtotal,discount_amount,shipping_amount,tax_amount,total_amount,currency,created_at,updated_at,customer_name,customer_email,customer_phone,shipping_address_line1,shipping_address_line2,shipping_city,shipping_state,shipping_postal_code,shipping_country FROM dbo.Orders WHERE id=@orderId",
       );
     const row = result.recordset[0];
     if (!row) throw new AppError(404, "Order not found");
@@ -303,12 +420,83 @@ export const ordersService = {
       .query<CustomerOrderItem>(
         "SELECT id,product_id AS productId,variant_id AS variantId,product_name AS productName,variant_name AS variantName,sku,quantity,unit_price AS unitPrice,line_total AS lineTotal FROM dbo.OrderItems WHERE order_id=@orderId ORDER BY id ASC",
       );
+    const shopOrderRows = await pool
+      .request()
+      .input("shopOrderParentId", sql.Int, orderId)
+      .query<CustomerShopOrder & CustomerOrderItem & {
+        shopId:number;
+        shopName:string;
+        shopSlug:string;
+        shopOrderId:number;
+        shopOrderStatus:CustomerShopOrder["status"];
+        shopOrderSubtotal:number;
+        shopOrderCreatedAt:Date;
+        shopOrderUpdatedAt:Date;
+        readyForPickupAt:Date|null;
+        pickedUpAt:Date|null;
+        inTransitToHubAt:Date|null;
+        receivedAtHubAt:Date|null;
+        hubCheckedAt:Date|null;
+        shopDeliveredAt:Date|null;
+        itemId:number;
+        refundId:number|null;
+        merchandiseRefund:number|null;
+        shippingRefund:number|null;
+        totalRefund:number|null;
+        refundStatus:string|null;
+        refundReason:string|null;
+        voucherId:number|null;
+        voucherCode:string|null;
+        voucherAmount:number|null;
+        voucherMinimum:number|null;
+        voucherExpiresAt:Date|null;
+        voucherStatus:string|null;
+      }>(
+        "SELECT so.id AS shopOrderId,so.status AS shopOrderStatus,so.subtotal AS shopOrderSubtotal,so.ready_for_pickup_at AS readyForPickupAt,so.picked_up_at AS pickedUpAt,so.in_transit_to_hub_at AS inTransitToHubAt,so.received_at_hub_at AS receivedAtHubAt,so.hub_checked_at AS hubCheckedAt,so.delivered_at AS shopDeliveredAt,so.created_at AS shopOrderCreatedAt,so.updated_at AS shopOrderUpdatedAt,s.id AS shopId,s.name AS shopName,s.slug AS shopSlug,oi.id AS itemId,oi.product_id AS productId,oi.variant_id AS variantId,oi.product_name AS productName,oi.variant_name AS variantName,oi.sku,oi.quantity,oi.unit_price AS unitPrice,oi.line_total AS lineTotal,r.id AS refundId,r.merchandise_amount AS merchandiseRefund,r.shipping_amount AS shippingRefund,r.total_amount AS totalRefund,r.status AS refundStatus,r.reason AS refundReason,v.id AS voucherId,v.code AS voucherCode,v.amount AS voucherAmount,v.minimum_order_amount AS voucherMinimum,v.expires_at AS voucherExpiresAt,v.status AS voucherStatus FROM dbo.ShopOrders so JOIN dbo.Shops s ON s.id=so.shop_id JOIN dbo.OrderItems oi ON oi.shop_order_id=so.id LEFT JOIN dbo.Refunds r ON r.shop_order_id=so.id LEFT JOIN dbo.CompensationVouchers v ON v.source_order_id=so.order_id WHERE so.order_id=@shopOrderParentId ORDER BY so.id,oi.id",
+      );
+    const shopOrders = [...new Set(shopOrderRows.recordset.map(item=>item.shopOrderId))]
+      .map(shopOrderId => {
+        const rows = shopOrderRows.recordset.filter(item=>item.shopOrderId===shopOrderId);
+        const first = rows[0];
+        return {
+          id: shopOrderId,
+          shop: { id:first.shopId, name:first.shopName, slug:first.shopSlug },
+          status:first.shopOrderStatus,
+          subtotal:first.shopOrderSubtotal,
+          createdAt:first.shopOrderCreatedAt,
+          updatedAt:first.shopOrderUpdatedAt,
+          readyForPickupAt:first.readyForPickupAt,
+          pickedUpAt:first.pickedUpAt,
+          inTransitToHubAt:first.inTransitToHubAt,
+          receivedAtHubAt:first.receivedAtHubAt,
+          hubCheckedAt:first.hubCheckedAt,
+          deliveredAt:first.shopDeliveredAt,
+          hubCheckFailed:first.shopOrderStatus==="HUB_CHECK_FAILED",
+          refund:first.refundId?{id:first.refundId,merchandiseAmount:Number(first.merchandiseRefund),shippingAmount:Number(first.shippingRefund),totalAmount:Number(first.totalRefund),status:String(first.refundStatus),reason:String(first.refundReason)}:null,
+          compensationVoucher:first.voucherId?{id:first.voucherId,code:String(first.voucherCode),amount:Number(first.voucherAmount),minimumOrderAmount:Number(first.voucherMinimum),expiresAt:first.voucherExpiresAt as Date,status:String(first.voucherStatus)}:null,
+          items:rows.map(item=>({
+            id:item.itemId,
+            productId:item.productId,
+            variantId:item.variantId,
+            productName:item.productName,
+            variantName:item.variantName,
+            sku:item.sku,
+            quantity:item.quantity,
+            unitPrice:item.unitPrice,
+            lineTotal:item.lineTotal,
+          })),
+        } satisfies CustomerShopOrder;
+      });
     const bankTransfer = getBankTransferPublicConfig(row.order_number);
     return {
       id: row.id,
       orderNumber: row.order_number,
       userId: row.user_id,
       orderStatus: row.order_status,
+      logisticsStatus:row.logistics_status,
+      readyToShipAt:row.ready_to_ship_at,
+      shippedAt:row.shipped_at,
+      deliveredAt:row.delivered_at,
       paymentStatus: row.payment_status,
       paymentProvider: row.payment_provider,
       paymentReference: row.payment_reference,
@@ -330,6 +518,7 @@ export const ordersService = {
       postalCode: row.shipping_postal_code,
       country: row.shipping_country,
       items: items.recordset,
+      shopOrders,
       bankTransfer,
     };
   },
@@ -454,8 +643,11 @@ export const ordersService = {
       const order = result.recordset[0];
       if (!order) throw new AppError(404, "Order not found");
       const previous = order.payment_status;
-      if (previous === input.status)
-        throw new AppError(409, `Payment is already ${input.status}`);
+      if (previous === input.status){
+        await tx.commit();
+        started=false;
+        return {orderId:order.id,orderNumber:order.order_number,previousPaymentStatus:previous,paymentStatus:input.status,emailSent:false};
+      }
       const allowed =
         (previous === "PENDING" &&
           (input.status === "PAID" || input.status === "FAILED")) ||
@@ -499,6 +691,23 @@ export const ordersService = {
         note,
         paymentReference: order.payment_reference,
       });
+      if(input.status==="PAID"){
+        const children=await tx.request().input("paidParentOrderId",sql.Int,orderId).query<{id:number}>(
+          "SELECT id FROM dbo.ShopOrders WITH (UPDLOCK,HOLDLOCK) WHERE order_id=@paidParentOrderId AND status=N'PENDING_PAYMENT' ORDER BY id",
+        );
+        for(const child of children.recordset)
+          await tx.request().input("paidShopOrderId",sql.Int,child.id).input("paidChangedBy",sql.Int,adminId).query(
+            "UPDATE dbo.ShopOrders SET status=N'PENDING_STOCK_CHECK',updated_at=SYSUTCDATETIME() WHERE id=@paidShopOrderId; INSERT dbo.ShopOrderStatusHistory(shop_order_id,previous_status,new_status,changed_by,note,created_at) VALUES(@paidShopOrderId,N'PENDING_PAYMENT',N'PENDING_STOCK_CHECK',@paidChangedBy,N'PARENT_PAYMENT_CONFIRMED',SYSUTCDATETIME())",
+          );
+      }
+      if(input.status==="FAILED"){
+        await releaseOrderReservation(tx,orderId,adminId,"PAYMENT_FAILED");
+        await cancelParentShopOrders(tx,orderId,adminId,note||"PAYMENT_FAILED");
+        if(order.order_status!=="CANCELLED"){
+          await tx.request().input("failedOrderId",sql.Int,orderId).query("UPDATE dbo.Orders SET order_status=N'CANCELLED',logistics_status=NULL,reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@failedOrderId");
+          await insertOrderStatusHistory(tx,{orderId,previousStatus:order.order_status,newStatus:"CANCELLED",changedBy:adminId,note:note||"PAYMENT_FAILED"});
+        }
+      }
       await tx.commit();
       started = false;
       const shouldEmail =
@@ -574,7 +783,7 @@ export const ordersService = {
         .request()
         .input("orderId", sql.Int, orderId)
         .query(
-          "UPDATE dbo.Orders SET order_status=N'CANCELLED',reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
+          "UPDATE dbo.Orders SET order_status=N'CANCELLED',logistics_status=NULL,reservation_expires_at=NULL,updated_at=SYSUTCDATETIME() WHERE id=@orderId",
         );
       await insertOrderStatusHistory(tx, {
         orderId,
@@ -583,6 +792,12 @@ export const ordersService = {
         changedBy: userId,
         note: note ? `CUSTOMER_CANCELLED: ${note}` : "CUSTOMER_CANCELLED",
       });
+      await cancelParentShopOrders(
+        tx,
+        orderId,
+        userId,
+        note ? `CUSTOMER_CANCELLED: ${note}` : "CUSTOMER_CANCELLED",
+      );
       await tx.commit();
       started = false;
       return {

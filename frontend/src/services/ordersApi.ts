@@ -5,6 +5,6 @@ export const ordersApi={
  getCustomerOrder:(orderId:number)=>api.get<ApiResponse<CustomerOrderDetail>>(`/orders/${orderId}`),
  notifyOrderPayment:(orderId:number,payload:PaymentNotificationInput)=>api.post<ApiResponse<PaymentNotificationResult>>(`/orders/${orderId}/payment-notification`,payload),
  createOrder:(payload:CreateOrderInput)=>api.post<ApiResponse<CreateOrderResult>>('/orders',payload),
- listOrders:(filters:CustomerOrderListFilters)=>api.get<ApiResponse<PaginatedCustomerOrders>>('/orders',{params:filters}),
+ listOrders:(filters:CustomerOrderListFilters, options?:{signal?:AbortSignal})=>api.get<ApiResponse<PaginatedCustomerOrders>>('/orders',{params:filters, signal:options?.signal}),
  cancelOrder:(orderId:number,payload:CustomerCancelOrderInput)=>api.patch<ApiResponse<CustomerCancelOrderResult>>(`/orders/${orderId}/cancel`,payload),
 };

@@ -14,8 +14,8 @@ function Root() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="text-white text-lg">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-page)]">
+        <div className="text-lg text-slate-200">Loading...</div>
       </div>
     );
   }
@@ -26,9 +26,9 @@ function Root() {
       <Toaster
         position="top-right"
         toastOptions={{
-          style: { background: '#111827', color: '#fff', border: '1px solid #1e293b', borderRadius: '0.75rem' },
-          success: { iconTheme: { primary: '#22c55e', secondary: '#fff' } },
-          error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          style: { background: '#172033', color: '#F8FAFC', border: '1px solid #3B4A60', borderRadius: '0.75rem' },
+          success: { iconTheme: { primary: '#A3E635', secondary: '#0B0F14' } },
+          error: { iconTheme: { primary: '#FB7185', secondary: '#0B0F14' } },
         }}
       />
     </BrowserRouter>

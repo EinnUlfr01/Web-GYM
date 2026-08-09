@@ -1,48 +1,58 @@
 # GymFit Project Status
 
-Updated: 2026-07-16 (Asia/Saigon)
+Updated: 2026-08-04 (Asia/Saigon)
 
-## Auth/RBAC hardening (current)
+## Snapshot
 
-Authentication/RBAC hardening is complete on `hotfix/auth-rbac-hardening`. Migration `0006_auth_session_security.sql` is reserved for session security (token versioning, hashed rotating refresh sessions, session revocation and booking-slot uniqueness), not TASK-008. TASK-008 remains **NOT STARTED** and starts its migration sequence at `0007` after the Discovery Gate.
+- Working branch: `coach`.
+- Implementation audit baseline: `47417e26452cf4646ed51ec03a2891410e304823`.
+- Canonical database: `GYMFIT_DB`.
+- Canonical read-only migration status: `21 applied`, `1 pending` (`0010_coach_profiles.sql`), `0 checksum mismatches`; the canonical database was not mutated.
+- Coach migrations `0007`, `0008` and `0009` are applied and checksum-valid.
+- Acceptance databases are disposable, guarded by prefix and must be dropped after use.
+- No acceptance fixtures remain in `GYMFIT_DB`.
 
-## Current baseline
+## Coach module
 
-- Current branch: `feat/dashboard-ui-redesign`
-- TASK-007 final base: `007c-order-management` at `427ad52996961648ffc622ca1bf2999a5aab3df4`
-- Documentation canonicalization starts from commit `a330c93e73566631fc7d043b3d5c0a26d9e81b72`.
-- Canonical database: `GYMFIT_DB`
-- Applied migrations: `0001`–`0006`
-- Overall project: **IN PROGRESS**
+The Coach/Member Workout slice and bounded Admin Coach Management are implemented. The canonical handover is [`docs/coach/COACH_MODULE_HANDOVER.md`](docs/coach/COACH_MODULE_HANDOVER.md).
 
-| Work item | Status |
-|---|---|
-| TASK-001 through TASK-006 | COMPLETE |
-| TASK-007 | COMPLETE — `FULL_TASK_007_COMPLETE` |
-| TASK-008 specification | COMPLETE |
-| TASK-008 implementation | NOT STARTED |
+- Coach Workspace: implemented and scoped by JWT/CRM/assignment ownership.
+- Member Workout: Start Session, immutable snapshot, Set Logs, Complete/Abandon, history and progress.
+- Admin Coach: list/detail/status, assign/reassign and status token invalidation.
+- Admin Exercise Library: existing-schema CRUD and activate/deactivate.
+- Admin Workout Governance: read-only Programs, Assignments, Schedules, Sessions and Progress.
+- Coach appointments: canonical public DTOs, fixed 60-minute booking, ownership-safe state machine and normalized date/time output.
+- Coach self-profile: authenticated Coach-only GET/PATCH with booking toggle and no identity-field mutation.
+- Admin Program Builder: `BLOCKED_ADMIN_PROGRAM_OWNERSHIP_MODEL`.
 
-TASK-007 runtime, authorization/IDOR, real Bank/QR, real Gmail, authenticated Customer browser and authenticated Admin browser acceptance passed. Acceptance data was cleaned and canonical database integrity passed.
+## Verification
 
-Verified canonical counts after dashboard acceptance: Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 16, Orders 1, PaymentStatusHistory 0. User 16 was preserved as a legitimate public registration created before dashboard acceptance; it does not match acceptance fixture conventions.
+- Backend build: PASS.
+- Backend lint: PASS, 0 errors with existing warnings.
+- Frontend TypeScript: PASS, 0 errors.
+- Frontend production build: PASS; existing large-chunk warning remains non-blocking.
+- Coach Role acceptance: PASS on `GYMFIT_DB_COACH_ACCEPTANCE_20260804215000`.
+- Coach Member E2E acceptance: PASS on `GYMFIT_DB_COACH_E2E_FIX_20260804215500`.
+- Admin Coach acceptance: PASS on `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_20260804220000`.
+- Coach Booking acceptance: PASS on `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823`.
+- Regression-02/03 acceptance: PASS; disposable databases and regression storage were removed.
+- Isolated Admin–Coach–Member acceptance: PASS, including RBAC, IDOR, duplicate assignment, concurrent reassign, history preservation, Exercise status and suspended Coach denial.
+- Acceptance database cleanup/drop: PASS.
+- Browser visual verification: PASS for Guest, Member, Coach and Admin route flows at `375x812`, `768x1024` and `1440x900`; no horizontal overflow and no browser console errors.
 
-## TASK-008
+## Known blockers
 
-TASK-008 was previously cancelled/out of scope, then approved for reactivation after full TASK-007 completion as **WORKOUT PROGRAM AND MEMBER PROGRESS**. AI, camera, pose estimation and automatic rep counting remain excluded.
+- `FULL_PROJECT_CLEAN_INSTALL_BLOCKED_BY_MARKETPLACE_MIGRATION_0100`: a fresh baseline contains `SellerApplications` before migration `0100` creates it. This is owned by Marketplace/Seller work and is outside Coach scope.
+- Canonical `GYMFIT_DB` still requires a separately approved migration window for `0010_coach_profiles.sql`; no production data was changed by this task.
 
-Current blocker: none. Exact next action: execute the [TASK-008 Discovery Checklist](docs/TASK-008_DISCOVERY_CHECKLIST.md), record REUSE/EXTEND/REPLACE/DEPRECATED decisions, and only then design migration `0006`. No TASK-008 code or migration exists yet.
+## Protected scope
 
-## Authoritative files
+Marketplace documentation under `docs/marketplace/**`, Marketplace/Seller backend modules, Video and Auth architecture are protected and unchanged by this cleanup. See [`docs/README.md`](docs/README.md) for the canonical documentation index.
 
-- Current state: this file
-- Next work: [ROADMAP.md](ROADMAP.md)
-- Technical index: [docs/README.md](docs/README.md)
-- TASK-007 proof: [docs/TASK-007_FINAL_HANDOFF.md](docs/TASK-007_FINAL_HANDOFF.md)
-- TASK-008 scope: [docs/TASK-008_IMPLEMENTATION_SPEC.md](docs/TASK-008_IMPLEMENTATION_SPEC.md)
-- Database rules: [docs/DATABASE_AND_MIGRATIONS.md](docs/DATABASE_AND_MIGRATIONS.md)
+## Next action
 
-Auth/RBAC closure: manual browser acceptance PASS on `5502`/`5501`; temporary resources and isolated database were cleaned up; canonical Products 167, Users 15, Orders 1 and no acceptance fixtures were verified.
+Apply `0010_coach_profiles.sql` only through the normal approved production migration procedure. Resolve migration `0100` separately on a Marketplace-owned branch; do not alter it as part of Coach work.
 
-Dashboard UI redesign: `GYMFIT COMMAND CENTER` is complete on `feat/dashboard-ui-redesign` as frontend-only. Authenticated Member, Coach and Admin desktop/mobile flows, account switching, route guards and isolated cleanup passed. The prior login failure was a test-harness/process-context defect; direct backend, explicit Vite proxy and React form login passed without a source fix. Admin data is typed and VND-formatted; Coach unavailable states are truthful; Member data remains self-scoped. See [dashboard design system](docs/DASHBOARD_DESIGN_SYSTEM.md).
+## Coach appointment update
 
-Canonical migration closure: backup checksum/VERIFYONLY PASS; migrations `0001–0006` applied to `GYMFIT_DB`; pending `0`, checksum mismatches `0`. Refresh uses JSON `{refreshToken}`; rotation, old-token replay rejection, family revocation, logout revocation, refresh-after-logout `401`, and old-access-token `401` all passed. The orphan smoke session was safely revoked; active AuthSessions is `0`. TASK-008 is unblocked; next action is the Discovery Gate and migration `0007`.
+The implementation includes canonical public Coach APIs, real Member booking, `/appointments`, `/coach/appointments`, fixed `Asia/Ho_Chi_Minh` slots, overlap/concurrency guards, IDOR-safe ownership, normalized Booking DTOs and additive `CoachProfiles` migration `0010`. Backend build/lint/unit, frontend TypeScript/build, Coach Role, Member E2E, Admin Coach, Coach Booking, regression and browser acceptance all pass on disposable environments. The canonical database remains unchanged with `0010` pending by design.

@@ -1,28 +1,48 @@
 # Database and Migrations
 
-GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must never mutate it.
+Status: CANONICAL
+Last verified: 2026-08-04
 
-The runner in `backend/src/scripts/migrate.ts` reads ordered `db/migrations/NNNN_description.sql` files, applies each in a transaction, and records filename/version/SHA-256 in `SchemaMigrations`. `npm run db:migrate:status` is read-only. A changed checksum for an applied migration is an integrity failure; never edit migrations `0001`-`0005`.
+GymFit uses SQL Server. The canonical database is `GYMFIT_DB`; acceptance must never mutate it. The runner in `backend/src/scripts/migrate.ts` reads ordered `db/migrations/NNNN_description.sql` files, applies each migration transactionally and records filename/version/SHA-256 in `SchemaMigrations`. `npm run db:migrate:status` is read-only.
 
-Filenames must match `NNNN_description.sql` and execute lexicographically. Each migration and its tracking row commit in one transaction. A line containing only `GO` is a supported SQL batch separator. Apply mode must stop when required foundation tables are absent or stock backfill is ambiguous; destructive reset/bootstrap is not a fallback.
+## Current migration contract
 
-| Migration | Purpose |
-|---|---|
-| 0001 | Commerce catalog foundation: variants/options/images and canonical per-variant Inventory |
-| 0002 | Default variants, low-stock threshold and InventoryAdjustments |
-| 0003 | Orders, OrderItems and OrderStatusHistory |
-| 0004 | PaymentStatusHistory |
-| 0005 | Reservation expiration metadata/index |
-| 0006 | Auth session security: `Users.token_version`, hashed rotating `AuthSessions`, and active booking-slot uniqueness |
+| Migration | Purpose | State |
+|---|---|---|
+| `0001`–`0005` | Commerce foundation, inventory, orders, payment history and reservation metadata | Applied and immutable |
+| `0006` | Auth session security and booking-slot uniqueness | Applied and immutable |
+| `0007_coach_programs_assignments_schedules.sql` | Coach programs, days, exercises, assignments and schedules | Applied and checksum-valid |
+| `0008_member_workout_flow.sql` | Member session, immutable exercise snapshot and set-log tables | Applied and additive |
+| `0009_admin_coach_management.sql` | Bounded Coach status/reason fields and status index | Applied and checksum-valid |
+| `0010_coach_profiles.sql` | Additive Coach public profile and booking-enabled fields | Applied and checksum-valid on isolated Coach acceptance; pending on canonical by design |
+| `0100`–`0111` | Seller/Marketplace modules | Existing applied range; unchanged by Coach work |
 
-Verified canonical baseline after auth-session closure: Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, active AuthSessions 0. Inventory enforces non-negative `on_hand`, `0 <= reserved <= on_hand`, and computed `available = on_hand - reserved`. Products own variants/images; variants own inventory; Orders own item snapshots and immutable status/payment history. Expiration releases eligible unpaid reservations; delivery consumes reserved/on-hand stock.
+The canonical read-only result remains 21 applied, 1 pending (`0010_coach_profiles.sql`) and 0 checksum mismatches; the canonical database was not mutated. On isolated `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_20260804212823`, the pre-migration ledger had 21 applied, 1 pending and 0 mismatches; the normal runner applied `0010` transactionally and `npm run verify:coach-migration` reported 22 applied, 0 pending, 0 checksum mismatches, `CoachProfiles` present and its unique Coach key present. A fresh clean install remains blocked at Marketplace/Seller migration `0100` because the baseline schema already contains `SellerApplications`; see `marketplace/MIGRATION_0100_BASELINE_CONFLICT.md`.
 
-Before applying a migration: confirm target identity, create a canonical backup using the established backup process, verify that backup, review SQL and checksum/status, then apply once. Never include passwords, credential-bearing connection strings or sensitive backup names in documentation/logs.
+## Coach/Member data model
 
-Acceptance uses an isolated database such as `GYMFIT_DB_TASK008_ACCEPTANCE_<timestamp>` restored from a verified baseline. Verify identity before mutation, run acceptance there, clean up, and re-check canonical counts/integrity.
+`0007` owns `WorkoutPrograms`, `WorkoutProgramDays`, `WorkoutProgramExercises`, `CoachProgramAssignments` and `CoachProgramSchedules`. `0008` owns `MemberWorkoutSessions`, `MemberWorkoutSessionExercises` and `MemberWorkoutSetLogs`. The snapshot copies exercise identity, name, ordering and targets at Start; later template edits do not rewrite history. Unique constraints protect one session per schedule, one active session per Member and one set number per session exercise.
 
-TASK-008 is not started and may not reuse `0006`; any future numbering must be chosen only after its Discovery Gate. See the [full specification](TASK-008_IMPLEMENTATION_SPEC.md).
+Member and Coach identity is derived from JWT plus backend scope queries. The current assignment requires `ACTIVE`, its date range to include today in its IANA timezone, and its Coach to match the active `CRMCustomers.assigned_coach_id`. Historical sessions remain preserved even when a CRM scope changes.
 
-Auth/RBAC closure verified canonical Products 167, ProductVariants 167, Inventory 167, ProductImages 1, Users 15, Orders 1, PaymentStatusHistory 0, and active AuthSessions 0; the existing Order was preserved. Refresh uses JSON `{refreshToken}` with opaque hashed rotating sessions; replay revokes the family and logout revokes the current session. Isolated database `GYMFIT_DB_AUTH_RBAC_ACCEPTANCE_1784111000000` was dropped and confirmed absent; no acceptance fixtures remain canonically. TASK-008 is unblocked and starts from migration `0007` after its Discovery Gate.
+`0009` is additive to `Users`: `coach_status` is `ACTIVE|SUSPENDED|INACTIVE`, with an optional bounded reason and timestamp. `SUSPENDED` keeps `is_active=1` for administrative visibility but is rejected by live Coach authentication; `INACTIVE` also sets `is_active=0`. No Coach, Exercise, Program, Assignment, Session or Set Log is hard-deleted.
 
-Canonical migration `0006_auth_session_security.sql` applied successfully via the migration runner with checksum `e6608c0d29d163f4f4a6627e8e1f34fa22f642bbec1f3cea5ac01cc31982dd74`; pending migrations are `0` and checksum mismatches are `0`. Backup and `RESTORE VERIFYONLY WITH CHECKSUM` passed before mutation.
+## Safe migration procedure
+
+1. Query and verify the target database identity.
+2. Create and verify a `COPY_ONLY CHECKSUM` backup before mutation.
+3. Review the migration SQL, runner status and checksum.
+4. Apply forward-only through the normal runner; never edit or renumber an applied file.
+5. Re-run status and invariant queries.
+
+Acceptance uses isolated names such as `GYMFIT_DB_COACH_E2E_FIX_<timestamp>` or `GYMFIT_DB_ADMIN_COACH_ACCEPTANCE_<timestamp>`, restored from a verified baseline. Seed deterministic data only there, run API/browser acceptance, clean fixture rows, drop the database and verify it is absent. Never print credentials or secrets.
+
+## Integrity rules
+
+Applied checksums are immutable. No reset, drop or manual migration is a fallback. A checksum mismatch blocks completion. Existing Marketplace migrations and commerce invariants remain outside Coach scope and must be unchanged.
+
+## Coach appointment schema addition
+
+Migration `0010_coach_profiles.sql` creates `dbo.CoachProfiles` only when it is absent. It stores public profile/booking-enabled fields, has a unique `coach_id` foreign key to `Users`, and does not create or replace the existing `Bookings` table or `UX_Bookings_ActiveSlot` filtered unique index. The full schema baseline includes the same additive table and Coach governance columns; existing databases must still be checked with `npm run db:migrate:status` before applying anything.
+
+Coach acceptance scripts refuse the canonical database. Use a disposable database name beginning `GYMFIT_DB_COACH_BOOKING_ACCEPTANCE_`, apply migrations there, verify the ledger with `npm run verify:coach-migration`, start the API against that database, and run `npm run acceptance:coach-booking`. The acceptance environment guard also suppresses the unrelated order-expiration runner. No Marketplace migration is part of this change.

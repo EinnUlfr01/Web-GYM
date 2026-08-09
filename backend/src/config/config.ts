@@ -1,11 +1,18 @@
-﻿import * as dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 dotenv.config();
 
 const useTrusted = process.env.DB_TRUSTED_CONNECTION === 'true';
+const nodeEnv = process.env.NODE_ENV || 'development';
+const secret = (name:string, developmentFallback:string) => {
+  const value=process.env[name]?.trim();
+  if(value)return value;
+  if(nodeEnv==='production')throw new Error(`${name} is required in production`);
+  return developmentFallback;
+};
 
 export const config = {
   port: parseInt(process.env.PORT || '5000'),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   db: {
     server: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '1433'),
@@ -21,8 +28,8 @@ export const config = {
     pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
   },
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev-access-secret-32ch',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-32c',
+    accessSecret: secret('JWT_ACCESS_SECRET','dev-access-secret-32ch'),
+    refreshSecret: secret('JWT_REFRESH_SECRET','dev-refresh-secret-32c'),
     accessExpires: process.env.JWT_ACCESS_EXPIRES || '15m',
     refreshExpires: process.env.JWT_REFRESH_EXPIRES || '7d',
     issuer: process.env.JWT_ISSUER || 'gymfit-api',

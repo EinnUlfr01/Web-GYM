@@ -23,6 +23,12 @@ export default function CartPage() {
   const {
     cartItems,
     cartWarning,
+    cartConflict,
+    mergeSummary,
+    mergeRetryAvailable,
+    retryGuestMerge,
+    isCartLoading,
+    isCartMutating,
     migratePersistedCart,
     updateCartQuantity,
     removeFromCart,
@@ -99,11 +105,30 @@ export default function CartPage() {
       ),
     [resolved],
   );
+  const shopGroups = useMemo(() => {
+    const groups = new Map<string, {
+      shop: { id: number; name: string; slug: string } | null;
+      items: ResolvedCartItem[];
+      subtotal: number;
+    }>();
+    for (const item of resolved) {
+      const shop = item.product?.shop ?? null;
+      const key = shop ? String(shop.id) : "unavailable";
+      const existing = groups.get(key);
+      const lineTotal =
+        (item.variant?.effective_price ?? 0) * item.quantity;
+      if (existing) {
+        existing.items.push(item);
+        existing.subtotal += lineTotal;
+      } else groups.set(key, { shop, items: [item], subtotal: lineTotal });
+    }
+    return [...groups.values()];
+  }, [resolved]);
   const checkout = () =>
     navigate(isAuthenticated ? "/checkout" : "/login", {
       state: { from: { pathname: "/checkout" } },
     });
-  if (loading)
+  if (loading || isCartLoading)
     return (
       <main className="mx-auto max-w-6xl p-6 text-white">
         Đang tải giỏ hàng…
@@ -125,9 +150,18 @@ export default function CartPage() {
           </button>
         )}
       </div>
-      {(cartWarning || error) && (
+      {(cartWarning || error || cartConflict || mergeSummary) && (
         <p role="alert" className="rounded bg-amber-500/10 p-4 text-amber-300">
-          {cartWarning || error}
+          {cartConflict || mergeSummary || cartWarning || error}
+          {mergeRetryAvailable && (
+            <button
+              className="ml-3 underline"
+              disabled={isCartMutating}
+              onClick={() => void retryGuestMerge()}
+            >
+              Thử đồng bộ lại
+            </button>
+          )}
         </p>
       )}
       {resolved.length === 0 ? (
@@ -139,8 +173,31 @@ export default function CartPage() {
         </div>
       ) : (
         <>
-          <div className="space-y-3">
-            {resolved.map((item) => (
+          <div className="space-y-5">
+            {shopGroups.map((group) => (
+              <section
+                key={group.shop?.id ?? "unavailable"}
+                className="rounded-xl border border-emerald-400/20 p-4"
+              >
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <h2 className="text-lg font-semibold">
+                    {group.shop ? (
+                      <Link
+                        className="text-emerald-400"
+                        to={`/shops/${group.shop.slug}`}
+                      >
+                        {group.shop.name}
+                      </Link>
+                    ) : (
+                      "Sản phẩm không còn khả dụng"
+                    )}
+                  </h2>
+                  <span>
+                    Shop subtotal: {group.subtotal.toLocaleString()} VND
+                  </span>
+                </div>
+                <div className="space-y-3">
+            {group.items.map((item) => (
               <article
                 key={`${item.productId}-${item.variantId}`}
                 className="grid gap-4 rounded-xl border border-white/10 p-4 sm:grid-cols-[96px_1fr_auto]"
@@ -226,10 +283,19 @@ export default function CartPage() {
                 </div>
               </article>
             ))}
+                </div>
+              </section>
+            ))}
           </div>
           <div className="rounded-xl border border-white/10 p-5 text-right">
             <p className="text-xl font-bold">
               Tạm tính: {subtotal.toLocaleString()} VND
+            </p>
+            <p className="text-sm text-white/60">
+              Discount: 0 VND · Tax: 0 VND · Outbound shipping: 0 VND
+            </p>
+            <p className="text-xl font-bold">
+              Total: {subtotal.toLocaleString()} VND
             </p>
             <div className="mt-4 flex justify-end gap-3">
               <Link className="btn-secondary" to="/products">

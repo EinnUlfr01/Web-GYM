@@ -472,7 +472,16 @@ async function applyMigration(transaction: Transaction, migration: MigrationFile
 
 async function main(): Promise<void> {
   const statusOnly = process.argv.includes('--status');
-  const migrations = await discoverMigrations();
+  const throughArgument = process.argv.find(argument => argument.startsWith('--through='));
+  const throughIndex=process.argv.indexOf('--through');
+  const throughVersion = process.argv.includes('--historical-pre-0105')
+    ? '0104'
+    : throughArgument?.slice('--through='.length) ?? (throughIndex>=0?process.argv[throughIndex+1]:undefined);
+  if (throughVersion && !/^\d{4}$/.test(throughVersion)) throw new Error('Invalid --through migration version');
+  const discoveredMigrations = await discoverMigrations();
+  const migrations = throughVersion
+    ? discoveredMigrations.filter(migration => migration.version <= throughVersion)
+    : discoveredMigrations;
   const pool = await getPool();
   const dbResult = await pool.request().query('SELECT DB_NAME() AS database_name');
   console.log(`Target database: ${String(dbResult.recordset[0]?.database_name ?? 'UNKNOWN')}`);

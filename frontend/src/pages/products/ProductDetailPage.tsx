@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "../../lib/utils";
 import api from "../../api/axios";
+import { reviewsApi } from "../../services/reviewsApi";
+import type { MarketplaceReview } from "../../types/reviews";
 import { useAuthStore } from "../../stores/authStore";
 import { useProductsStore } from "../../stores/productsStore";
 import type {
@@ -472,6 +474,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [productReviews, setProductReviews] = useState<MarketplaceReview[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
     null,
@@ -497,6 +500,12 @@ export default function ProductDetailPage() {
         variants[0];
       setSelectedVariantId(selected?.id ?? null);
       setRelatedProducts(res.data.related_products || []);
+      try {
+        const reviewResponse = await reviewsApi.productPublic(id || String(p?.id ?? ""));
+        setProductReviews(reviewResponse.data.data.items);
+      } catch {
+        setProductReviews([]);
+      }
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Product not found");
@@ -596,12 +605,6 @@ export default function ProductDetailPage() {
     p.display_variant.sale_price < p.display_variant.price,
   );
   const discPct = discountPct(p);
-  const sampleReviews: Array<{
-    user: string;
-    rating: number;
-    date: string;
-    comment: string;
-  }> = [];
   const fbtProducts = relatedProducts.slice(0, 2);
   const fbtTotal =
     p.display_variant.effective_price +
@@ -687,6 +690,9 @@ export default function ProductDetailPage() {
                   {p.brand}
                 </span>
               )}
+              <Link className="block text-sm text-emerald-400 hover:text-emerald-300" to={`/shops/${p.shop.slug}`}>
+                Bán bởi {p.shop.name}{p.shop.isVerified ? " · Shop đã xác minh" : ""}
+              </Link>
 
               {/* Product name */}
               <h1 className="text-3xl lg:text-4xl font-bold text-white leading-tight font-heading">
@@ -695,12 +701,12 @@ export default function ProductDetailPage() {
 
               {/* Rating */}
               <div className="flex items-center gap-3">
-                <Stars rating={p.rating || 0} size={18} />
+                <Stars rating={p.averageRating || 0} size={18} />
                 <span className="text-sm text-gray-400 font-body">
-                  {p.rating ? p.rating.toFixed(1) : "0.0"}
+                  {p.averageRating != null ? p.averageRating.toFixed(1) : "Chưa có đánh giá"}
                   <span className="text-gray-600">
                     {" "}
-                    ({p.review_count || 0} reviews)
+                    ({p.reviewCount} reviews · {p.commentCount} comments · {p.soldCount} sold)
                   </span>
                 </span>
               </div>
@@ -917,7 +923,7 @@ export default function ProductDetailPage() {
                 { key: "description", label: "Description" },
                 { key: "specifications", label: "Specifications" },
                 { key: "ingredients", label: "Ingredients" },
-                { key: "reviews", label: `Reviews (${p.review_count || 0})` },
+                { key: "reviews", label: `Reviews (${p.reviewCount})` },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1021,23 +1027,23 @@ export default function ProductDetailPage() {
                       <div className="flex items-center gap-6 mb-8 p-5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                         <div className="text-center">
                           <div className="text-4xl font-bold text-white font-heading">
-                            {p.rating ? p.rating.toFixed(1) : "0.0"}
+                            {p.averageRating != null ? p.averageRating.toFixed(1) : "—"}
                           </div>
-                          <Stars rating={p.rating || 0} size={14} />
+                          <Stars rating={p.averageRating || 0} size={14} />
                           <p className="text-xs text-gray-500 mt-1 font-body">
-                            {p.review_count || 0} reviews
+                            {p.reviewCount} reviews
                           </p>
                         </div>
                         <div className="flex-1 space-y-1.5">
                           {[5, 4, 3, 2, 1].map((star) => {
-                            const pct = p.review_count
+                            const pct = p.reviewCount
                               ? Math.round(
-                                  (sampleReviews.filter(
+                                  (productReviews.filter(
                                     (r) => r.rating === star,
                                   ).length /
                                     Math.max(
-                                      p.review_count,
-                                      sampleReviews.length,
+                                      p.reviewCount,
+                                      productReviews.length,
                                     )) *
                                     100,
                                 )
@@ -1065,7 +1071,7 @@ export default function ProductDetailPage() {
                         </div>
                       </div>
 
-                      {p.review_count === 0 ? (
+                      {p.reviewCount === 0 ? (
                         <div className="text-center py-8">
                           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
                             <Star size={28} className="text-gray-500" />
@@ -1076,29 +1082,30 @@ export default function ProductDetailPage() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {sampleReviews.map((review, i) => (
+                          {productReviews.map((review) => (
                             <div
-                              key={i}
+                              key={review.id}
                               className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5"
                             >
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <div className="w-9 h-9 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-sm font-bold text-orange-400 font-body">
-                                    {review.user.charAt(0)}
+                                    {review.buyerName.charAt(0)}
                                   </div>
                                   <div>
                                     <p className="font-medium text-white text-sm font-body">
-                                      {review.user}
+                                      {review.buyerName}
+                                      {review.verifiedPurchase && <span className="ml-2 text-xs text-emerald-400">Đã mua hàng</span>}
                                     </p>
                                     <Stars rating={review.rating} size={12} />
                                   </div>
                                 </div>
                                 <span className="text-xs text-gray-500 font-body">
-                                  {review.date}
+                                  {new Date(review.publishedAt || review.createdAt).toLocaleDateString("vi-VN")}
                                 </span>
                               </div>
                               <p className="text-gray-300 text-sm leading-relaxed font-body">
-                                {review.comment}
+                                {review.comment || "Người mua chỉ chấm điểm."}
                               </p>
                             </div>
                           ))}

@@ -2,6 +2,7 @@ export enum UserRole {
   MEMBER = 'member',
   COACH = 'coach',
   ADMIN = 'admin',
+  SELLER = 'seller',
 }
 
 export interface IUser {

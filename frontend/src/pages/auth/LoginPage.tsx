@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { Dumbbell, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { canAccess,roleHome } from '../../auth/accessPolicy';
+import { clearPendingPlan, getPendingPlanCheckoutPath } from '../../services/plans';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -44,8 +45,12 @@ export default function LoginPage() {
     
     try {
       const current=await login(email,password);
-      const from=typeof location.state?.from?.pathname==='string'?location.state.from.pathname:'';
-      navigate(from&&from.startsWith('/')&&canAccess(current.role,from)?from:roleHome(current.role),{replace:true});
+      const pendingCheckout = current.role === 'member' ? getPendingPlanCheckoutPath() : null;
+      if (current.role !== 'member') clearPendingPlan();
+      const fromPath=typeof location.state?.from?.pathname==='string'?location.state.from.pathname:'';
+      const fromSearch=typeof location.state?.from?.search==='string'?location.state.from.search:'';
+      const destination=pendingCheckout || (fromPath&&fromPath.startsWith('/')&&canAccess(current.role,fromPath)?`${fromPath}${fromSearch}`:roleHome(current.role));
+      navigate(destination,{replace:true});
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Login failed. Please try again.';
       setError(msg);
